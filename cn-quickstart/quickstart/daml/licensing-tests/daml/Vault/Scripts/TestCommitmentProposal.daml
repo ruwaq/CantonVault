@@ -1,0 +1,30 @@
+-- | Tests for CommitmentProposal → CommitmentContract flow.
+module Vault.Scripts.TestCommitmentProposal where
+
+import Daml.Script
+import DA.Time
+import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
+import Vault.CommitmentContract (CommitmentContract(..), Status(..))
+
+test_propose_accept : Script ()
+test_propose_accept = do
+  proposer <- allocateParty "SME"
+  accepter <- allocateParty "Financier"
+  thirdParty <- allocateParty "Buyer"
+  now <- getTime
+  let deadline = addRelTime now (seconds 6000)
+  proposalCid <- submit proposer $ createCmd CommitmentProposal with
+    proposer = proposer
+    accepter = accepter
+    thirdParty = thirdParty
+    amount = 5000.0
+    currency = "CC"
+    description = "Invoice INV-2026-001 factoring"
+    workflow = "supply-chain-finance"
+    deadline = deadline
+  -- Accepter exercises AcceptProposal
+  contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
+  -- Both should see the resulting CommitmentContract
+  contracts <- query @CommitmentContract proposer
+  assertMsg "Proposer sees the contract" (not (null contracts))
+  return ()

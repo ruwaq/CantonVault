@@ -1,0 +1,97 @@
+-- | The core commitment contract for CantonVault.
+-- A conditional commitment between two parties with selective disclosure to a third party.
+--
+-- Privacy guarantee: thirdParty is REFERENCED but NOT in signatory/observer.
+-- This means the third party cannot see this contract until a DisputeCase is raised.
+module Vault.CommitmentContract where
+
+import Licensing.Util as Util (require)
+import Vault.SettlementReceipt (SettlementReceipt(..))
+
+data Status = Active | Fulfilled | Disputed | Refunded deriving (Eq, Show)
+
+template CommitmentContract with
+    proposer      : Party
+    accepter      : Party
+    thirdParty    : Party        -- REFERENCED but NOT in signatory/observer
+    amount        : Decimal
+    currency      : Text
+    description   : Text
+    workflow      : Text
+    deadline      : Time
+    status        : Status
+  where
+    signatory proposer, accepter
+    ensure amount > 0.0
+
+    -- Fulfill: accepter confirms delivery, creates SettlementReceipt.
+    -- Canton Coin settlement (amulet) integrated in Task 1.6b.
+    choice Fulfill : ContractId SettlementReceipt
+      controller accepter
+      do
+        now <- getTime
+        -- TODO(Phase 1.6b): replace symbolic create with real
+        -- Allocation_ExecuteTransfer of amulet from proposer to accepter,
+        -- following the LicenseRenewalRequest_CompleteRenewal pattern.
+        create SettlementReceipt with
+          proposer = proposer
+          accepter = accepter
+          amount = amount
+          currency = currency
+          timestamp = now
+          note = Some ("fulfilled via CantonVault: " <> workflow)
+
+    -- RaiseDispute: either signatory can escalate to the third party.
+    -- Creates a DisputeCase where the third party becomes observer.
+    nonconsuming choice RaiseDispute : ContractId DisputeCase
+      with reason : Text
+      controller proposer, accepter
+      do create DisputeCase with
+           commitmentRef = self
+           proposer = proposer
+           accepter = accepter
+           thirdParty = thirdParty
+           reason = reason
+           amountRevealed = amount
+           descriptionRevealed = description
+           ruling = None
+
+    -- Refund: after deadline, proposer can recover committed funds.
+    choice Refund : ()
+      with actor : Party
+      controller actor
+      do
+        require "Actor is a signatory" (actor `elem` signatory this)
+        now <- getTime
+        assertMsg "Cannot refund before deadline exceeded" (now >= deadline)
+        -- TODO(promote): actual amulet return to proposer
+        pure ()
+
+-- | DisputeCase is defined in the same module as CommitmentContract
+-- to avoid circular import issues between CommitmentContract ↔ DisputeCase.
+-- The third party becomes observer of DisputeCase, enabling on-demand disclosure.
+template DisputeCase with
+    commitmentRef         : ContractId CommitmentContract
+    proposer              : Party
+    accepter              : Party
+    thirdParty            : Party
+    reason                : Text
+    amountRevealed        : Decimal      -- only the amount is revealed to thirdParty
+    descriptionRevealed   : Text
+    ruling                : Optional Text
+  where
+    signatory proposer, accepter
+    observer  thirdParty                 -- third party enters here
+
+    choice ResolveDispute : ContractId SettlementReceipt
+      with ruling : Text
+      controller thirdParty
+      do
+        now <- getTime
+        create SettlementReceipt with
+          proposer = proposer
+          accepter = accepter
+          amount = amountRevealed
+          currency = "CC"
+          timestamp = now
+          note = Some ("resolved by third party: " <> ruling)

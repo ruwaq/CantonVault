@@ -1,0 +1,11 @@
+-- | Tests for the Status enum in CommitmentContract.
+module Vault.Scripts.TestStatus where
+
+import Daml.Script
+import Vault.CommitmentContract (Status(..))
+
+test_status_ordering : Script ()
+test_status_ordering = do
+  assertMsg "Active is not Fulfilled" (Active /= Fulfilled)
+  assertMsg "Disputed is not Refunded" (Disputed /= Refunded)
+  return ()

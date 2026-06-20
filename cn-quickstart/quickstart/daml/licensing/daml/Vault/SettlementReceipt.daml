@@ -1,0 +1,14 @@
+-- | Immutable evidence of settlement. No choices — purely evidentiary.
+module Vault.SettlementReceipt where
+
+template SettlementReceipt with
+    proposer      : Party
+    accepter      : Party
+    amount        : Decimal
+    currency      : Text
+    timestamp     : Time
+    note          : Optional Text
+  where
+    signatory proposer, accepter
+    ensure amount > 0.0
+    -- No choices: this is immutable evidence of settlement.

@@ -1,0 +1,36 @@
+-- | Propose pattern: a proposal to enter a commitment contract.
+-- Adapted from Licensing.AppInstall.AppInstallRequest.
+module Vault.CommitmentProposal where
+
+import Vault.CommitmentContract (CommitmentContract(..), Status(..))
+
+template CommitmentProposal with
+    proposer      : Party
+    accepter      : Party
+    thirdParty    : Party
+    amount        : Decimal
+    currency      : Text
+    description   : Text
+    workflow      : Text
+    deadline      : Time
+  where
+    signatory proposer
+    observer  accepter
+    ensure (amount > 0.0 && proposer /= accepter)
+
+    choice AcceptProposal : ContractId CommitmentContract
+      controller accepter
+      do create CommitmentContract with
+           proposer = proposer
+           accepter = accepter
+           thirdParty = thirdParty
+           amount = amount
+           currency = currency
+           description = description
+           workflow = workflow
+           deadline = deadline
+           status = Active
+
+    choice RejectProposal : ()
+      controller accepter
+      do pure ()
