@@ -1,8 +1,9 @@
 # CantonVault — Build on Canton Hackathon
 
-> **Private conditional commitments for cross-border commerce and humanitarian aid.**
-> Una primitiva de compromiso condicional privado donde cada parte ve solo lo que necesita.
-> Solo posible en Canton Network (imposible en Ethereum/Solana públicas).
+> **Privacy-first conditional commitments for institutional trade finance.**
+> Una primitiva de compromiso condicional privado donde la privacidad es propiedad emergente
+> del stakeholder-scoping, no una capa criptográfica bolted-on. Invoice financing privado
+> y OTC block trades privados, con settlement atómico nativo en Canton Coin.
 
 [![Hackathon](https://img.shields.io/badge/Build%20on%20Canton-2026-blue)](https://www.encodeclub.com/programmes/canton-hackathon)
 [![Status](https://img.shields.io/badge/status-Diseño%20aprobado-green)]()
@@ -12,14 +13,20 @@
 
 ## 📖 Qué es CantonVault
 
-**El problema**: Cuando dos empresas (o una ONG y sus beneficiarios) hacen negocios sin confianza previa, hoy no hay forma de garantizar el pago y la entrega **sin que un intermediario vea todos los detalles comerciales**. Los bancos, las plataformas y los competidores tienen acceso a tus márgenes, tus volúmenes y tus relaciones.
+**El problema**: En finanzas institucionales, las partes necesitan compartir lo mínimo necesario para ejecutar — **sin exponer portfolio completo, sin revelar factorización, sin leakage de pricing a competidores**. Hoy no existe infraestructura de selective disclosure nativa. Resultado: double-factoring en invoice financing (pérdidas de miles de millones), leakage de block orders OTC (movimientos de mercado en contra), y compliance pesado con Basel III / MiCA / FATF Travel Rule.
 
-**La solución**: Un contrato Daml que actúa como compromiso condicional privado (escrow inteligente) donde:
-- Comprador y vendedor ven el compromiso y sus condiciones
-- Un árbitro no ve **nada** hasta que se levanta una disputa (selective disclosure on-demand)
-- Un competidor o banco externo conectado al mismo nodo ve un **ledger vacío**
+**La solución**: Un contrato Daml que actúa como compromiso condicional privado donde:
+- Las partes (SME/Financier, Dealer A/Dealer B) ven el compromiso y sus condiciones
+- Un tercero (Buyer, Clearing) no ve **nada** hasta que se le otorga disclosure selectivo on-demand
+- Un competidor o mercado externo conectado al mismo nodo ve un **ledger vacío**
+- El settlement ocurre atómicamente en Canton Coin (burn-mint equilibrium)
 
-**El insight que gana**: el escrow es la excusa. El **producto** es la demo visual de privacidad selectiva. El mismo contrato que protege los secretos comerciales de un exportador mexicano protege la identidad de una familia refugiada. **Un contrato, dos mundos.**
+**El insight que gana**: la privacidad no es una capa criptográfica bolted-on (Canton Foundation: *"opacity is a liability, privacy without proof isn't privacy"*). Es la **propiedad emergente del stakeholder-scoping a nivel protocolo** — el nodo del competidor literalmente no recibe los datos.
+
+## 🎬 Los 2 escenarios de demo (100% institucionales, literales del brief oficial)
+
+- **Invoice Financing Privado** (Track 1): SME factoriza factura → Financier adelanta cash → Buyer nunca sabe que se factorizó. Previene double-factoring.
+- **OTC Block Trade Privado** (Track 1/3): Dealer A ↔ Dealer B negocian bloque → Clearing ve solo netting → Mercado no puede front-runear lo que no ve.
 
 ---
 
@@ -27,12 +34,19 @@
 
 | Criterio oficial | Cómo lo ganamos | Score |
 |---|---|---|
-| Technical execution | 4 contratos Daml basados en patrones verificados (Propose/Accept + Disclosure interface de Daml.Finance) + settlement real con Canton Coin | ⭐⭐⭐⭐⭐ |
-| Originality | Reposicionamiento: no competimos en "escrow" (commodity, 5-10 equipos) → competimos en "privacy primitive" (0 equipos) | ⭐⭐⭐⭐ |
-| UX | Demo split-screen de 4 cuadrantes: prueba privacidad selectiva en 30 segundos | ⭐⭐⭐⭐⭐ |
-| Real-world applicability | 2 verticales con datos verificables: comercio LATAM ($15B, 79% pagos atrasados) + ayuda humanitaria (WFP usa blockchain en Jordania/Bangladesh/Líbano/Ucrania) | ⭐⭐⭐⭐⭐ |
+| Technical execution | 4 contratos Daml basados en patrones verificados (Propose/Accept + Disclosure interface de Daml.Finance) + settlement REAL con Canton Coin (non-negotiable) | ⭐⭐⭐⭐⭐ |
+| Originality | Reposicionamiento: no competimos en "escrow" ni en "privacy engine genérico" → competimos en "privacy como propiedad emergente del stakeholder-scoping" | ⭐⭐⭐⭐⭐ |
+| UX | Demo split-screen de 4 cuadrantes: prueba privacidad selectiva en 30 segundos (cuadrante del competidor SIEMPRE vacío) | ⭐⭐⭐⭐⭐ |
+| Real-world applicability | 2 verticales institucionales LITERALES del brief oficial + marco regulatorio verificable (Basel III, MiCA, FATF) | ⭐⭐⭐⭐⭐ |
 
-**Total: 19/20**
+**Total: 20/20** — y pitch 100% alineado con lo que Canton Foundation pidió
+
+## 💰 El premio real NO son los $7,000
+
+- **62% del pool de Cantonomics rewards (~516M CC/mes)** va a "featured apps que generan transaction utility"
+- Protocol Development Fund grants pagados en CC, atados a milestones
+- **Pitch para Featured App status + grant pipeline**, no solo prize money
+- → Canton Coin settlement **NON-NEGOTIABLE**: sin eso perdemos el único feature que nos hace económicamente nativos
 
 ---
 

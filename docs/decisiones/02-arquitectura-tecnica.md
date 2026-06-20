@@ -1,7 +1,7 @@
 # Decisión 02 — Arquitectura técnica
 
 > **Stack, contratos Daml, infraestructura y extensiones al cn-quickstart.**
-> Cada decisión técnica justificada con la alternativa descartada.
+> Cada decisión técnica justificada con la alternativa descartada. **Versión v2 institucional.**
 
 **Fecha**: 2026-06-20
 **Estado**: ✅ Aprobada
@@ -221,28 +221,31 @@ template SettlementReceipt with
 
 ---
 
-## 🔐 Verificación de privacidad por escenario
+## 🔐 Verificación de privacidad por escenario (v2 institucional)
 
-### Escenario B2B: María (exportadora café 🇲🇽) ↔ John (importador 🇺🇸)
-
-| Party | ¿Ve CommitmentProposal? | ¿Ve CommitmentContract? | ¿Ve DisputeCase? | ¿Ve SettlementReceipt? |
-|---|---|---|---|---|
-| John (payer) | ✅ creador | ✅ signatory | ✅ (si dispute) | ✅ |
-| María (payee) | ✅ observer | ✅ signatory | ✅ (si dispute) | ✅ |
-| Árbitro (cámara comercio) | ❌ | ❌ | ✅ **solo si dispute** | ❌ |
-| Competidor de María | ❌ | ❌ | ❌ | ❌ |
-
-### Escenario ONG: Donante (🇪🇺) ↔ ONG (🇬🇹) ↔ Familias (beneficiarias)
+### Escenario 1: Invoice Financing Privado — SME Corp / Financier / Buyer Corp
 
 | Party | ¿Ve CommitmentProposal? | ¿Ve CommitmentContract? | ¿Ve DisputeCase? | ¿Ve SettlementReceipt? |
 |---|---|---|---|---|
-| Donante (payer) | ✅ | ✅ | ✅ | ✅ |
-| ONG (payee) | ✅ | ✅ | ✅ | ✅ |
-| Auditor (arbiter) | ❌ | ❌ | ✅ **solo si reporte** | ❌ |
-| Familia beneficiaria | ❌ | ❌ | ❌ | ✅ **solo su recibo** (vía DisclosureContract adicional) |
-| Público / hackers | ❌ | ❌ | ❌ | ❌ |
+| SME Corp (payer del repayment) | ✅ creador | ✅ signatory | ✅ (si dispute) | ✅ |
+| Financier (payee del repayment) | ✅ observer | ✅ signatory | ✅ (si dispute) | ✅ |
+| Buyer Corp (deudor subyacente) | ❌ | ❌ | ❌ | ❌ |
+| Competidor del Financier | ❌ | ❌ | ❌ | ❌ |
 
-> 💡 **Para el escenario ONG**: la familia beneficiaria ve un `DisclosureContract` derivado que contiene SOLO "Recibiste $416, comprobante #1234", sin saber quién donó ni cuánto se repartió en total. Ese contrato se crea desde el `SettlementReceipt` con un choice adicional.
+**Lo que se demuestra**: Buyer nunca sabe que la factura se factorizó (previene double-factoring y signal de debilidad). Competidor no ve el portfolio.
+
+### Escenario 2: OTC Block Trade Privado — Dealer A / Dealer B / Clearing
+
+| Party | ¿Ve CommitmentProposal? | ¿Ve CommitmentContract? | ¿Ve DisclosureContract (netting)? | ¿Ve SettlementReceipt? |
+|---|---|---|---|---|
+| Dealer A | ✅ creador | ✅ signatory | — | ✅ |
+| Dealer B | ✅ observer | ✅ signatory | — | ✅ |
+| Clearing house | ❌ | ❌ | ✅ **solo netting** (on-demand) | 🟡 solo netting receipt |
+| Mercado / competidores | ❌ | ❌ | ❌ | ❌ |
+
+**Lo que se demuestra**: el clearing solo ve lo mínimo para netting (no el portfolio completo). El mercado no puede front-runear lo que no existe para su nodo.
+
+> 💡 **El patrón DisclosureContract** se usa en el escenario OTC para revelar SOLO los campos de netting al clearing, no el trade completo. Es el mismo mecanismo que el DisputeCase pero con semántica "disclosure de netting" en vez de "disputa".
 
 ---
 
@@ -337,7 +340,7 @@ test_arbiter_privacy = script do
 |---|---|---|---|
 | CPort no coopera / no docs | 🔴 alta | 🟡 medio | Dual deploy: LocalNet docker como respaldo |
 | Disclosure interface no compila en SDK 3.4.11 | 🟡 media | 🟡 medio | Fallback a patrón DisputeCase manual (ya diseñado) |
-| Settlement con amulet demasiado complejo | 🟡 media | 🟢 bajo | Fallback a settlement simbólico + receipt (sin mover CC) |
+| Settlement con amulet demasiado complejo | 🟡 media | 🔴 **alto** | **NON-NEGOTIABLE**: Canton Coin settlement real es lo que nos hace económicamente nativos (Cantonomics: 62% del pool a featured apps con transaction utility). Si tropezamos, prioridad absoluta hasta que funcione — NO hay fallback a settlement simbólico (eso nos descarta del Featured App pipeline y del Protocol Development Fund) |
 | Daml SDK learning curve | 🔴 alta | 🟡 medio | Semana 1 dedicada a dominar Daml con el cn-quickstart como referencia |
 | Auth de parties en frontend | 🟡 media | 🟡 medio | Usar el shared-secret del cn-quickstart (already works) |
 

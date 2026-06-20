@@ -3,8 +3,8 @@
 > **Por qué construimos CantonVault y no otra cosa.**
 > Este documento registra el razonamiento completo, las alternativas descartadas y los trade-offs. Cualquier desviación futura del plan debe justificarse contra este documento.
 
-**Fecha**: 2026-06-20
-**Decisión**: Construir CantonVault (primitiva de compromiso condicional privado) en vez de (a) CantonEscrow genérico, (b) Agentic commerce puro, (c) Factoring anti-double-factoring, (d) Blind auction M&A.
+**Fecha**: 2026-06-20 (revisión v2: 2026-06-20 tras investigación de mercado y strategic-fit)
+**Decisión**: Construir CantonVault (primitiva de compromiso condicional privado) como **infraestructura institucional de trade finance con selective disclosure** y settlement nativo en Canton Coin.
 **Estado**: ✅ Aprobada por el equipo
 
 ---
@@ -20,142 +20,196 @@ Evaluamos 6 candidatos contra 4 ejes:
 
 ---
 
-## 📊 La matriz honesta (la que nadie te muestra)
+## 📊 La matriz honesta
 
 | Idea | P(ganar top-3) | P(uso real) | Riesgo exec | Competencia | Veredicto |
 |---|---|---|---|---|---|
-| CantonEscrow B2B (plan original) | 55% | 40% | 🟢 bajo | 🔴 alta | Seguro pero commodity |
-| **CantonVault (B2B + ONG)** ⭐ | **70%** | **55%** | 🟢 bajo | 🟡 media | **Elegido — sweet spot** |
-| Agentic commerce puro | 35% | 20% | 🔴 alto | 🟢 baja | Wow pero humo |
-| Factoring anti-double-factoring | 50% | 75% | 🟡 medio | 🟡 media | Mejor adopción, más scope |
-| Blind auction M&A | 30% | 30% | 🔴 alto | 🟢 baja | Nicho, pocos jueces conectan |
+| CantonEscrow B2B LATAM (plan original v1) | 40% | 20% | 🟢 bajo | 🔴 alta | Commodity + claims falsos + no resuena con Canton |
+| CantonVault B2B + ONG (plan v1) | 45% | 25% | 🟢 bajo | 🟡 media | Mezcla institucional con consumer/retail |
+| **CantonVault institucional (TradeFi + OTC) (v2)** ⭐ | **70%** | **60%** | 🟢 bajo | 🟢 baja | **Elegido — encaja con brief literal de Canton** |
+| Agentic commerce puro | 35% | 20% | 🔴 alto | 🟢 baja | Wow pero humo, brief avisa contra "AI wrapper" |
+| Factoring anti-double-factoring puro | 50% | 75% | 🟡 medio | 🟡 media | Es CantonVault con menos versatilidad |
+| Inter-company cross-currency netting | 40% | 60% | 🔴 alto | 🟢 baja | Multi-currency settlement fuera de scope 4 sem |
+| Blind auction M&A | 30% | 30% | 🔴 alto | 🟢 baja | Pocos jueces conectan; cripto complejo |
 | Trust Registry institucional | 25% | 15% | 🟡 medio | 🔴 alta | Infra-for-infra, penalizado |
 
-**Conclusión**: CantonVault maximiza el producto de los 4 ejes simultáneamente sin sacrificar ninguno.
+**Conclusión**: CantonVault institucional (v2) maximiza el producto de los 4 ejes **y** alinea con lo que Canton Foundation pidió explícitamente en el brief del hackathon.
 
 ---
 
-## 🧠 Por qué CantonVault gana en los 4 criterios oficiales
+## 🔑 Hallazgo crítico de la investigación v2 (la razón del pivot de pitch)
+
+> **El brief oficial del hackathon lista literalmente los casos de uso que CantonVault cubre.**
+
+Leí los tracks oficiales publicados por Encode Club + Canton Foundation:
+
+- **Track 1 (Private DeFi & Capital Markets)**: *"confidential lending, OTC trading workflows, private deal execution, **invoice financing**"*
+- **Track 2 (TradeFi, RWA & Tokenized Assets)**: *"**invoice or supply chain financing**, inter-company cross-currency netting, tokenized deposits, enterprise workflows using tokenized real-world assets"*
+- **Track 3 (Payments, Neobanking & Agentic Commerce)**: *"payments infrastructure, **treasury / business banking workflows**"*
+
+**CantonVault v2 responde textualmente a Tracks 1, 2 y 3** sin forzar nada. El pivote de "B2B LATAM" → "trade finance institucional" nos mueve de "app consumer/retail sobre chain institucional" a "infraestructura institucional que Canton pidió".
+
+---
+
+## 🧠 Por qué CantonVault v2 gana en los 4 criterios oficiales
 
 ### 1. Technical execution (⭐⭐⭐⭐⭐)
-- 4 contratos Daml simples basados en **patrones verificados**:
+- 4 contratos Daml basados en **patrones verificados**:
   - Propose/Accept (del cn-quickstart Licensing App)
   - Disclosure interface (de Daml.Finance producción)
-- Settlement **real** con Canton Coin (amulet) usando el token standard de Splice — no es mock
+- Settlement **real** con Canton Coin (amulet) usando el token standard de Splice — **non-negotiable**, es lo que nos hace económicamente nativos (ver "El premio real" abajo)
 - 1 persona + AI lo termina con 1 semana de sobra para pulir
 
 ### 2. Originality (⭐⭐⭐⭐)
-- Reposicionamiento estratégico: **sales del bucket "escrow"** (5-10 competidores) y entras en **"selective disclosure engine"** (0 competidores)
+- Reposicionamiento: **sales del bucket "escrow"** (5-10 competidores) y entras en **"privacy primitive for institutional trade finance"** (0 competidores en Canton)
 - El reposicionamiento **cuesta 0 en código** — solo naming + narrativa
-- Respuesta killer al juez que diga "¿esto no es un escrow?": *"No. Escrow es UN caso de uso. El mismo contrato que protege los secretos comerciales de María protege la identidad de una familia refugiada. Eso es selective disclosure."*
+- **No competimos en "privacy engine" genérico** (Canton penaliza eso — *"opacity is a liability, privacy without proof isn't privacy"*) sino en **"privacy como propiedad emergente del stakeholder-scoping + atomic settlement"**
+- Respuesta killer al juez que diga "¿no es esto un escrow?": *"No. Escrow es UN caso de uso. Esto es la primitiva de compromiso condicional privado que subyace a invoice financing, OTC, y supply chain — todos casos de uso que Canton pidió en el brief."*
 
 ### 3. UX (⭐⭐⭐⭐⭐)
 - La **demo split-screen de 4 cuadrantes** prueba privacidad selectiva en 30 segundos
-- Ninguna explicación técnica supera ver el cuadrante del competidor **siempre vacío**
-- 3 pantallas: dashboard, crear compromiso, detalle. Cualquier persona las entiende.
+- El cuadrante del competidor / 3rd party siempre vacío es el golpe visual
+- 3 pantallas: dashboard, crear compromiso, detalle
 
 ### 4. Real-world applicability (⭐⭐⭐⭐⭐)
-- **2 verticales con datos verificables**:
-  - Comercio cross-border LATAM: $15B mercado, 79% pagos atrasados, 23% fees en $250 cross-border
-  - Ayuda humanitaria: WFP distribuye millones con blockchain en Jordania, Bangladesh, Líbano, Ucrania
-- **Path a adopción real creíble en 3 verticales** (comercio, ONG, factoring futuro)
+- **2 verticales institucionales con demanda regulada verificada**:
+  - **Invoice financing privado**: demanda real (SMEs temen double-factoring; financiers temen adverse selection)
+  - **OTC block trade privado**: demanda real (competencia no debe ver precio/size antes de exec; clearing no debe ver portfolio completo)
+- **Marco regulatorio que exige selective disclosure** (verificado):
+  - Basel III / IV: reporting de risk exposure on-demand, posiciones comerciales confidenciales a competidores
+  - MiCA (EU 2023/1114, en vigor 2024): reporting a autoridades, confidencialidad comercial preservada
+  - FATF Travel Rule (umbral bajado a $1,000 en Oct 2024): counterparty info disponible a autoridades on-trigger, no broadcast
+  - ISDA Master Agreements: términos confidenciales + defaults observables
 
 ---
 
 ## ❌ Alternativas descartadas y por qué
 
-### CantonEscrow B2B genérico (plan original)
-**Por qué se descartó**: "Escrow" es el sub-tema más commodity del track más transitado. Los jueces verán 5-10 escrows. El concepto no diferencia, solo el execution. CantonVault conserva **toda** la simplicidad técnica del escrow pero reposiciona la narrativa.
+### CantonEscrow B2B LATAM (plan v1 original)
+**Por qué se descartó**: 5 problemas letales descubiertos en la investigación:
+1. **"23% fees en $250" mal aplicado**: ese dato es de World Bank Remittance Prices para remesas consumidor de $200-500. En B2B real de $8,000 el costo es 0.5-1.5%. Un juez VP de banco lo nota y destruye credibilidad.
+2. **"Tu banco ve tus márgenes" falso**: el banco que ejecuta un pago ve monto y partes, no tu costo base. Tus márgenes viven en tu contabilidad.
+3. **Two-party onboarding**: ambos necesitan wallet Canton + Canton Coin. Mismo problema que mató Contour (2023), we.trade (2022), Marco Polo (2023), TradeLens (2022).
+4. **Trade Credit Insurance es mejor**: Allianz Trade, Coface dejan al buyer pagar a 60 días (escrow le bloquea cash hoy).
+5. **No hay fiat off-ramp con licencia VASP** en MX (Ley Fintech/CNVB), BR (Lei 14.478), AR (BCRA). Sin eso no se liquida valor real.
 
-**Qué se conservó**: los 4 contratos base, la demo split-screen, el flujo Propose/Accept, el deploy en CPort.
+**Qué se conservó**: los 4 contratos base, la demo split-screen, el flujo Propose/Accept, el deploy en CPort, Canton Coin settlement.
+
+### CantonVault B2B + ONG (plan v1 intermedio)
+**Por qué se descartó**:
+- **0 menciones de "NGO", "humanitarian", "LATAM", "remittance" en canton.network o canton.foundation** (búsqueda site-wide verificada)
+- Canton Foundation está focalizada en capital markets + stablecoins institucionales, no impacto social
+- El ángulo emocional ONG puede confundir al juez sobre "¿es esto una app institucional o consumer?"
+- **WFP Building Blocks es 100% real** (4.8M hogares, 159 orgs, $288M, países: Jordania, Bangladesh, Ucrania, Siria, Palestina) — pero eso no significa que Canton Foundation quiera ese mercado
+
+**Qué se conservó**: cero. Se elimina limpiamente. Si en el futuro Canton expande a ONG, la primitiva ya está construida.
 
 ### Agentic commerce puro
 **Por qué se descartó**:
-- Requiere un LLM en el path crítico → puede fallar en la demo
-- "Agentes que pagan" es hype 2026, no realidad 2026
+- Requiere LLM en path crítico → puede fallar en la demo
 - El brief advierte explícitamente: *"not just demos with an AI wrapper"*
 - 80% de equipos que lo intenten entregarán humo
 
-**Qué se conservó**: 1 slide de visión en el deck — "esta misma primitiva puede gobernar agentes en el futuro". No es feature, es roadmap.
+**Qué se conservó**: mención como visión "fase 3" en roadmap. No es feature, es dirección futura.
 
-### Factoring anti-double-factoring
-**Por qué se descartó**:
-- Requiere modelar Invoice + FinancingOffer + Agreement + Settlement + chequeo cruzado = 5-6 contratos
-- Lógica financiera real con riesgo de bugs
-- Con 1 persona, el riesgo de llegar al deadline con contratos a medio testear es alto
+### Factoring anti-double-factoring puro
+**Por qué se descartó como producto entero**:
+- Es básicamente CantonVault con el escenario 1 como producto entero → menos versatilidad
+- Requiere modelar Invoice + FinancingOffer + Agreement + Settlement + chequeo cruzado si lo hacemos "complejo"
+- Mejor: lo incluimos COMO escenario de demo, no como producto separado
 
-**Qué se conservó**: **visión fase 2** en el pitch. Se menciona como vertical de expansión natural cuando Canton onboarde más bancos (HSBC ya piloteó).
+**Qué se conservó**: es nuestro escenario de demo principal.
 
-### Blind auction M&A
-**Por qué se descartó**:
-- Nicho: pocos jueces conectan emocionalmente con M&A
-- Complejidad criptográfica alta (commit-reveal, VRF)
-- Mercado percibido como "pequeño" por jueces no financieros
-
-### Trust Registry institucional
-**Por qué se descartó**:
-- Es **infra-for-infra's-sake** — justo lo que los jueces penalizan
-- No tiene usuario final visible en la demo
-- 1-2 contratos extra que no aportan a la narrativa de 3 minutos
+### Blind auction M&A, Trust Registry institucional
+**Por qué se descartaron**:
+- M&A: nicho, pocos jueces conectan, cripto complejo (commit-reveal, VRF)
+- Trust Registry: infra-for-infra, sin usuario final visible
 
 ---
 
-## ⚠️ Los 5 hallazgos críticos que corregimos del plan original
+## ⚠️ Los 5 riesgos del plan v1 y cómo v2 los resuelve
 
-El plan original (CantonEscrow) tenía 5 problemas que lo habrían dejado fuera de top-3. CantonVault los resuelve todos:
-
-| # | Hallazgo | Plan original | CantonVault |
-|---|---|---|---|
-| 1 | Deploy era incorrecto | Docker Compose + LocalNet solo | **CPort devnet (lo que pidió Jatin)** + LocalNet para dev |
-| 2 | Privacidad del árbitro no resuelta | Arbiter como observer → ve todo desde el minuto 1 | **DisputeCase on-demand** + **Disclosure interface** → arbiter no ve nada hasta disputa |
-| 3 | Pitch LATAM mezclaba problemas no resueltos por Canton | "23% fees, más rápido que SWIFT" | Trust sin intermediario que ve tus datos (lo que Canton SÍ garantiza) |
-| 4 | Agentic era el tema más original y lo descartábamos | Fuera del scope | Slide de visión — "esta primitiva puede gobernar agentes" |
-| 5 | Escrow es commodity | Nombre y pitch sobre "escrow" | **CantonVault** — primitiva de privacidad, no producto de escrow |
-
----
-
-## 🧪 El "test de Ethereum" (la prueba de que pertenecemos a Canton)
-
-> Si tu app funciona igual de bien en Ethereum, los jueces te descartarán.
-
-| Requisito | Ethereum | Canton (nosotros) |
+| # | Riesgo en v1 | Resolución en v2 |
 |---|---|---|
-| Escrow con condiciones | ✅ | ✅ |
-| Términos privados | ❌ todo público | ✅ |
-| Árbitro ve solo si hay disputa | ❌ ve todo o nada | ✅ |
-| Competidor no sepa del deal | ❌ imposible | ✅ |
-| Recibo verificable sin exponer partes | ❌ | ✅ |
-
-**Respuesta al juez que pregunte por zksnarks**: *"Con zksnarks puedes ocultar el monto, pero no puedes dar disclosure selectivo a un árbitro solo en caso de disputa — porque en Ethereum el contrato existe para todos. En Canton el contrato no existe para quien no está listado."*
+| 1 | "23% fees" factualmente mal aplicado | **Eliminado**. Sin datos de fees en el pitch |
+| 2 | "Tu banco ve tus márgenes" falso | Reemplazado por *"counterparties y third parties ven el monto y las partes; CantonVault elimina la necesidad de exponer el deal"* |
+| 3 | "Imposible en Ethereum" falso en 2026 | Reemplazado por *"en Ethereum puedes construir esto con ZK — a 10x el coste en ingeniería, con fuga de metadatos, sin settlement atómico nativo"* |
+| 4 | ONG/LATAM no resuena con Canton | **Eliminado**. Demo 100% institucional (TradeFi + OTC) |
+| 5 | Canton Coin settlement opcional (fallback simbólico) | **Non-negotiable**. Es lo que nos hace económicamente nativos |
 
 ---
 
-## 🧪 El "test del VP de banco" (la prueba de aplicabilidad real)
+## 🧪 El "test de Ethereum" — versión honesta y defendible (v2)
 
-> ¿Puedes explicarlo en 30 segundos a alguien no técnico?
+> ⚠️ **IMPORTANTE**: la afirmación *"imposible en Ethereum"* es **falsa en 2026** y un juez ZK-literate la destruye. Esta es la versión correcta.
 
-*"Es como un depósito en garantía, pero digital, instantáneo, y donde solo tú y tu contraparte saben los detalles del acuerdo. Ni siquiera tu banco puede ver los términos."*
+| Requisito | Canton | Ethereum (con ZK + AA) | Veredicto honesto |
+|---|---|---|---|
+| Compromiso condicional privado | ✅ nativo (4 templates Daml, ~120 líneas) | ✅ posible pero requiere circuits (Aztec/Noir, ~1000 líneas) | Canton 3x más fácil |
+| Privacidad de términos | ✅ protocol-level: el nodo NO recibe datos | 🟡 datos existen pero cifrados; pruebas ZK | Canton más fuerte (data non-existence) |
+| Árbitro ve solo en disputa | ✅ DisputeCase on-demand | ✅ buildable con ZK note-reveal | Empate técnico, Canton más simple |
+| Fuga de metadatos | ✅ cero (no hay TX visible) | 🟡 timing y existencia de TX leak | **Canton gana claro** |
+| Settlement atómico nativo | ✅ Canton Coin (burn-mint equilibrium) | ❌ requiere wrap + bridge risk | **Canton gana claro** |
 
-✅ Cualquier persona de negocios entiende esto.
+**Pitch defensivo**: *"En Ethereum puedes construir esto con ZK proofs — a 10x el coste en ingeniería, con fuga de metadatos de transacción, y sin settlement atómico nativo. Canton hace la privacidad el default, no un opt-in caro."*
+
+---
+
+## 🧪 El "test de Corda" — preempt el fantasma más grande
+
+> **Crítico**: CantonVault es estructuralmente similar a un CorDapp. Un juez del mundo enterprise-BC lo nota en 60 segundos. **Nombrar el fantasma uno mismo es más fuerte que esconderlo.**
+
+**Slide dedicada**: *"¿No es esto Corda? Sí, este patrón nació en Corda. Canton lo evoluciona con dos avances que Corda no tenía: (a) **global synchronizer** que permite contratos privados componibles cross-firm, (b) **Canton Coin** con settlement atómico nativo (burn-mint equilibrium). Corda no tenía ninguno."*
+
+**El detalle técnico que da credibilidad**: Canton's privacy es **protocol-level data non-existence** (el nodo no recibe los datos), vs ZK chains' privacy es **cryptographic data encryption** (los datos existen pero cifrados). Estas son dos cosas genuinamente diferentes. CantonVault demostraba **data non-existence** con el cuadrante del competidor siempre vacío.
+
+---
+
+## 🧪 El "test del VP de banco" — versión v2 (30 segundos)
+
+*"Un financiero adelanta cash a una SME sobre una factura, sin que el financiero vea el resto del portfolio de la SME, y sin que el comprador sepa que la factura se factorizó. La privacidad no es cosmética — es compliance directo con Basel III y MiCA, y previene double-factoring. Solo Canton lo permite porque el contrato literalmente no existe para quien no es stakeholder."*
+
+✅ Un VP de banco entiende esto en 10 segundos y **conecta con dolor real** (double-factoring es un problema operativo documentado).
+
+---
+
+## 💰 El premio real NO son los $7,000
+
+> **Hallazgo estratégico crítico** (de Cantonomics para app builders).
+
+- **62% del pool de rewards (~516M CC/mes)** va a **"featured apps" que generan transaction utility**
+- Protocol Development Fund grants: pagados en CC, **tied to milestones**, criterio *"alignment with protocol needs, impact and value to the network"*
+- **Si nuestro settlement es simbólico (no Canton Coin real), perdemos el único feature que nos hace elegibles para featured-app / grant pipeline**
+
+**Implicación**: pitch para **Featured App status + Protocol Development Fund**, no solo el prize money. Eso requiere Canton Coin settlement real. El fallback "settlement simbólico" del Week-4 checkpoint **se elimina del plan**.
 
 ---
 
 ## 🔄 Cómo saber si esta decisión sigue siendo correcta (checkpoints)
 
-En cada checkpoint del hackathon, validar:
-
 - [ ] **Semana 1**: ¿CPort devnet funciona y acepta nuestro `.dar`? Si no, fallback a LocalNet dockerizado con instrucciones claras.
-- [ ] **Semana 2**: ¿La Disclosure interface de Daml.Finance compila en nuestra versión del SDK? Si no, fallback al patrón DisputeCase manual.
+- [ ] **Semana 1**: ¿La Disclosure interface de Daml.Finance compila en SDK 3.4.11? Si no, fallback al patrón DisputeCase manual.
+- [ ] **Semana 2**: ¿Settlement real con Canton Coin (amulet) funciona end-to-end? **Non-negotiable** — si no funciona, prioridad absoluta hasta que funcione.
 - [ ] **Semana 3**: ¿La demo split-screen se ve convincente en video? Si no, simplificar a 2 cuadrantes (partes + competidor).
-- [ ] **Semana 4**: ¿El settlement real con Canton Coin funciona? Si no, fallback a settlement simbólico con receipt.
 
 ---
 
-## 📚 Fuentes que validan esta decisión
+## 📚 Fuentes que validan esta decisión v2
 
-- Workshop de Jatin Pandya (DevRel Canton Foundation) — 17 Jun 2026: deploy en CPort devnet requerido
-- Workshop de Shreyas Kutty (Digital Asset) — 17 Jun 2026: tracks y criterios oficiales
-- `digital-asset/cn-quickstart` Licensing App — patrón Propose/Accept verificado
-- `digital-asset/daml-finance` Disclosure interface — patrón de disclosure verificado
-- `docs.canton.network` architecture — sub-transaction privacy garantizada a nivel protocolo
-- Análisis de ecosistema: 0 apps de B2B payments / selective disclosure en Canton (gap real)
+- **Brief oficial del hackathon** (tracks y examples): https://www.competehub.dev/en/competitions/encodeclub_canton-hackathon
+- **Anuncio del hackathon** (Jatin Pandya, Canton Forum): https://forum.canton.network/t/build-on-canton-hackathon/8635
+- **Canton Foundation mission**: https://canton.foundation/about-the-foundation/
+- **Canton Foundation app categories** (no humanitarian, sí payments/stablecoins/trade): https://canton.foundation/canton-apps/
+- **Private stablecoin payments** (B2B/cross-border en scope): https://www.canton.network/private-stablecoin-payments-on-public-blockchain
+- **USDCx live on Canton** (global B2B payments onchain, Dec 2025): https://www.canton.network/blog/usdcx-now-live-on-canton-unlocking-private-and-composable-usdc-backed-settlement
+- **"When Privacy Needs Proof"** (Canton's anti-ZK-generality stance): https://www.canton.network/blog/zero-knowledge-proofs-whe-privacy-needs-more
+- **"Full transparency is a bug, not a feature"** (core privacy thesis, Saraniecki): https://www.canton.network/blog/full-transparency-is-a-bug-not-a-feature
+- **Cantonomics for app builders** (62% rewards a featured apps): https://www.canton.network/blog/cantonomics-for-app-builders
+- **Protocol Development Fund**: https://canton.foundation/canton-foundation-launches-protocol-development-fund/
+- **HSBC tokenised deposit pilot** (banco onboard Canton): https://www.canton.network/news/hsbc-completes-tokenised-deposit-pilot-on-canton-network
+- **Contour shutdown** (Mar 2023, blockchain trade finance fracaso): cobertura Reuters/GTReview
+- **we.trade bankruptcy** (Jun 2022): banca SME blockchain trade finance que no llegó a volumen
+- **WFP Building Blocks** (blockchain en producción, 2025): https://innovation.wfp.org/project/building-blocks
+- **R3 Corda** (el patrón que Canton evoluciona): https://docs.r3.com/
+- **cn-quickstart Licensing App** (patrón Propose/Accept verificado): https://github.com/digital-asset/cn-quickstart/blob/main/quickstart/daml/licensing/daml/Licensing/AppInstall.daml
+- **Daml.Finance Disclosure interface** (patrón disclosure verificado): https://github.com/digital-asset/daml-finance/blob/main/src/main/daml/Daml/Finance/Interface/Util/V3/Disclosure.daml
