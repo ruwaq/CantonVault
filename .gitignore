@@ -35,9 +35,11 @@ out/
 *.log
 
 # Canton quickstart (clonado, solo trackeamos nuestras extensiones)
-cn-quickstart/*
+cn-quickstart/**
 !cn-quickstart/quickstart/daml/licensing/daml/Vault/
+!cn-quickstart/quickstart/daml/licensing/daml/Vault/**
 !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/
+!cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/**
 
 # Secrets
 *.pem
