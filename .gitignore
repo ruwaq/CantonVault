@@ -1,0 +1,48 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+.env.local
+.env.*.local
+
+# Java / Gradle
+*.class
+build/
+.gradle/
+out/
+*.jar
+*.war
+
+# Daml
+.daml/dist/
+.daml/.*.dar
+
+# Docker
+*.log
+
+# Canton quickstart (cuando lo clonemos)
+cn-quickstart/
+
+# Secrets
+*.pem
+*.key
+.env
+!docs/**/.env.example
+
+# Local notes
+scratch/
+notes-personal/
