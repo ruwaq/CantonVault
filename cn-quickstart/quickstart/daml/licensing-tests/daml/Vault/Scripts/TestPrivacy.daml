@@ -1,0 +1,83 @@
+-- | Privacy tests — the foundation of CantonVault's killer demo.
+-- Proves that thirdParty sees NOTHING until a dispute is raised.
+module Vault.Scripts.TestPrivacy where
+
+import Daml.Script
+import DA.Time
+import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
+import Vault.CommitmentContract (CommitmentContract(..), RaiseDispute(..))
+import Vault.SettlementReceipt (SettlementReceipt(..))
+
+-- | Critical test: thirdParty must NOT see CommitmentContract or CommitmentProposal
+-- before any dispute. This is the foundation of our privacy claim.
+test_thirdparty_privacy : Script ()
+test_thirdparty_privacy = do
+  proposer <- allocateParty "Supplier"
+  accepter <- allocateParty "Financier"
+  thirdParty <- allocateParty "Buyer"
+
+  now <- getTime
+  let deadline = addRelTime now (seconds 6000)
+
+  -- Propose + accept
+  proposalCid <- submit proposer $ createCmd CommitmentProposal with
+    proposer = proposer
+    accepter = accepter
+    thirdParty = thirdParty
+    amount = 5000.0
+    currency = "CC"
+    description = "Supply chain finance INV-2026-001"
+    workflow = "supply-chain-finance"
+    deadline = deadline
+  contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
+
+  -- CRITICAL: thirdParty must NOT see CommitmentContract
+  tpContracts <- query @CommitmentContract thirdParty
+  assertMsg "thirdParty should NOT see CommitmentContract"
+    (null tpContracts)
+
+  -- CRITICAL: thirdParty must NOT see CommitmentProposal either
+  tpProposals <- query @CommitmentProposal thirdParty
+  assertMsg "thirdParty should NOT see CommitmentProposal"
+    (null tpProposals)
+
+  return ()
+
+-- | After a dispute is raised, thirdParty sees the DisputeCase
+-- but STILL does not see the CommitmentContract itself (selective disclosure).
+test_thirdparty_sees_dispute : Script ()
+test_thirdparty_sees_dispute = do
+  proposer <- allocateParty "Supplier"
+  accepter <- allocateParty "Financier"
+  thirdParty <- allocateParty "Buyer"
+
+  now <- getTime
+  let deadline = addRelTime now (seconds 6000)
+
+  proposalCid <- submit proposer $ createCmd CommitmentProposal with
+    proposer = proposer
+    accepter = accepter
+    thirdParty = thirdParty
+    amount = 5000.0
+    currency = "CC"
+    description = "Supply chain finance INV-2026-001"
+    workflow = "supply-chain-finance"
+    deadline = deadline
+  contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
+
+  -- Before dispute: thirdParty sees nothing
+  tpContracts1 <- query @CommitmentContract thirdParty
+  assertMsg "pre-dispute: thirdParty sees no CommitmentContract" (null tpContracts1)
+
+  -- Raise dispute (proposer escalates — needs both signatories)
+  disputeCid <- submitMulti [proposer, accepter] [] $ exerciseCmd contractCid (RaiseDispute with reason = "buyer hasn't confirmed delivery")
+
+  -- After dispute: thirdParty sees the DisputeCase
+  Some _ <- queryContractId thirdParty disputeCid
+
+  -- BUT still does NOT see the CommitmentContract
+  tpContracts2 <- query @CommitmentContract thirdParty
+  assertMsg "post-dispute: thirdParty STILL does not see CommitmentContract"
+    (null tpContracts2)
+
+  return ()
