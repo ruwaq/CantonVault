@@ -34,8 +34,10 @@ out/
 # Docker
 *.log
 
-# Canton quickstart (cuando lo clonemos)
-cn-quickstart/
+# Canton quickstart (clonado, solo trackeamos nuestras extensiones)
+cn-quickstart/*
+!cn-quickstart/quickstart/daml/licensing/daml/Vault/
+!cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/
 
 # Secrets
 *.pem
