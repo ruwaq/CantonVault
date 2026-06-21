@@ -58,6 +58,13 @@ cn-quickstart/**
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/service/CommitmentController.java
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/repository/
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/repository/DamlRepository.java
+!cn-quickstart/quickstart/frontend/
+!cn-quickstart/quickstart/frontend/src/
+!cn-quickstart/quickstart/frontend/src/views/
+!cn-quickstart/quickstart/frontend/src/views/VaultView.tsx
+!cn-quickstart/quickstart/frontend/src/App.tsx
+!cn-quickstart/quickstart/frontend/src/components/
+!cn-quickstart/quickstart/frontend/src/components/Header.tsx
 
 # Secrets
 *.pem
