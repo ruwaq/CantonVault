@@ -32,7 +32,7 @@ import quickstart_licensing.vault.disclosable.DisclosedRecord;
 import quickstart_licensing.vault.settlementreceipt.SettlementReceipt;
 
 @RestController
-@RequestMapping("/api/vault")
+@RequestMapping("/vault")
 public class CommitmentController {
 
     private static final Logger logger = LoggerFactory.getLogger(CommitmentController.class);
