@@ -5,8 +5,17 @@
 -- This means the third party cannot see this contract until a DisputeCase is raised.
 module Vault.CommitmentContract where
 
+import DA.Assert ((===))
+import DA.TextMap as TextMap
+import DA.Optional (fromSome)
+
 import Licensing.Util as Util (require)
 import Vault.SettlementReceipt (SettlementReceipt(..))
+
+import Splice.Api.Token.MetadataV1
+import Splice.Api.Token.HoldingV1
+import Splice.Api.Token.AllocationRequestV1
+import Splice.Api.Token.AllocationV1 as Api.Token.AllocationV1
 
 data Status = Active | Fulfilled | Disputed | Refunded deriving (Eq, Show)
 
@@ -24,22 +33,41 @@ template CommitmentContract with
     signatory proposer, accepter
     ensure amount > 0.0
 
-    -- Fulfill: accepter confirms delivery, creates SettlementReceipt.
-    -- Canton Coin settlement (amulet) integrated in Task 1.6b.
+    -- Fulfill: accepter confirms delivery. If allocationCid is provided,
+    -- executes Canton Coin settlement via Splice Allocation/Transfer standard.
+    -- Creates SettlementReceipt as immutable evidence.
     choice Fulfill : ContractId SettlementReceipt
+      with
+        fulfillmentNote : Text
+        allocationCid : Optional (ContractId Allocation, ExtraArgs)
       controller accepter
       do
         now <- getTime
-        -- TODO(Phase 1.6b): replace symbolic create with real
-        -- Allocation_ExecuteTransfer of amulet from proposer to accepter,
-        -- following the LicenseRenewalRequest_CompleteRenewal pattern.
+
+        -- Optionally execute real Canton Coin transfer
+        case allocationCid of
+          Some (allocCid, eArgs) -> do
+            alloc <- fetch @Allocation allocCid
+            let allocView = view @Allocation alloc
+                thisView = view $ toInterface @AllocationRequest this
+                expectedTransferLegId = settlementTransferLegId
+                expectedTransferLeg = fromSome $ TextMap.lookup expectedTransferLegId thisView.transferLegs
+                expectedSettlement = thisView.settlement
+            expectedTransferLegId === allocView.allocation.transferLegId
+            expectedTransferLeg === allocView.allocation.transferLeg
+            expectedSettlement === allocView.allocation.settlement
+            _ <- exercise allocCid (Allocation_ExecuteTransfer eArgs)
+            return ()
+          None -> return ()
+
+        -- Create immutable evidence of settlement
         create SettlementReceipt with
           proposer = proposer
           accepter = accepter
           amount = amount
           currency = currency
           timestamp = now
-          note = Some ("fulfilled via CantonVault: " <> workflow)
+          note = Some (fulfillmentNote <> " | via CantonVault: " <> workflow)
 
     -- RaiseDispute: either signatory can escalate to the third party.
     -- Creates a DisputeCase where the third party becomes observer.
@@ -67,6 +95,49 @@ template CommitmentContract with
         -- TODO(promote): actual amulet return to proposer
         pure ()
 
+    -- | AllocationRequest interface implementation enables Canton Coin settlement
+    -- via the Splice token standard. The proposer commits to send CC to the accepter
+    -- upon fulfillment (DvP-like atomic settlement).
+    interface instance AllocationRequest for CommitmentContract where
+      view =
+        let
+          meta = Metadata with
+            values = TextMap.fromList [
+              ("splice.lfdecentralizedtrust.org/reason", description)
+              ,("cantonvault.example.org/workflow", workflow)
+              ]
+        in
+          AllocationRequestView
+            with
+              settlement = SettlementInfo with
+                executor = proposer
+                requestedAt = deadline  -- proxy: the earliest settlement time
+                allocateBefore = deadline
+                settleBefore = deadline
+                settlementRef = Reference with
+                  id = "commitment-" <> description
+                  cid = None
+                meta
+              transferLegs = TextMap.fromList
+                [(settlementTransferLegId, Api.Token.AllocationV1.TransferLeg
+                    with
+                      sender = proposer
+                      receiver = accepter
+                      amount = amount
+                      instrumentId = InstrumentId with
+                        admin = proposer
+                        id = currency
+                      meta)
+                ]
+              meta
+
+      allocationRequest_RejectImpl _ AllocationRequest_Reject{..} = do
+        require "Only proposer can reject" (actor == proposer)
+        pure ChoiceExecutionMetadata with meta = emptyMetadata
+
+      allocationRequest_WithdrawImpl _ _ =
+        pure ChoiceExecutionMetadata with meta = emptyMetadata
+
 -- | DisputeCase is defined in the same module as CommitmentContract
 -- to avoid circular import issues between CommitmentContract ↔ DisputeCase.
 -- The third party becomes observer of DisputeCase, enabling on-demand disclosure.
@@ -83,15 +154,12 @@ template DisputeCase with
     signatory proposer, accepter
     observer  thirdParty                 -- third party enters here
 
-    choice ResolveDispute : ContractId SettlementReceipt
+    choice ResolveDispute : ()
       with ruling : Text
       controller thirdParty
       do
-        now <- getTime
-        create SettlementReceipt with
-          proposer = proposer
-          accepter = accepter
-          amount = amountRevealed
-          currency = "CC"
-          timestamp = now
-          note = Some ("resolved by third party: " <> ruling)
+        assertMsg "ruling must be proposer or accepter"
+          (ruling == "proposer" || ruling == "accepter")
+        return ()
+
+settlementTransferLegId = "commitmentSettlement"

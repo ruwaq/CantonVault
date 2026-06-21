@@ -1,0 +1,58 @@
+-- | End-to-end workflow test for Supply Chain Finance.
+-- Proves the full happy path: propose → accept → fulfill with privacy assertions.
+module Vault.Scripts.TestWorkflow where
+
+import Daml.Script
+import DA.Time
+import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
+import Vault.CommitmentContract (CommitmentContract(..), Fulfill(..), Status(..))
+import Vault.SettlementReceipt (SettlementReceipt(..))
+
+test_supply_chain_finance_happy_path : Script ()
+test_supply_chain_finance_happy_path = do
+  supplier <- allocateParty "Supplier-Tier2"
+  financier <- allocateParty "Financier"
+  buyer <- allocateParty "Buyer-Corp"
+  competitor <- allocateParty "Competitor"
+
+  now <- getTime
+  let deadline = addRelTime now (seconds 6000)
+
+  -- 1. Supplier proposes factoring of their invoice
+  proposalCid <- submit supplier $ createCmd CommitmentProposal with
+    proposer = supplier
+    accepter = financier
+    thirdParty = buyer
+    amount = 8000.0
+    currency = "CC"
+    description = "Supply chain finance INV-2026-001 factoring"
+    workflow = "supply-chain-finance"
+    deadline = deadline
+
+  -- 2. Competitor must NOT see the proposal
+  competitorProposals <- query @CommitmentProposal competitor
+  assertMsg "competitor sees no proposal" (null competitorProposals)
+
+  -- 3. Financier accepts
+  contractCid <- submit financier $ exerciseCmd proposalCid AcceptProposal
+
+  -- 4. Competitor must NOT see the contract
+  competitorContracts <- query @CommitmentContract competitor
+  assertMsg "competitor sees no contract" (null competitorContracts)
+
+  -- 5. Buyer must NOT see the contract (key privacy claim for supply chain finance)
+  buyerContracts <- query @CommitmentContract buyer
+  assertMsg "buyer sees no contract (factoring hidden from buyer)" (null buyerContracts)
+
+  -- 6. Fulfill: financier confirms delivery, supplier receives payment
+  receiptCid <- submit financier $ exerciseCmd contractCid (Fulfill with
+    fulfillmentNote = "factoring payment released"
+    allocationCid = None)
+
+  -- 7. Supplier sees the receipt; buyer still sees nothing
+  supplierReceipts <- query @SettlementReceipt supplier
+  assertMsg "supplier sees receipt" (not (null supplierReceipts))
+  buyerReceipts <- query @SettlementReceipt buyer
+  assertMsg "buyer still sees no receipt" (null buyerReceipts)
+
+  return ()

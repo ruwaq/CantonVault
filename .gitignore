@@ -36,10 +36,28 @@ out/
 
 # Canton quickstart (clonado, solo trackeamos nuestras extensiones)
 cn-quickstart/**
+!cn-quickstart/quickstart/
+!cn-quickstart/quickstart/daml/
+!cn-quickstart/quickstart/daml/licensing/
+!cn-quickstart/quickstart/daml/licensing/daml/
 !cn-quickstart/quickstart/daml/licensing/daml/Vault/
 !cn-quickstart/quickstart/daml/licensing/daml/Vault/**
+!cn-quickstart/quickstart/daml/licensing-tests/
+!cn-quickstart/quickstart/daml/licensing-tests/daml/
 !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/
 !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/**
+!cn-quickstart/quickstart/daml/licensing/daml.yaml
+!cn-quickstart/quickstart/backend/
+!cn-quickstart/quickstart/backend/src/
+!cn-quickstart/quickstart/backend/src/main/
+!cn-quickstart/quickstart/backend/src/main/java/
+!cn-quickstart/quickstart/backend/src/main/java/com/
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/service/
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/service/CommitmentController.java
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/repository/
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/repository/DamlRepository.java
 
 # Secrets
 *.pem

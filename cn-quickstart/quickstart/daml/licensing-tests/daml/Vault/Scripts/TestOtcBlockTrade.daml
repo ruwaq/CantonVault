@@ -1,0 +1,129 @@
+-- | End-to-end test for OTC Block Trade (Escenario 2).
+-- Two dealers agree on a private block trade. Clearing sees nothing
+-- until selective disclosure. Competitors see empty ledger.
+module Vault.Scripts.TestOtcBlockTrade where
+
+import Daml.Script
+import DA.Time
+import DA.Assert ((===))
+import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
+import Vault.CommitmentContract (CommitmentContract(..), Fulfill(..), Status(..))
+import Vault.SettlementReceipt (SettlementReceipt(..))
+
+test_otc_block_trade_happy_path : Script ()
+test_otc_block_trade_happy_path = do
+  dealerA <- allocateParty "DealerA"
+  dealerB <- allocateParty "DealerB"
+  clearing <- allocateParty "ClearingHouse"
+  competitor <- allocateParty "CompetitorDealer"
+
+  now <- getTime
+  let deadline = addRelTime now (seconds 6000)
+
+  -- 1. Dealer A proposes block trade: $10M notional bond block
+  proposalCid <- submit dealerA $ createCmd CommitmentProposal with
+    proposer = dealerA
+    accepter = dealerB
+    thirdParty = clearing
+    amount = 10000000.0
+    currency = "CC"
+    description = "OTC Block: US0378331005 10Y $10M @ 98.50"
+    workflow = "otc-block-trade"
+    deadline = deadline
+
+  -- 2. PRIVACY: Clearing must NOT see the proposal
+  clearingProposals <- query @CommitmentProposal clearing
+  assertMsg "Clearing sees no block trade proposal" (null clearingProposals)
+
+  -- 3. PRIVACY: Competitor must NOT see the proposal (no front-running)
+  competitorProposals <- query @CommitmentProposal competitor
+  assertMsg "Competitor sees no block trade proposal (front-running prevention)"
+    (null competitorProposals)
+
+  -- 4. Dealer B accepts the block trade
+  contractCid <- submit dealerB $ exerciseCmd proposalCid AcceptProposal
+
+  -- 5. PRIVACY: Clearing must NOT see the contract
+  clearingContracts <- query @CommitmentContract clearing
+  assertMsg "Clearing sees no trade contract (selective disclosure)"
+    (null clearingContracts)
+
+  -- 6. PRIVACY: Competitor still sees nothing
+  competitorContracts <- query @CommitmentContract competitor
+  assertMsg "Competitor sees no trade contract"
+    (null competitorContracts)
+
+  -- 7. Fulfill: Dealer B confirms, settlement executes
+  receiptCid <- submit dealerB $ exerciseCmd contractCid (Fulfill with
+    fulfillmentNote = "OTC block trade settled: US0378331005 @ 98.50"
+    allocationCid = None)
+
+  -- 8. Both dealers see the settlement receipt
+  dealerAReceipts <- query @SettlementReceipt dealerA
+  assertMsg "Dealer A sees settlement receipt" (not (null dealerAReceipts))
+  dealerBReceipts <- query @SettlementReceipt dealerB
+  assertMsg "Dealer B sees settlement receipt" (not (null dealerBReceipts))
+
+  -- 9. PRIVACY: Clearing still sees no receipt (selective disclosure is on-demand)
+  clearingReceipts <- query @SettlementReceipt clearing
+  assertMsg "Clearing sees no receipt without explicit disclosure"
+    (null clearingReceipts)
+
+  -- 10. PRIVACY: Competitor sees nothing at all times
+  competitorReceipts <- query @SettlementReceipt competitor
+  assertMsg "Competitor sees nothing - ledger is empty for them"
+    (null competitorReceipts)
+
+  return ()
+
+test_otc_competing_dealers : Script ()
+test_otc_competing_dealers = do
+  dealerA <- allocateParty "DealerA"
+  dealerB <- allocateParty "DealerB"
+  dealerC <- allocateParty "DealerC"
+  clearing <- allocateParty "ClearingHouse"
+
+  now <- getTime
+  let deadline = addRelTime now (seconds 6000)
+
+  -- Dealer A and Dealer B trade: $5M block
+  proposalAB <- submit dealerA $ createCmd CommitmentProposal with
+    proposer = dealerA
+    accepter = dealerB
+    thirdParty = clearing
+    amount = 5000000.0
+    currency = "CC"
+    description = "OTC Block: US912810FM95 30Y $5M @ 102.25"
+    workflow = "otc-block-trade"
+    deadline = deadline
+  contractAB <- submit dealerB $ exerciseCmd proposalAB AcceptProposal
+
+  -- Meanwhile, Dealer A and Dealer C negotiate separately
+  proposalAC <- submit dealerA $ createCmd CommitmentProposal with
+    proposer = dealerA
+    accepter = dealerC
+    thirdParty = clearing
+    amount = 3000000.0
+    currency = "CC"
+    description = "OTC Block: XS2607074236 5Y $3M @ 99.80"
+    workflow = "otc-block-trade"
+    deadline = deadline
+  contractAC <- submit dealerC $ exerciseCmd proposalAC AcceptProposal
+
+  -- PRIVACY: Dealer C cannot see Dealer A's trade with Dealer B
+  dealerCContracts <- query @CommitmentContract dealerC
+  length dealerCContracts === 1  -- only sees their own trade
+
+  -- PRIVACY: Dealer B cannot see Dealer A's trade with Dealer C
+  dealerBContracts <- query @CommitmentContract dealerB
+  length dealerBContracts === 1  -- only sees their own trade
+
+  -- Dealer A sees both trades
+  dealerAContracts <- query @CommitmentContract dealerA
+  length dealerAContracts === 2
+
+  -- Clearing sees nothing across all trades
+  clearingContracts <- query @CommitmentContract clearing
+  assertMsg "Clearing sees no trades" (null clearingContracts)
+
+  return ()

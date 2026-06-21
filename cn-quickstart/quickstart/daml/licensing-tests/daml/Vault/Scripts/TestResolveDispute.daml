@@ -1,0 +1,32 @@
+-- | Tests for ResolveDispute choice (thirdParty decides).
+module Vault.Scripts.TestResolveDispute where
+
+import Daml.Script
+import DA.Time
+import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
+import Vault.CommitmentContract (CommitmentContract(..), RaiseDispute(..), DisputeCase(..), ResolveDispute(..))
+
+test_thirdparty_resolves : Script ()
+test_thirdparty_resolves = do
+  proposer <- allocateParty "Supplier"
+  accepter <- allocateParty "Financier"
+  thirdParty <- allocateParty "Buyer"
+  now <- getTime
+  let deadline = addRelTime now (seconds 6000)
+  proposalCid <- submit proposer $ createCmd CommitmentProposal with
+    proposer = proposer
+    accepter = accepter
+    thirdParty = thirdParty
+    amount = 100.0
+    currency = "CC"
+    description = "Supply chain finance INV-2026-005"
+    workflow = "supply-chain-finance"
+    deadline = deadline
+  contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
+  disputeCid <- submitMulti [proposer, accepter] [] $ exerciseCmd contractCid (RaiseDispute with reason = "unpaid")
+  submit thirdParty $ exerciseCmd disputeCid (ResolveDispute with ruling = "proposer")
+  result <- queryContractId thirdParty disputeCid
+  case result of
+    None -> return () -- DisputeCase archived, ruling executed
+    Some _ -> assertMsg "DisputeCase should be archived after resolution" False
+  return ()

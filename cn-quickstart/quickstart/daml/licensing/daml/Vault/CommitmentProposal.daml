@@ -1,5 +1,6 @@
 -- | Propose pattern: a proposal to enter a commitment contract.
--- Adapted from Licensing.AppInstall.AppInstallRequest.
+-- TODO(production): add contract key (proposer, accepter, description)
+-- for uniqueness guarantees and efficient lookup via fetchByKey.
 module Vault.CommitmentProposal where
 
 import Vault.CommitmentContract (CommitmentContract(..), Status(..))
