@@ -1,127 +1,93 @@
-# HANDOFF — Sesión 2026-06-21
+# HANDOFF — Sesión 2026-06-22
 
-> **Lee esto al iniciar la próxima sesión.**
-> Estado real del proyecto después de 2 sesiones intensivas de código.
-
-**Fecha**: 2026-06-21
-**Último commit**: `8de1023 feat: CantonVault Phase 1-2`
-**Estado**: Daml completo + tests verde + backend compilando. Frontend pendiente.
+**Fecha**: 2026-06-22 10:30
+**Último commit**: `a0b5f4e feat: CantonVault Phase 3 - frontend split-screen UI`
+**Estado**: DAR v0.0.2 deployado en Seaport DevNet. Contratos funcionando. Queda terminar flujo disputa en UI y preparar demo.
 
 ---
 
-## Lo que YA está hecho
+## Dónde nos quedamos
 
-### Daml Smart Contracts — 5 archivos, 14 tests verdes
+### En Seaport (DevNet)
+- ✅ DAR `quickstart-licensing-0.0.2` deployado en validator `5N Sandbox`
+- ✅ `CommitmentProposal` creado + `AcceptProposal` ejecutado + `Fulfill` exitoso
+- ✅ `SettlementReceipt` generado: 100000.0 CC, nota "Pago confirmado | via CantonVault"
+- ⬜ Queda: crear NUEVO proposal para flujo de **disputa** (RaiseDispute → ResolveDispute)
+- ⬜ **IMPORTANTE**: En `Fulfill`, el campo `allocationCid` debe ponerse `null` (sin comillas)
 
-| Archivo | Qué hace |
-|---|---|
-| `CommitmentProposal.daml` | Propose/Accept/Reject pattern. TODO: contract keys (Sandbox limitation) |
-| `CommitmentContract.daml` | Fulfill con Canton Coin real (`AllocationRequest` + `Allocation_ExecuteTransfer`), RaiseDispute, Refund, DisputeCase+ResolveDispute |
-| `SettlementReceipt.daml` | Immutable evidence of settlement |
-| `Disclosable.daml` | Interface + `DisclosedRecord` template para selective disclosure |
-| `Status.daml` | (dentro de CommitmentContract) Active/Fulfilled/Disputed/Refunded |
-
-12 tests Vault + 4 tests License originales = 16 tests total, todos verde.
-
-**Para correr tests**:
-```bash
-cd "cn-quickstart/quickstart"
-~/.daml/bin/daml build --package-root daml/licensing
-~/.daml/bin/daml test --package-root daml/licensing-tests
+### Party IDs guardados en `/PARTY_IDS.txt`
+```
+PROPOSER: cd0a87602543a6691a8f1dade842469c::1220d2d1c1ab966cf98449cf8b42cfa46150f3af6f85cc0bf73126d8bdc54741e402
+ACCEPTER: 7fd80745e6a0c07356a64c56d3d3a455::122002a94f06d53b2aed3b4bb0549225d35e130700e18c09ae68c8011fcc9102bd9c
+VALIDATOR: 5nsandbox-devnet-2::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8
 ```
 
-### Backend Java — 2 archivos, compila
+**Nota**: Las parties personales NO están autorizadas en el validator. Para la demo usamos la party del validator para los 3 roles. Para demo con privacidad real, el admin debe onboardear las parties.
 
-| Archivo | Contenido |
-|---|---|
-| `CommitmentController.java` | 11 endpoints REST bajo `/api/vault`: proposals, accept, reject, commitments, fulfill, raiseDispute, refund, disclose, receipts, disclosures |
-| `DamlRepository.java` | +10 métodos PQS para query del Active Contract Set |
-
-**Para regenerar Java bindings y compilar**:
-```bash
-cd "cn-quickstart/quickstart"
-~/.daml/bin/daml build --package-root daml/licensing
-./gradlew :daml:codeGen -x :daml:compileDaml
-./gradlew :backend:compileJava -x :daml:compileDaml
-```
-
-### CI
-
-```bash
-.github/workflows/daml-test.yml  # GitHub Actions: build DAR + 12 tests + compile backend
-```
+### Código local
+- Repo: `/Users/munay/dev/Build on Canton Hackathon`
+- DAR actual: `cn-quickstart/quickstart/daml/licensing/.daml/dist/quickstart-licensing-0.0.2.dar`
+- 12 tests verdes: `~/.daml/bin/daml test --package-root daml/licensing-tests`
+- Backend compila: `./gradlew :backend:compileJava -x :daml:compileDaml`
+- Frontend compila: `cd frontend && npx tsc --noEmit`
 
 ---
 
-## Lo que FALTA
+## Lo que falta implementar
 
-### Crítico (para demo funcional)
-
-| Task | Descripción | Estado |
-|---|---|---|
-| **Phase 3: Frontend** | React split-screen 4 cuadrantes | ⬜ No empezado |
-| **Task 0.3** | Preguntas a Jatin (Seaport deploy) | ⬜ Bloquea deploy |
-| **Task 0b** | Party ID + DM a Jatin | ⬜ |
-| **Deploy a DevNet** | `dabl deploy` o via Seaport | ⬜ |
-
-### Mejoras (production readiness)
-
-| Mejora | Descripción |
+### Prioridad 1 — Demo (hoy)
+| Tarea | Detalle |
 |---|---|
-| Contract keys | Añadir `key (proposer, accepter, description)` a ambos templates cuando Sandbox/entorno lo soporte |
-| DAR modularization | Mover `Disclosable` interface a package separado (requiere resolver dependencia circular con `DisclosedRecord`) |
-| Daml Autopilot MCP | ChainSafe ofrece MCP server con 3600+ patrones verificados. Requiere wallet Canton Coin |
-| Off-ledger metadata | `description` y `note` son datos, no estado → mover a backend DB |
-| Non-repudiation | Agregar `requestedAt` timestamp a `CommitmentProposal` |
+| Terminar flujo disputa en Seaport | Crear proposal → Accept → RaiseDispute → ResolveDispute |
+| Probar `Refund` | Después del deadline, ejecutar Refund |
+| Grabar demo | Mostrar el Active Contract Set con el historial completo |
+
+### Prioridad 2 — Código (si hay tiempo)
+| Tarea | Detalle |
+|---|---|
+| Backend corriendo contra DevNet | Configurar `LedgerApi.java` para apuntar a `ledger-api.validator.devnet.sandbox.fivenorth.io` |
+| Frontend contra backend | Levantar Vite + backend y mostrar VaultView con datos reales |
+| Readme submission | `CANTONVAULT_README.md` ya está listo |
+
+### Prioridad 3 — Producción (post-hackathon)
+| Tarea | Detalle |
+|---|---|
+| Contract keys | `key (proposer, accepter, description)` cuando Sandbox lo soporte |
+| DAR modularization | Separar `Disclosable` interface en package propio |
+| Canton MCP server | Ya instalado en `/tmp/canton-mcp-server`, configurado en `~/.config/opencode/opencode.json`. Solo mock data por ahora |
+| Delegation pattern | Agregar `operator` field para Firmar/Fulfill delegado |
+| On-ledger vs off-ledger | Mover `description` y `note` a metadata off-chain |
 
 ---
 
 ## Comandos rápidos
 
 ```bash
-# Working directory
 cd "/Users/munay/dev/Build on Canton Hackathon/cn-quickstart/quickstart"
 
-# Daml
+# Daml tests
 ~/.daml/bin/daml build --package-root daml/licensing
 ~/.daml/bin/daml test --package-root daml/licensing-tests
 
-# Backend (skipping dpm/compileDaml)
-./gradlew :daml:codeGen -x :daml:compileDaml
+# Backend
 ./gradlew :backend:compileJava -x :daml:compileDaml
 
-# Git
-git status --short  # desde cn-quickstart/quickstart
+# Frontend
+cd frontend && npm run dev
+
+# MCP server
+node /tmp/canton-mcp-server/dist/index.js
 ```
 
 ---
 
-## Arquitectura (resumen)
+## Flujo de disputa (próximo paso en Seaport)
 
-```
-React Frontend (pendiente)
-    ↓ REST
-CommitmentController.java  ←  LedgerApi.java (gRPC → Canton)
-    ↓ PQS/SQL                    ↓ gRPC
-DamlRepository.java          Canton Participant Node
-    ↓                            ↓
-PostgreSQL ACS              Daml Ledger (CommitmentProposal, etc.)
-```
-
-**Endpoints REST** (`/api/vault`):
-- `GET/POST /proposals`
-- `POST /proposals/{id}/accept`, `/reject`
-- `GET /commitments`
-- `POST /commitments/{id}/fulfill`, `/raiseDispute`, `/refund`, `/disclose`
-- `GET /receipts`, `/disclosures`
-
----
-
-## Canton Coin Settlement (el diferenciador)
-
-El `CommitmentContract` implementa `AllocationRequest` (Splice token standard). Cuando `Fulfill` recibe un `allocationCid`:
-1. Valida el Allocation contra el view de AllocationRequest
-2. Ejecuta `Allocation_ExecuteTransfer` (transfer atómico CC)
-3. Crea `SettlementReceipt` como evidencia inmutable
-
-Si `allocationCid = None` → settlement simbólico (para tests unitarios sin LocalNet).
+1. Home → Deploy DAR & Create Contract → `CommitmentProposal`
+2. Select DAR: `quickstart-licensing-0.0.2.dar`
+3. Campos (usar party del validator en los 3):
+   - description: `Factoring INV-2026-004-DISPUTA`
+   - deadline: `31/12/2026, 23:59:59`
+   - resto igual que antes
+4. Create → Accept → **RaiseDispute** (reason: "disputa de prueba")
+5. Buscar `DisputeCase` en Active Contract Set → **ResolveDispute** (ruling: "proposer")

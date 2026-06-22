@@ -17,7 +17,7 @@ template CommitmentProposal with
   where
     signatory proposer
     observer  accepter
-    ensure (amount > 0.0 && proposer /= accepter)
+    ensure amount > 0.0
 
     choice AcceptProposal : ContractId CommitmentContract
       controller accepter

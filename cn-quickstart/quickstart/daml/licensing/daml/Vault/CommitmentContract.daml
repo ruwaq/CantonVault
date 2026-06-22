@@ -36,6 +36,7 @@ template CommitmentContract with
     -- Fulfill: accepter confirms delivery. If allocationCid is provided,
     -- executes Canton Coin settlement via Splice Allocation/Transfer standard.
     -- Creates SettlementReceipt as immutable evidence.
+    -- Usage: set allocationCid = null in JSON for symbolic settlement (tests/demo).
     choice Fulfill : ContractId SettlementReceipt
       with
         fulfillmentNote : Text
@@ -44,7 +45,6 @@ template CommitmentContract with
       do
         now <- getTime
 
-        -- Optionally execute real Canton Coin transfer
         case allocationCid of
           Some (allocCid, eArgs) -> do
             alloc <- fetch @Allocation allocCid
@@ -60,7 +60,6 @@ template CommitmentContract with
             return ()
           None -> return ()
 
-        -- Create immutable evidence of settlement
         create SettlementReceipt with
           proposer = proposer
           accepter = accepter
