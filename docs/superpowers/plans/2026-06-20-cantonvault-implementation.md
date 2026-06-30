@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build CantonVault — a privacy-first conditional commitment primitive (4 Daml contracts) for Canton Network, deployed to CPort devnet, with a split-screen demo proving selective disclosure for Invoice Financing and OTC Block Trade workflows.
+**Goal:** Build CantonVault — a privacy-first conditional commitment primitive (4 Daml contracts) for Canton Network, deployed to Seaport devnet, with a split-screen demo proving selective disclosure for Invoice Financing and OTC Block Trade workflows.
 
-**Architecture:** Extend `digital-asset/cn-quickstart` (Daml 3.4.11, Splice 0.5.3, Java 21 Spring Boot 3.4, React 18 + Vite). Contract-first: edit `common/openapi.yaml` → codegen generates Spring interfaces + TS types. 4 new Daml templates under `daml/licensing/daml/Vault/`. Real Canton Coin settlement via Splice `Allocation_ExecuteTransfer` (non-negotiable). Dual deploy: LocalNet Docker for dev, CPort devnet for live link.
+**Architecture:** Extend `digital-asset/cn-quickstart` (Daml 3.4.11, Splice 0.5.3, Java 21 Spring Boot 3.4, React 18 + Vite). Contract-first: edit `common/openapi.yaml` → codegen generates Spring interfaces + TS types. 4 new Daml templates under `daml/licensing/daml/Vault/`. Real Canton Coin settlement via Splice `Allocation_ExecuteTransfer` (non-negotiable). Dual deploy: LocalNet Docker for dev, Seaport devnet for live link.
 
-**Tech Stack:** Daml 3.4.11, Splice 0.5.3 (amulet/token standard), Java 21 + Spring Boot 3.4.2 (gRPC ledger + PQS reads), React 18 + TypeScript + Vite + TailwindCSS, OpenAPI 3.0 codegen, Docker Compose, CPort devnet.
+**Tech Stack:** Daml 3.4.11, Splice 0.5.3 (amulet/token standard), Java 21 + Spring Boot 3.4.2 (gRPC ledger + PQS reads), React 18 + TypeScript + Vite + TailwindCSS, OpenAPI 3.0 codegen, Docker Compose, Seaport devnet.
 
 **Spec:** `docs/superpowers/specs/2026-06-20-cantonvault-design.md`
 **Decisions:** `docs/decisiones/01,02,03-*.md`
@@ -144,7 +144,7 @@ git add docs/DECISION-LOG.md
 git commit -m "chore: base cn-quickstart demo verified end-to-end"
 ```
 
-### Task 0.3: Ask Jatin the 3 CPort questions (BLOCKING for live deploy)
+### Task 0.3: Ask Jatin the 3 Seaport questions (BLOCKING for live deploy)
 
 **Files:** none (Discord action)
 
@@ -153,29 +153,29 @@ git commit -m "chore: base cn-quickstart demo verified end-to-end"
 Post verbatim:
 ```
 Hi @Jatin — building CantonVault (a privacy-first conditional commitment primitive
-for invoice financing + OTC block trades). Three CPort questions:
+for invoice financing + OTC block trades). Three Seaport questions:
 
-1. Once my .dar is built, what's the exact upload path in CPort to deploy it
+1. Once my .dar is built, what's the exact upload path in Seaport to deploy it
    to the Encode Hackathon validator?
-2. What JSON API base URL does CPort assign to my deployed app? (so my
+2. What JSON API base URL does Seaport assign to my deployed app? (so my
    frontend can talk to it)
-3. What party ID format does CPort expect, and how does the frontend
+3. What party ID format does Seaport expect, and how does the frontend
    authenticate as a party?
 
-My CPort party ID is: <paste your party ID from top-right of devnet.c4.io>
+My Seaport party ID is: <paste your party ID from top-right of devnet.seaport.to>
 Please add me to the Encode Hackathon org. Thanks!
 ```
 
-- [ ] **Step 2: Capture your party ID from CPort**
+- [ ] **Step 2: Capture your party ID from Seaport**
 
-Visit https://devnet.c4.io, log in with Loop wallet, copy your party ID (top-right). Paste it into the message above and also save it to `docs/DECISION-LOG.md` under a "CPort" section. (Do NOT commit secrets — only the party ID label, which is not a secret on a public devnet.)
+Visit https://devnet.seaport.to, log in with Loop wallet, copy your party ID (top-right, format `<32-hex>::1220<64-hex>`). Paste it into the message above and also save it to `docs/DECISION-LOG.md` under a "Seaport" section. (Do NOT commit secrets — only the party ID label, which is not a secret on a public devnet.)
 
 - [ ] **Step 3: Log the question in decision log and continue**
 
 ```bash
-echo "- Posted 3 CPort questions to Jatin on Discord. Party ID captured." >> docs/DECISION-LOG.md
+echo "- Posted 3 Seaport questions to Jatin on Discord. Party ID captured." >> docs/DECISION-LOG.md
 git add docs/DECISION-LOG.md
-git commit -m "chore: log CPort onboarding questions to Jatin"
+git commit -m "chore: log Seaport onboarding questions to Jatin"
 ```
 
 > **Non-blocking**: While waiting for Jatin, proceed to Phase 1 (Daml contracts) which only needs the LocalNet.
@@ -1482,7 +1482,7 @@ git commit -m "feat(frontend): SplitScreenDemoView (killer feature — 4-quadran
 
 ## Phase 4 — Live Deploy & Submission (Week 4)
 
-### Task 4.1: Deploy to CPort devnet
+### Task 4.1: Deploy to Seaport devnet
 
 > Requires Task 0.3 to be resolved (Jatin's answers).
 
@@ -1496,13 +1496,13 @@ make build-daml
 ls daml/licensing/.daml/dist/  # verify the .dar exists
 ```
 
-- [ ] **Step 2: Upload to CPort per Jatin's instructions**
+- [ ] **Step 2: Upload to Seaport per Jatin's instructions**
 
 Follow the exact path Jatin described (upload .dar, select Encode Hackathon validator, deploy). Capture the deployment URL.
 
-- [ ] **Step 3: Configure the frontend to point at CPort's JSON API**
+- [ ] **Step 3: Configure the frontend to point at Seaport's JSON API**
 
-Add an env var `VITE_LEDGER_API_BASE` that the frontend uses for API calls. Set it to the CPort URL for the live build.
+Add an env var `VITE_LEDGER_API_BASE` that the frontend uses for API calls. Set it to the Seaport URL for the live build.
 
 - [ ] **Step 4: Smoke test the live deployment**
 
@@ -1511,13 +1511,13 @@ Create a commitment proposal against the live validator. Verify it appears.
 - [ ] **Step 5: Commit + record in decision log**
 
 ```bash
-echo "- 🎯 MILESTONE: Live on CPort devnet at <URL>" >> docs/DECISION-LOG.md
-git add -A && git commit -m "deploy: CantonVault live on CPort devnet"
+echo "- 🎯 MILESTONE: Live on Seaport devnet at <URL>" >> docs/DECISION-LOG.md
+git add -A && git commit -m "deploy: CantonVault live on Seaport devnet"
 ```
 
 ### Task 4.2: Fallback — Docker LocalNet one-command deploy
 
-> Always build this in parallel with 4.1; it's the safety net if CPort has issues during judging.
+> Always build this in parallel with 4.1; it's the safety net if Seaport has issues during judging.
 
 **Files:**
 - Modify: `README.md` (the root one, with setup instructions)
@@ -1598,7 +1598,7 @@ git commit -m "docs: 3-minute demo video"
 - [ ] Public repository (this repo, pushed to GitHub)
 - [ ] Presentation deck (10 slides max) — `docs/CantonVault-Deck.pdf`
 - [ ] 3-minute video pitch w/ demo — `docs/CantonVault-Demo.mp4`
-- [ ] Link to live product — CPort URL (or LocalNet one-command fallback)
+- [ ] Link to live product — Seaport URL (or LocalNet one-command fallback)
 - [ ] README with setup instructions — `README.md`
 - [ ] Privacy evidence (split-screen demo works) — verified in Task 3.6
 - [ ] Real Canton Coin settlement (non-negotiable) — verified in Task 1.6b
@@ -1628,7 +1628,7 @@ git push origin main
 | §9 Plan 4 semanas | Phase 0-4 mirror the weeks |
 | §10 Datos verificables | Task 4.3 (deck) |
 | §11 Entregables | Task 4.5 |
-| §12 Riesgos | Task 0.3 (CPort), 1.6b (amulet) |
+| §12 Riesgos | Task 0.3 (Seaport), 1.6b (amulet) |
 
 **Gaps**: none. All spec sections are covered.
 
@@ -1648,7 +1648,7 @@ git push origin main
 ### Notes for the implementer
 
 - **Biggest risk**: Task 1.6b (real Canton Coin settlement). Budget 2x the time. If stuck >4h, ask Jatin on Discord with the specific compile error.
-- **Second risk**: Task 0.3 (CPort). Start the Discord thread day 1, don't wait.
+- **Second risk**: Task 0.3 (Seaport — usar la guía de Jatin https://github.com/Jatinp26/Seaport-Guide). Start the Discord thread day 1, don't wait.
 - **Third risk**: circular import between `CommitmentContract` and `DisputeCase`. Resolved by deciding at implementation time (document in decision log).
 - **Always run tests after each step**. The TDD discipline catches Daml type errors early.
 - **Commit frequently**. Every green test = a commit.

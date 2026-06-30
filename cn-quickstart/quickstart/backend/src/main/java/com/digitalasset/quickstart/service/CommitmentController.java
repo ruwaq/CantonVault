@@ -7,18 +7,29 @@ import static com.digitalasset.quickstart.service.ServiceUtils.ensurePresent;
 import static com.digitalasset.quickstart.service.ServiceUtils.traceServiceCallAsync;
 import static com.digitalasset.quickstart.utility.TracingUtils.tracingCtx;
 
+import com.daml.ledger.api.v2.CommandsOuterClass;
+import com.daml.ledger.api.v2.ValueOuterClass;
 import com.digitalasset.quickstart.ledger.LedgerApi;
+import com.digitalasset.quickstart.ledger.TokenStandardProxy;
+import com.digitalasset.quickstart.pqs.Contract;
 import com.digitalasset.quickstart.repository.DamlRepository;
 import com.digitalasset.quickstart.security.AuthUtils;
+import com.digitalasset.quickstart.tokenstandard.openapi.allocation.model.DisclosedContract;
+import com.digitalasset.transcode.java.ContractId;
+import com.google.protobuf.ByteString;
+import daml_prim_da_types.da.types.Tuple2;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +41,11 @@ import quickstart_licensing.vault.commitmentcontract.DisputeCase;
 import quickstart_licensing.vault.commitmentproposal.CommitmentProposal;
 import quickstart_licensing.vault.disclosable.DisclosedRecord;
 import quickstart_licensing.vault.settlementreceipt.SettlementReceipt;
+import splice_api_token_allocation_v1.splice.api.token.allocationv1.Allocation;
+import splice_api_token_metadata_v1.splice.api.token.metadatav1.AnyValue;
+import splice_api_token_metadata_v1.splice.api.token.metadatav1.ChoiceContext;
+import splice_api_token_metadata_v1.splice.api.token.metadatav1.ExtraArgs;
+import splice_api_token_metadata_v1.splice.api.token.metadatav1.Metadata;
 
 @RestController
 @RequestMapping("/vault")
@@ -40,11 +56,17 @@ public class CommitmentController {
     private final LedgerApi ledger;
     private final AuthUtils auth;
     private final DamlRepository damlRepository;
+    private final TokenStandardProxy tokenStandardProxy;
 
-    public CommitmentController(LedgerApi ledger, AuthUtils auth, DamlRepository damlRepository) {
+    public CommitmentController(
+            LedgerApi ledger,
+            AuthUtils auth,
+            DamlRepository damlRepository,
+            TokenStandardProxy tokenStandardProxy) {
         this.ledger = ledger;
         this.auth = auth;
         this.damlRepository = damlRepository;
+        this.tokenStandardProxy = tokenStandardProxy;
     }
 
     // ── Commitment Proposals ────────────────────────────────────────────────
@@ -162,21 +184,65 @@ public class CommitmentController {
         String commandId = UUID.randomUUID().toString();
         String note = request != null && request.fulfillmentNote != null
                 ? request.fulfillmentNote : "fulfilled via CantonVault";
+        String allocationContractId = request != null ? request.allocationContractId : null;
+
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
                 damlRepository.findCommitmentById(contractId).thenCompose(optContract -> {
                     var contract = ensurePresent(optContract, "Commitment not found: %s", contractId);
-                    // Symbolic fulfillment — allocationCid = null (no real CC transfer)
-                    // For real Canton Coin settlement, pass an Allocation contractId.
-                    var choice = new CommitmentContract.Fulfill(note, Optional.empty());
-                    return ledger.exerciseAndGetResult(contract.contractId, choice, commandId)
-                            .thenApply(result -> {
-                                logger.info("Commitment {} fulfilled", contractId);
-                                return ResponseEntity.ok(Map.of(
-                                        "status", "fulfilled",
-                                        "receiptContractId", ((com.digitalasset.transcode.java.ContractId<?>) result).getContractId));
-                            });
+
+                    if (allocationContractId != null && !allocationContractId.isBlank()) {
+                        return fulfillRealSettlement(contract, note, allocationContractId, commandId);
+                    }
+                    return fulfillSymbolic(contract, note, commandId);
                 })
         ));
+    }
+
+    private CompletableFuture<ResponseEntity<Map<String, String>>> fulfillRealSettlement(
+            Contract<CommitmentContract> contract,
+            String note,
+            String allocationContractId,
+            String commandId) {
+        var choiceContextFut = tokenStandardProxy.getAllocationTransferContext(allocationContractId);
+        return choiceContextFut.thenCompose(choiceContext -> {
+            var cc = ensurePresent(choiceContext, "Transfer context not found for allocation %s", allocationContractId);
+            TransferContext transferContext = prepareTransferContext(
+                    cc.getDisclosedContracts(),
+                    Map.of("AmuletRules", "amulet-rules", "OpenMiningRound", "open-round"));
+
+            Tuple2<ContractId<Allocation>, ExtraArgs> allocationBundle =
+                    new Tuple2<>(new ContractId<>(allocationContractId), transferContext.extraArgs);
+            var choice = new CommitmentContract.Fulfill(note, Optional.of(allocationBundle));
+
+            logger.info("Fulfilling commitment {} with real CC settlement via allocation {}",
+                    contract.contractId.getContractId, allocationContractId);
+
+            return ledger.exerciseAndGetResult(
+                    contract.contractId, choice, commandId, transferContext.disclosedContracts)
+                    .thenApply(result -> {
+                        logger.info("Commitment {} fulfilled with real CC settlement", contract.contractId.getContractId);
+                        return ResponseEntity.ok(Map.of(
+                                "status", "fulfilled",
+                                "receiptContractId", ((ContractId<?>) result).getContractId,
+                                "settlementMode", "real",
+                                "allocationContractId", allocationContractId));
+                    });
+        });
+    }
+
+    private CompletableFuture<ResponseEntity<Map<String, String>>> fulfillSymbolic(
+            Contract<CommitmentContract> contract,
+            String note,
+            String commandId) {
+        var choice = new CommitmentContract.Fulfill(note, Optional.empty());
+        return ledger.exerciseAndGetResult(contract.contractId, choice, commandId)
+                .thenApply(result -> {
+                    logger.info("Commitment {} fulfilled (symbolic)", contract.contractId.getContractId);
+                    return ResponseEntity.ok(Map.of(
+                            "status", "fulfilled",
+                            "receiptContractId", ((ContractId<?>) result).getContractId,
+                            "settlementMode", "symbolic"));
+                });
     }
 
     @PostMapping("/commitments/{contractId}/raise-dispute")
@@ -189,13 +255,15 @@ public class CommitmentController {
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
                 damlRepository.findCommitmentById(contractId).thenCompose(optContract -> {
                     var contract = ensurePresent(optContract, "Commitment not found: %s", contractId);
-                    var choice = new CommitmentContract.RaiseDispute(request.reason);
+                    var choice = new CommitmentContract.RaiseDispute(
+                            request.reason, new com.digitalasset.transcode.java.Party(party));
                     return ledger.exerciseAndGetResult(contract.contractId, choice, commandId)
                             .thenApply(result -> {
-                                logger.info("Dispute raised on commitment {}", contractId);
+                                logger.info("Dispute raised on commitment {} by {}", contractId, party);
                                 return ResponseEntity.ok(Map.of(
                                         "status", "disputed",
-                                        "disputeCaseId", ((com.digitalasset.transcode.java.ContractId<?>) result).getContractId));
+                                        "disputeCaseId", ((com.digitalasset.transcode.java.ContractId<?>) result).getContractId,
+                                        "disclosedTo", contract.payload.getThirdParty.getParty));
                             });
                 })
         ));
@@ -273,13 +341,15 @@ public class CommitmentController {
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
                 damlRepository.findCommitmentById(contractId).thenCompose(optContract -> {
                     var contract = ensurePresent(optContract, "Commitment not found: %s", contractId);
-                    var choice = new CommitmentContract.RaiseDispute("selective-disclosure: " + request.reason);
+                    var choice = new CommitmentContract.RaiseDispute(
+                            request.reason, new com.digitalasset.transcode.java.Party(party));
                     return ledger.exerciseAndGetResult(contract.contractId, choice, commandId)
                             .thenApply(result -> {
-                                logger.info("Disclosure executed on commitment {}", contractId);
+                                logger.info("Disclosure executed on commitment {} by {}", contractId, party);
                                 return ResponseEntity.ok(Map.of(
                                         "status", "disclosed",
-                                        "disputeCaseId", ((com.digitalasset.transcode.java.ContractId<?>) result).getContractId));
+                                        "disputeCaseId", ((com.digitalasset.transcode.java.ContractId<?>) result).getContractId,
+                                        "disclosedTo", contract.payload.getThirdParty.getParty));
                             });
                 })
         ));
@@ -297,12 +367,77 @@ public class CommitmentController {
             long deadlineSeconds) {
     }
 
-    public record FulfillRequest(String fulfillmentNote) {
+    public record FulfillRequest(
+            String fulfillmentNote,
+            String allocationContractId) {
     }
 
     public record RaiseDisputeRequest(String reason) {
     }
 
     public record DiscloseRequest(String reason) {
+    }
+
+    // ── Transfer context helpers (Canton Coin settlement) ──────────────────────
+
+    private record TransferContext(
+            ExtraArgs extraArgs,
+            List<CommandsOuterClass.DisclosedContract> disclosedContracts) {
+    }
+
+    private TransferContext prepareTransferContext(
+            List<DisclosedContract> disclosedContracts,
+            Map<String, String> metaMap) {
+        var disclosures = disclosedContracts
+                .stream()
+                .map(this::toLedgerApiDisclosedContract)
+                .toList();
+        Map<String, AnyValue> choiceContextMap = disclosures
+                .stream()
+                .map(dc -> {
+                    var metaKey = metaMap.get(dc.getTemplateId().getEntityName());
+                    if (metaKey != null) {
+                        return Map.entry(metaKey, toAnyValueContractId(dc.getContractId()));
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        return new TransferContext(
+                new ExtraArgs(new ChoiceContext(choiceContextMap), new Metadata(Map.of())),
+                disclosures);
+    }
+
+    private CommandsOuterClass.DisclosedContract toLedgerApiDisclosedContract(DisclosedContract dc) {
+        ValueOuterClass.Identifier templateId = parseTemplateIdentifier(dc.getTemplateId());
+        byte[] blob = Base64.getDecoder().decode(dc.getCreatedEventBlob());
+        return CommandsOuterClass.DisclosedContract.newBuilder()
+                .setTemplateId(templateId)
+                .setContractId(dc.getContractId())
+                .setCreatedEventBlob(ByteString.copyFrom(blob))
+                .build();
+    }
+
+    private static ValueOuterClass.Identifier parseTemplateIdentifier(String templateIdStr) {
+        String[] parts = templateIdStr.split(":");
+        if (parts.length < 3) {
+            throw new IllegalArgumentException("Invalid templateId format: " + templateIdStr);
+        }
+        String packageId = parts[0];
+        String moduleName = parts[1];
+        StringBuilder entityNameBuilder = new StringBuilder();
+        for (int i = 2; i < parts.length; i++) {
+            if (i > 2) entityNameBuilder.append(":");
+            entityNameBuilder.append(parts[i]);
+        }
+        return ValueOuterClass.Identifier.newBuilder()
+                .setPackageId(packageId)
+                .setModuleName(moduleName)
+                .setEntityName(entityNameBuilder.toString())
+                .build();
+    }
+
+    private static AnyValue toAnyValueContractId(String contractId) {
+        return new AnyValue.AnyValue_AV_ContractId(new ContractId<>(contractId));
     }
 }

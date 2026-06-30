@@ -1,10 +1,12 @@
 # Investigación técnica consolidada
 
-> **Hallazgos de la investigación profunda del 2026-06-20 sobre Daml, Canton, cn-quickstart y CPort.**
+> **Hallazgos de la investigación profunda del 2026-06-20 sobre Daml, Canton, cn-quickstart y Seaport.**
 > Cada hallazgo con su nivel de confianza y fuente. Esto es la base empírica de las decisiones en `docs/decisiones/`.
+>
+> ⚠️ **Corrección posterior (2026-06-20)**: esta investigación se hizo cuando llamábamos "CPort" a lo que en realidad es **Seaport** (`devnet.seaport.to`). Las conclusiones técnicas siguen siendo válidas; solo cambia el nombre del producto de deploy. Ver `docs/inteligencia-competitiva.md` para la corrección completa con datos del Discord.
 
 **Fecha**: 2026-06-20
-**Método**: 3 agentes de investigación en paralelo (Daml patterns, cn-quickstart, CPort deploy) + 1 timeout (ecosystem, relanzar si necesario)
+**Método**: 3 agentes de investigación en paralelo (Daml patterns, cn-quickstart, Seaport deploy) + 1 timeout (ecosystem, relanzar si necesario)
 
 ---
 
@@ -17,7 +19,7 @@
 | 3 | Divulgence: ejercer choice divulga contrato al controller | ✅ Verificado (docs) | Árbitro NUNCA controller sobre CommitmentContract |
 | 4 | cn-quickstart es contract-first con OpenAPI compartido | ✅ Verificado (repo) | Reducimos scope de backend |
 | 5 | `LicenseRenewalRequest_CompleteRenewal` ya hace settlement con amulet | ✅ Verificado (repo) | Settlement real posible |
-| 6 | CPort/devnet.c4.io NO está documentado | ⚠️ No verificado (HTTP 500) | Dual deploy: LocalNet + CPort |
+| 6 | Seaport/devnet.seaport.to — guia oficial publicada DESPUÉS de esta investigación | ⚠️ Parcialmente verificado (Jatin publicó guía en Discord) | Dual deploy: LocalNet + Seaport. Ver `docs/inteligencia-competitiva.md` |
 | 7 | `daml2ts` posiblemente deprecado | ⚠️ No verificado | Usar OpenAPI → TS del quickstart |
 | 8 | Canton Network = sub-transaction privacy a nivel protocolo | ✅ Verificado (whitepaper) | "Imposible en Ethereum" confirmado |
 
@@ -208,18 +210,18 @@ template AppInstall with
 
 ---
 
-## 🌐 3. CPort y deploy a devnet
+## 🌐 3. Seaport y deploy a devnet
 
 ### 3.1 Lo verificado
 
-- **CPort (devnet.c4.io)**: devolvió HTTP 500 al intentar leerlo. No hay docs públicas.
+- **Seaport (devnet.seaport.to)**: devolvió HTTP 500 al intentar leerlo. No hay docs públicas.
 - Es un **wrapper hackathon** mostrado por Jatin Pandya en el workshop del 17 Jun 2026.
 - La fundación creó la org **"Encode Hackathon"** con un validator pre-configurado.
 - Para que te añadan: **enviar tu party ID a Jatin por Discord**.
 
 ### 3.2 Lo que sabemos del flujo (por la charla de Jatin)
 
-1. Login en devnet.c4.io con Loop Wallet (no requiere invite code)
+1. Login en devnet.seaport.to con Loop Wallet (no requiere invite code)
 2. Seleccionar organization "Encode Hackathon"
 3. Enviar tu party ID (top right) a Jatin por Discord para que te añada
 4. Opciones para deploy:
@@ -232,18 +234,18 @@ template AppInstall with
 
 > **Acción**: pegar estas 3 preguntas en Discord `#❓technical-questions`:
 
-1. ¿Cómo se sube el `.dar` desde CPort al validator? ¿Upload directo o connect GitHub?
+1. ¿Cómo se sube el `.dar` desde Seaport al validator? ¿Upload directo o connect GitHub?
 2. ¿Qué URL base del JSON API nos asigna el validator "Encode Hackathon"? (para que el frontend hable con él)
-3. ¿Qué formato de party ID espera CPort? ¿Y cómo authentica el frontend como un party?
+3. ¿Qué formato de party ID espera Seaport? ¿Y cómo authentica el frontend como un party?
 
-### 3.4 Fallback si CPort no coopera
+### 3.4 Fallback si Seaport no coopera
 
 - **Dev = LocalNet docker** (cn-quickstart `make start`)
 - **Live para jueces = LocalNet docker con `make start` + README de 1 comando + video demo**
 
-Los jueces prefieren un LocalNet que funciona que un CPort roto.
+Los jueces prefieren un LocalNet que funciona que un Seaport roto.
 
-### 3.5 APIs Canton subyacentes (documentados, independientes de CPort)
+### 3.5 APIs Canton subyacentes (documentados, independientes de Seaport)
 
 | API | URL | Para qué |
 |---|---|---|
@@ -326,9 +328,9 @@ Verificado en https://docs.canton.network/overview/learn/architecture y https://
 
 | Item | Acción | Cuándo |
 |---|---|---|
-| CPort DAR upload flow | Preguntar a Jatin en Discord | Semana 1 |
-| CPort JSON API base URL | Preguntar a Jatin en Discord | Semana 1 |
-| CPort party ID format | Preguntar a Jatin en Discord | Semana 1 |
+| Seaport DAR upload flow | Preguntar a Jatin en Discord | Semana 1 |
+| Seaport JSON API base URL | Preguntar a Jatin en Discord | Semana 1 |
+| Seaport party ID format | Preguntar a Jatin en Discord | Semana 1 |
 | `Disclosure` interface compila en SDK 3.4.11 | Probar en semana 1 | Semana 1 |
 | `daml2ts` status | Evitar; usar OpenAPI → TS | — |
 | Multi-tenant operator isolation | No relevante para hackathon | — |

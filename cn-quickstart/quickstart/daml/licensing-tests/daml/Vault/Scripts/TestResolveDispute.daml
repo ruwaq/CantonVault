@@ -23,10 +23,10 @@ test_thirdparty_resolves = do
     workflow = "supply-chain-finance"
     deadline = deadline
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
-  disputeCid <- submitMulti [proposer, accepter] [] $ exerciseCmd contractCid (RaiseDispute with reason = "unpaid")
+  disputeCid <- submitMulti [proposer, accepter] [] $ exerciseCmd contractCid (RaiseDispute with reason = "unpaid"; actor = proposer)
   submit thirdParty $ exerciseCmd disputeCid (ResolveDispute with ruling = "proposer")
   result <- queryContractId thirdParty disputeCid
   case result of
-    None -> return () -- DisputeCase archived, ruling executed
+    None -> return () -- DisputeCase archived, resolution DisclosedRecord created
     Some _ -> assertMsg "DisputeCase should be archived after resolution" False
   return ()

@@ -68,9 +68,9 @@
 
 | Plataforma | URL | Para qué | Estado |
 |---|---|---|---|
-| **CPort devnet** | https://devnet.c4.io | Deploy del `.dar` para "live product" | ⚠️ Sin docs oficiales, confirmar con Jatin |
+| **Seaport devnet** | https://devnet.seaport.to | Deploy del `.dar` para "live product" | ⚠️ Sin docs oficiales, confirmar con Jatin |
 | **Canton DevNet** | https://docs.dev.sync.global | Documentación de DevNet subyacente | ✅ Documentado |
-| **Loop Wallet** | (integrado en CPort) | Wallet de parties en devnet | ⚠️ Integración vía CPort, no self-serve |
+| **Loop Wallet** | (integrado en Seaport) | Wallet de parties en devnet | ⚠️ Integración vía Seaport, no self-serve |
 | **Encode Club** | https://www.encodeclub.com/programmes/canton-hackathon | Plataforma del hackathon | ✅ Aquí se crea el proyecto y se sube |
 | **Discord Encode** | (link en plataforma) | Soporte técnico con Jatin + equipo | ✅ Canal `#❓technical-questions` |
 

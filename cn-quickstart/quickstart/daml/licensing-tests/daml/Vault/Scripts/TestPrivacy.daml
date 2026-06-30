@@ -70,7 +70,7 @@ test_thirdparty_sees_dispute = do
   assertMsg "pre-dispute: thirdParty sees no CommitmentContract" (null tpContracts1)
 
   -- Raise dispute (proposer escalates — needs both signatories)
-  disputeCid <- submitMulti [proposer, accepter] [] $ exerciseCmd contractCid (RaiseDispute with reason = "buyer hasn't confirmed delivery")
+  disputeCid <- submitMulti [proposer, accepter] [] $ exerciseCmd contractCid (RaiseDispute with reason = "buyer hasn't confirmed delivery"; actor = proposer)
 
   -- After dispute: thirdParty sees the DisputeCase
   Some _ <- queryContractId thirdParty disputeCid

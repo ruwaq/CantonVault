@@ -3,9 +3,30 @@
 > **Por qué construimos CantonVault y no otra cosa.**
 > Este documento registra el razonamiento completo, las alternativas descartadas y los trade-offs. Cualquier desviación futura del plan debe justificarse contra este documento.
 
-**Fecha**: 2026-06-20 (revisión v2: 2026-06-20 tras investigación de mercado y strategic-fit)
+**Fecha**: 2026-06-20 (revisión v2: 2026-06-20 tras investigación de mercado y strategic-fit; revisión v3: 2026-06-20 tras inteligencia competitiva del Discord)
 **Decisión**: Construir CantonVault (primitiva de compromiso condicional privado) como **infraestructura institucional de trade finance con selective disclosure** y settlement nativo en Canton Coin.
 **Estado**: ✅ Aprobada por el equipo
+
+---
+
+## 🥊 Revisión v3 — Competidor directo detectado: IoMarkets
+
+> Tras monitorear el Discord de Encode Club el 2026-06-20, detectamos un competidor directo serio. Detalle completo en `docs/inteligencia-competitiva.md`.
+
+**IoMarkets [AIND]** está construyendo: *"private institutional capital markets: tokenized deposits, private deals, OTC, and an agentic treasury, with privacy enforced by the ledger"*. App ya live, Daml model end-to-end, KYC/KYB attestations + tokenized-deposit DvP escrow. **Más avanzado que nosotros.**
+
+**Nuestra respuesta estratégica**: NO competir en amplitud (perdemos). Competir en **foco + claridad de la tesis de privacidad**:
+
+| Dimensión | IoMarkets | CantonVault (nosotros) |
+|---|---|---|
+| Scope | Amplio (KYC + custody + RWA + treasury + OTC) | **Foco**: primitiva de selective disclosure |
+| Diferenciador | RWA settlement con privacidad de paso | **Privacidad como producto visual** (split-screen) |
+| Demo | App funcional (menos memorable) | **Demo visual que golpea** en 30s |
+| "Por qué Canton" | Implícito | **Explícito y demostrable** (cuadrante vacío) |
+
+**Regla**: NO añadir KYC, ni tokenized deposits, ni treasury, para competir. Eso nos saca del foco. Posicionarnos como **"la primitiva de privacidad DEBAJO de los RWA settlement apps como IoMarkets"** (capa, no competidor).
+
+**Re-estimación de P(ganar top-3)**: 70% → **60%** (IoMarkets es rival real). La killer demo split-screen es ahora MÁS crítica — es lo único que nos diferencia.
 
 ---
 
@@ -93,7 +114,7 @@ Leí los tracks oficiales publicados por Encode Club + Canton Foundation:
 4. **Trade Credit Insurance es mejor**: Allianz Trade, Coface dejan al buyer pagar a 60 días (escrow le bloquea cash hoy).
 5. **No hay fiat off-ramp con licencia VASP** en MX (Ley Fintech/CNVB), BR (Lei 14.478), AR (BCRA). Sin eso no se liquida valor real.
 
-**Qué se conservó**: los 4 contratos base, la demo split-screen, el flujo Propose/Accept, el deploy en CPort, Canton Coin settlement.
+**Qué se conservó**: los 4 contratos base, la demo split-screen, el flujo Propose/Accept, el deploy en Seaport, Canton Coin settlement.
 
 ### CantonVault B2B + ONG (plan v1 intermedio)
 **Por qué se descartó**:
@@ -187,7 +208,7 @@ Leí los tracks oficiales publicados por Encode Club + Canton Foundation:
 
 ## 🔄 Cómo saber si esta decisión sigue siendo correcta (checkpoints)
 
-- [ ] **Semana 1**: ¿CPort devnet funciona y acepta nuestro `.dar`? Si no, fallback a LocalNet dockerizado con instrucciones claras.
+- [ ] **Semana 1**: ¿Seaport devnet funciona y acepta nuestro `.dar`? Si no, fallback a LocalNet dockerizado con instrucciones claras.
 - [ ] **Semana 1**: ¿La Disclosure interface de Daml.Finance compila en SDK 3.4.11? Si no, fallback al patrón DisputeCase manual.
 - [ ] **Semana 2**: ¿Settlement real con Canton Coin (amulet) funciona end-to-end? **Non-negotiable** — si no funciona, prioridad absoluta hasta que funcione.
 - [ ] **Semana 3**: ¿La demo split-screen se ve convincente en video? Si no, simplificar a 2 cuadrantes (partes + competidor).

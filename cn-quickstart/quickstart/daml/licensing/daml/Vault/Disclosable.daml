@@ -1,48 +1,20 @@
--- | Disclosable interface: contracts that support selective disclosure
--- to a third party on-demand. Foundation of CantonVault's privacy model.
---
--- Any contract implementing Disclosable can:
---   1. Be queried by stakeholders who get full visibility
---   2. Disclose minimal information to an observer on-demand
---   3. Never reveal anything to non-stakeholders
+-- | Selective disclosure evidence for CantonVault.
+-- A lightweight record proving that disclosure occurred to a specific observer.
+-- Created automatically by RaiseDispute and ResolveDispute.
 module Vault.Disclosable where
 
 import DA.TextMap as TextMap
 
--- | Metadata key-value pairs for disclosure.
-data DisclosureMetadata = DisclosureMetadata with
-    values : TextMap Text
-  deriving (Eq, Show)
-
--- | What each party should see when this contract is disclosed.
-data DisclosableView = DisclosableView with
-    visibleTo : [Party]
-    hiddenFrom : [Party]
-    revealedFields : TextMap Text   -- field name → value
-    meta : DisclosureMetadata
-  deriving (Eq, Show)
-
--- | Interface for contracts that can selectively disclose to a third party.
--- The third party is referenced in the contract but NOT a stakeholder,
--- so they see nothing by default. Disclosure happens on-demand.
-interface Disclosable where
-  viewtype DisclosableView
-
-  -- | A party with authority can trigger selective disclosure to a specified observer.
-  -- The observer becomes a stakeholder of the returned disclosure record.
-  discloseTo : Party -> Update (ContractId DisclosedRecord)
-
-  isDisclosed : Party -> Update Bool
-
--- | A lightweight record proving that selective disclosure occurred.
+-- | An immutable record that selective disclosure occurred.
 -- The observer is a signatory so they can see this on their ledger.
+-- Works standalone — no interface dependency required.
 template DisclosedRecord with
-    sourceCid        : ContractId Disclosable
+    sourceCid        : Text          -- contract ID of the source commitment (as text)
     discloser        : Party
     observer         : Party
     revealedFields   : TextMap Text
     revealedAt       : Time
-    meta             : DisclosureMetadata
+    reason           : Text
   where
     signatory discloser, observer
     ensure discloser /= observer

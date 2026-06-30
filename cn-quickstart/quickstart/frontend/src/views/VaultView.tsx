@@ -20,6 +20,7 @@ const VaultView: React.FC = () => {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [activeQuadrant, setActiveQuadrant] = useState<Quadrant>('proposals');
   const [loading, setLoading] = useState(false);
+  const [allocationCids, setAllocationCids] = useState<Record<string, string>>({});
 
   // ── Form state ──
   const [form, setForm] = useState({
@@ -70,8 +71,15 @@ const VaultView: React.FC = () => {
     catch { toast.displayError('Reject failed'); }
   };
 
-  const fulfill = async (id: string) => {
-    try { await API.post(`/commitments/${id}/fulfill`, { fulfillmentNote: 'Fulfilled' }); refreshAll(); toast.displaySuccess('Fulfilled'); }
+  const fulfill = async (id: string, allocationContractId?: string) => {
+    try {
+      await API.post(`/commitments/${id}/fulfill`, {
+        fulfillmentNote: 'Fulfilled',
+        allocationContractId: allocationContractId || undefined
+      });
+      refreshAll();
+      toast.displaySuccess(allocationContractId ? 'Fulfilled with CC settlement' : 'Fulfilled (symbolic)');
+    }
     catch { toast.displayError('Fulfill failed'); }
   };
 
@@ -180,8 +188,10 @@ const VaultView: React.FC = () => {
         <div>
           <h6>Active Commitments ({commitments.length})</h6>
           {commitments.length === 0 && <div className="text-muted small">No active commitments</div>}
-          {commitments.map((c: any) => (
-            <div key={c.contractId || c.getDescription} className="card mb-2">
+          {commitments.map((c: any) => {
+            const cid = c.contractId;
+            return (
+            <div key={cid || c.getDescription} className="card mb-2">
               <div className="card-body py-2 px-3">
                 <div className="d-flex justify-content-between align-items-center">
                   <div>
@@ -191,15 +201,32 @@ const VaultView: React.FC = () => {
                       {c.getStatus || c.status || 'Active'}
                     </span>
                   </div>
-                  <div className="d-flex gap-1">
-                    <button className="btn btn-primary btn-sm" onClick={() => fulfill(c.contractId)}>Fulfill</button>
-                    <button className="btn btn-warning btn-sm" onClick={() => dispute(c.contractId)}>Dispute</button>
-                    <button className="btn btn-outline-secondary btn-sm" onClick={() => refund(c.contractId)}>Refund</button>
+                  <div className="d-flex gap-1 align-items-end">
+                    <input
+                      className="form-control form-control-sm"
+                      style={{ width: '240px', fontSize: '0.7rem' }}
+                      placeholder="Allocation CID (optional)"
+                      value={allocationCids[cid] || ''}
+                      onChange={e => setAllocationCids({ ...allocationCids, [cid]: e.target.value })}
+                    />
+                    <button className="btn btn-outline-primary btn-sm" onClick={() => fulfill(cid)} title="Symbolic settlement">
+                      Fulfill
+                    </button>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => fulfill(cid, allocationCids[cid])}
+                      disabled={!allocationCids[cid]}
+                      title="Real Canton Coin settlement"
+                    >
+                      CC
+                    </button>
+                    <button className="btn btn-warning btn-sm" onClick={() => dispute(cid)}>Dispute</button>
+                    <button className="btn btn-outline-secondary btn-sm" onClick={() => refund(cid)}>Refund</button>
                   </div>
                 </div>
               </div>
             </div>
-          ))}
+          )})}
         </div>
       )}
 

@@ -39,7 +39,7 @@
 ├──────────────────────────────────────────────────────┤
 │              INFRAESTRUCTURA                           │
 │  Dev:    cn-quickstart Docker LocalNet (compose)      │
-│  Live:   CPort devnet.c4.io (.dar upload al validator)│
+│  Live:   Seaport devnet.seaport.to (.dar upload al validator)│
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -62,22 +62,22 @@
 | Opción | Pros | Contras | Veredicto |
 |---|---|---|---|
 | **cn-quickstart pattern (frontend → backend → ledger)** ⭐ | Auth, PQS, codegen ya resueltos | 1 capa más | ✅ **Elegido** (alineado al scaffold) |
-| Frontend → JSON API directo | Sin backend, más simple | Auth de parties y external signing son complejos; CPort no documentado | ❌ Descartado |
+| Frontend → JSON API directo | Sin backend, más simple | Auth de parties y external signing son complejos; Seaport no documentado | ❌ Descartado |
 
 **Justificación**: La auth de parties en Canton (JWT por party, external signing con Loop wallet) es compleja. El cn-quickstart ya la resuelve. No reinventar.
 
-### Decisión A3: Dev = LocalNet Docker + Live = CPort devnet
+### Decisión A3: Dev = LocalNet Docker + Live = Seaport devnet
 
-> ⚠️ **CPort (devnet.c4.io) NO está documentado oficialmente.** Es un wrapper hackathon mostrado por Jatin en vivo. Hay que confirmar con Jatin en Discord 3 cosas:
-> 1. Cómo se sube el `.dar` desde CPort
+> ⚠️ **Seaport (devnet.seaport.to) NO está documentado oficialmente.** Es un wrapper hackathon mostrado por Jatin en vivo. Hay que confirmar con Jatin en Discord 3 cosas:
+> 1. Cómo se sube el `.dar` desde Seaport
 > 2. Qué URL base del JSON API nos asignan
 > 3. Formato de party ID esperado
 
 **Estrategia dual** (degrada con elegancia):
 - **Desarrollo**: `make start` con cn-quickstart Docker LocalNet → 100% control, logs, debugging
-- **Live para jueces**: subir el `.dar` compilado a CPort devnet → cumple el requirement "Link to live product"
+- **Live para jueces**: subir el `.dar` compilado a Seaport devnet → cumple el requirement "Link to live product"
 
-**Fallback** si CPort no coopera: instrucciones claras de `make start` en 1 comando en el README, con video demo. Los jueces prefieren un LocalNet que funciona que un CPort que se rompe.
+**Fallback** si Seaport no coopera: instrucciones claras de `make start` en 1 comando en el README, con video demo. Los jueces prefieren un LocalNet que funciona que un Seaport que se rompe.
 
 ---
 
@@ -338,7 +338,7 @@ test_arbiter_privacy = script do
 
 | Riesgo | Probabilidad | Impacto | Mitigación |
 |---|---|---|---|
-| CPort no coopera / no docs | 🔴 alta | 🟡 medio | Dual deploy: LocalNet docker como respaldo |
+| Seaport no coopera / no docs | 🔴 alta | 🟡 medio | Dual deploy: LocalNet docker como respaldo |
 | Disclosure interface no compila en SDK 3.4.11 | 🟡 media | 🟡 medio | Fallback a patrón DisputeCase manual (ya diseñado) |
 | Settlement con amulet demasiado complejo | 🟡 media | 🔴 **alto** | **NON-NEGOTIABLE**: Canton Coin settlement real es lo que nos hace económicamente nativos (Cantonomics: 62% del pool a featured apps con transaction utility). Si tropezamos, prioridad absoluta hasta que funcione — NO hay fallback a settlement simbólico (eso nos descarta del Featured App pipeline y del Protocol Development Fund) |
 | Daml SDK learning curve | 🔴 alta | 🟡 medio | Semana 1 dedicada a dominar Daml con el cn-quickstart como referencia |

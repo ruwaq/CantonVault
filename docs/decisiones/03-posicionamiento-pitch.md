@@ -130,7 +130,7 @@
 | 5 | **¿No es esto Corda?** | Preempt explícito: "sí, y Canton lo evoluciona con X, Y" |
 | 6 | **Demo Invoice Financing** | Captura split-screen SME/Financier/Buyer/Competidor |
 | 7 | **Demo OTC Block Trade** | Captura split-screen Dealers/Clearing/Mercado |
-| 8 | **Arquitectura** | Stack: Daml + cn-quickstart + CPort + amulet settlement real |
+| 8 | **Arquitectura** | Stack: Daml + cn-quickstart + Seaport + amulet settlement real |
 | 9 | **Privacidad técnica** | Diagrama de los 4 contratos + Disclosure interface + Canton Coin flow |
 | 10 | **Mercado + Roadmap** | Trade finance gap (ADB) + visión: agentic commerce fase 3 |
 

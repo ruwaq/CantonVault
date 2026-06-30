@@ -125,7 +125,7 @@ Mismo contrato subyacente. Invoice financing privado y OTC block trade privado. 
 ├──────────────────────────────────────────────────────┤
 │              INFRAESTRUCTURA                           │
 │  Dev:    cn-quickstart Docker LocalNet (compose)      │
-│  Live:   CPort devnet.c4.io (.dar upload al validator)│
+│  Live:   Seaport devnet.seaport.to (.dar upload al validator)│
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -133,10 +133,10 @@ Mismo contrato subyacente. Invoice financing privado y OTC block trade privado. 
 
 **Decisión de infraestructura dual**:
 - **Desarrollo**: `make start` con cn-quickstart Docker LocalNet → 100% control, logs, debugging
-- **Live para jueces**: subir el `.dar` compilado a CPort devnet → cumple el requirement "Link to live product"
-- **Fallback** si CPort no coopera: LocalNet docker con instrucciones claras de 1 comando en README + video demo
+- **Live para jueces**: subir el `.dar` compilado a Seaport devnet → cumple el requirement "Link to live product"
+- **Fallback** si Seaport no coopera: LocalNet docker con instrucciones claras de 1 comando en README + video demo
 
-> ⚠️ **CPort no documentado oficialmente**. Acción semana 1: confirmar con Jatin en Discord 3 cosas: (1) cómo subir `.dar`, (2) URL base del JSON API, (3) formato de party ID.
+> ⚠️ **Seaport no documentado oficialmente**. Acción semana 1: confirmar con Jatin en Discord 3 cosas: (1) cómo subir `.dar`, (2) URL base del JSON API, (3) formato de party ID.
 
 ---
 
@@ -441,7 +441,7 @@ test_thirdparty_privacy = script do
 
 | Semana | Foco | Entregable | Checkpoint de validación |
 |---|---|---|---|
-| **1** (15-21 Jun) | Setup + modelado Daml | Proyecto creado en Encode, contratos Daml base compilando | ¿CPort acepta `.dar`? ¿Disclosure interface compila en SDK 3.4.11? |
+| **1** (15-21 Jun) | Setup + modelado Daml | Proyecto creado en Encode, contratos Daml base compilando | ¿Seaport acepta `.dar`? ¿Disclosure interface compila en SDK 3.4.11? |
 | **2** (22-28 Jun) | Backend + OpenAPI + integración | Endpoints funcionando contra LocalNet | ¿Settlement con Canton Coin funciona end-to-end? (**NON-NEGOTIABLE**) |
 | **3** (29 Jun-5 Jul) | Frontend + killer demo (split-screen) | App end-to-end, 2 escenarios (Invoice Financing + OTC) | ¿La demo split-screen se ve convincente en video? |
 | **4** (6-13 Jul) | Pitch + video + submission | Repo público, deck, video 3min, live link | ¿Claims defensibles? ¿Sin "imposible en Ethereum"? |
@@ -470,7 +470,7 @@ test_thirdparty_privacy = script do
 - [ ] Repositorio público (este, en GitHub)
 - [ ] Presentation deck (máx 10 slides) — ver `docs/decisiones/03-posicionamiento-pitch.md`
 - [ ] Video pitch de 3 min con demo — script en `docs/decisiones/03-posicionamiento-pitch.md`
-- [ ] Link a producto live (CPort devnet, con fallback a LocalNet docker)
+- [ ] Link a producto live (Seaport devnet, con fallback a LocalNet docker)
 - [ ] README de setup (1 comando: `make start`)
 
 ---
@@ -479,7 +479,7 @@ test_thirdparty_privacy = script do
 
 | Riesgo | Probabilidad | Impacto | Mitigación |
 |---|---|---|---|
-| CPort no coopera / no docs | 🔴 alta | 🟡 medio | Dual deploy: LocalNet docker como respaldo |
+| Seaport no coopera / no docs | 🔴 alta | 🟡 medio | Dual deploy: LocalNet docker como respaldo |
 | Disclosure interface no compila en SDK 3.4.11 | 🟡 media | 🟡 medio | Fallback a patrón DisputeCase manual (diseñado en §4) |
 | **Settlement con amulet demasiado complejo** | 🟡 media | 🔴 **alto** | **NON-NEGOTIABLE**: prioridad absoluta semana 2 hasta que funcione. NO hay fallback simbólico |
 | Daml SDK learning curve | 🔴 alta | 🟡 medio | Semana 1 dedicada a dominar Daml con cn-quickstart como referencia |

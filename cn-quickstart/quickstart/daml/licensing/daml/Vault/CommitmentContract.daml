@@ -11,6 +11,7 @@ import DA.Optional (fromSome)
 
 import Licensing.Util as Util (require)
 import Vault.SettlementReceipt (SettlementReceipt(..))
+import Vault.Disclosable (DisclosedRecord(..))
 
 import Splice.Api.Token.MetadataV1
 import Splice.Api.Token.HoldingV1
@@ -69,19 +70,38 @@ template CommitmentContract with
           note = Some (fulfillmentNote <> " | via CantonVault: " <> workflow)
 
     -- RaiseDispute: either signatory can escalate to the third party.
-    -- Creates a DisputeCase where the third party becomes observer.
+    -- Creates a DisputeCase (third party becomes observer) AND a DisclosedRecord
+    -- as immutable proof of selective disclosure.
     nonconsuming choice RaiseDispute : ContractId DisputeCase
-      with reason : Text
-      controller proposer, accepter
-      do create DisputeCase with
-           commitmentRef = self
-           proposer = proposer
-           accepter = accepter
-           thirdParty = thirdParty
-           reason = reason
-           amountRevealed = amount
-           descriptionRevealed = description
-           ruling = None
+      with
+        reason : Text
+        actor : Party
+      controller actor
+      do
+        Util.require "Actor must be proposer or accepter" (actor `elem` signatory this)
+        now <- getTime
+        let revealed = TextMap.fromList [
+              ("amount", show amount)
+              ,("currency", currency)
+              ,("description", description)
+              ,("workflow", workflow)
+              ]
+        _ <- create DisclosedRecord with
+               sourceCid = show self
+               discloser = actor
+               observer = thirdParty
+               revealedFields = revealed
+               revealedAt = now
+               reason
+        create DisputeCase with
+          commitmentRef = self
+          proposer = proposer
+          accepter = accepter
+          thirdParty = thirdParty
+          reason = reason
+          amountRevealed = amount
+          descriptionRevealed = description
+          ruling = None
 
     -- Refund: after deadline, proposer can recover committed funds.
     choice Refund : ()
@@ -153,12 +173,27 @@ template DisputeCase with
     signatory proposer, accepter
     observer  thirdParty                 -- third party enters here
 
+    -- ResolveDispute: third party rules on the dispute. Consuming — archives the case.
+    -- Creates a DisclosedRecord as immutable evidence of the resolution.
     choice ResolveDispute : ()
       with ruling : Text
       controller thirdParty
       do
         assertMsg "ruling must be proposer or accepter"
           (ruling == "proposer" || ruling == "accepter")
+        now <- getTime
+        let resolvedFields = TextMap.fromList [
+              ("ruling", ruling)
+              ,("amountRevealed", show amountRevealed)
+              ,("descriptionRevealed", descriptionRevealed)
+              ]
+        _ <- create DisclosedRecord with
+               sourceCid = show commitmentRef
+               discloser = thirdParty
+               observer = if ruling == "proposer" then proposer else accepter
+               revealedFields = resolvedFields
+               revealedAt = now
+               reason = "dispute-resolved: " <> reason
         return ()
 
 settlementTransferLegId = "commitmentSettlement"
