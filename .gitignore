@@ -69,6 +69,10 @@ cn-quickstart/**
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/security/oauth2/OAuth2Config.java
 !cn-quickstart/quickstart/backend/src/main/resources/
 !cn-quickstart/quickstart/backend/src/main/resources/application.yml
+!cn-quickstart/quickstart/docker/
+!cn-quickstart/quickstart/docker/backend-service/
+!cn-quickstart/quickstart/docker/backend-service/env/
+!cn-quickstart/quickstart/docker/backend-service/env/app.env
 !cn-quickstart/quickstart/frontend/
 !cn-quickstart/quickstart/frontend/src/
 !cn-quickstart/quickstart/frontend/src/views/
