@@ -4,7 +4,7 @@
 [![Network](https://img.shields.io/badge/network-Canton%20DevNet-green)](https://devnet.cantonloop.com)
 [![Daml](https://img.shields.io/badge/contracts-Daml%203.x-orange)](https://docs.digitalasset.com/daml)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](./LICENSE)
-[![Tests](https://img.shields.io/badge/tests-15%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-12%20passing-brightgreen)]()
 
 > Selective disclosure protocol where privacy is an **emergent property of stakeholder scoping** — competitors see empty ledgers by design, not by encryption.
 
@@ -131,8 +131,9 @@ docker compose up -d
 ### Run Tests
 
 ```bash
-~/.daml/bin/daml test --package-root daml/licensing-tests    # 15 tests
+~/.daml/bin/daml test --package-root daml/licensing-tests    # 12 tests (incl. privacy)
 ./gradlew :backend:compileJava                                # Backend compile
+cd frontend && npx tsc --noEmit                               # Frontend typecheck
 ```
 
 ---
@@ -147,8 +148,10 @@ docker compose up -d
 | Backend | **Spring Boot 3.4** | Canton gRPC Ledger API v2 + PQS (PostgreSQL) |
 | Frontend | **React 18 + Vite + TypeScript** | REST API via `/api/vault/*` |
 | Infrastructure | **Docker Compose** | Splice onboarding, Canton validator, nginx |
-| Wallet | **Loop Wallet (DevNet)** | Party allocation via Splice |
+| Wallet | **Splice Wallet UI (DevNet)** | Canton Coin minting & party allocation |
 | IDE | **Seaport DevNet** | DAR deployment, contract interaction |
+
+> **Note on wallets**: The Canton Wallet UI (for minting Canton Coin) is distinct from the Loop Wallet used for party allocation — see the [Splice Wallet Reference](https://docs.canton.network/overview/reference/splice-wallet-reference#wallet-ui).
 
 ---
 

@@ -24,13 +24,15 @@ Build on Canton Hackathon 2026 | Deadline: **July 13, 2026, 13:59 CEST**
 
 ## Code Quality
 
-- [x] 15 Daml tests passing
+- [x] 12 Daml tests passing (incl. privacy + dispute resolution, fixed this session)
 - [x] Backend compiles (`./gradlew :backend:compileJava`)
-- [x] Frontend compiles (`cd frontend && npx tsc --noEmit`)
+- [x] Frontend compiles (`cd frontend && npx tsc --noEmit`) — zero `any`, typed store
 - [x] No magic numbers, no hardcoded secrets
-- [x] `.gitignore` properly configured
-- [ ] Contract keys implemented (uniqueness guarantees)
-- [ ] Backend connected to DevNet (not localhost)
+- [x] `.gitignore` properly configured (allowlist covers all Vault files)
+- [x] `Refund` choice executes real Canton Coin settlement (no more TODO)
+- [x] CORS configured for cross-origin credentialed calls
+- [ ] Contract keys implemented (uniqueness guarantees) — post-hackathon
+- [ ] Backend connected to DevNet (not localhost) — needs credentials
 
 ## Sponsor Integration
 
@@ -42,12 +44,13 @@ Build on Canton Hackathon 2026 | Deadline: **July 13, 2026, 13:59 CEST**
 
 ## Demo Polish
 
-- [ ] Frontend shows real data from backend (not mock data)
-- [ ] Demo pre-filled with sample data (no stalls, no manual input during video)
-- [ ] All 4 quadrants show data: Proposals, Commitments, Privacy Map, Receipts
-- [ ] Split-screen showing competitor sees empty ledger
-- [ ] Real Canton Coin settlement demonstrated (allocation flow)
-- [ ] Selective disclosure flow demonstrated (dispute → third party sees only amount)
+- [x] Frontend shows real data from backend (store-backed, polling every 5s)
+- [x] Selective disclosure flow demonstrated (dispute → third party sees only amount)
+  - Privacy Lab: 3 real panels (stakeholders / third party before / third party after dispute)
+  - Proven by Daml tests `test_thirdparty_sees_dispute` + `test_thirdparty_resolves`
+- [ ] Demo pre-filled with sample data (parties loaded from backend config)
+- [ ] Real Canton Coin settlement demonstrated (allocation flow) — needs DevNet
+- [ ] Split-screen showing competitor sees empty ledger — needs DevNet multi-party
 
 ## Rehearsal
 

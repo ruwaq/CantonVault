@@ -58,15 +58,36 @@ public class CommitmentController {
     private final DamlRepository damlRepository;
     private final TokenStandardProxy tokenStandardProxy;
 
+    /** Onboarded Canton parties for the demo, declared in application.yml. */
+    private final List<PartyDescriptor> knownParties;
+
     public CommitmentController(
             LedgerApi ledger,
             AuthUtils auth,
             DamlRepository damlRepository,
-            TokenStandardProxy tokenStandardProxy) {
+            TokenStandardProxy tokenStandardProxy,
+            @org.springframework.beans.factory.annotation.Value("${canton-vault.parties:}") List<java.util.Map<String, String>> rawParties) {
         this.ledger = ledger;
         this.auth = auth;
         this.damlRepository = damlRepository;
         this.tokenStandardProxy = tokenStandardProxy;
+        this.knownParties = rawParties == null ? List.of() : rawParties.stream()
+                .map(m -> new PartyDescriptor(
+                        m.get("label"),
+                        m.getOrDefault("party-id", m.get("partyId")),
+                        m.get("role")))
+                .toList();
+    }
+
+    // ── Known parties (selector source) ──────────────────────────────────────
+
+    @GetMapping("/parties")
+    public ResponseEntity<List<PartyDescriptor>> listKnownParties() {
+        // Lets the UI render dropdowns of the real onboarded parties instead of
+        // asking operators to paste raw party hashes by hand.
+        return ResponseEntity.ok(knownParties.stream()
+                .filter(p -> p.partyId() != null && !p.partyId().isBlank())
+                .toList());
     }
 
     // ── Commitment Proposals ────────────────────────────────────────────────
@@ -272,21 +293,65 @@ public class CommitmentController {
     @PostMapping("/commitments/{contractId}/refund")
     @WithSpan
     public CompletableFuture<ResponseEntity<Map<String, String>>> refundCommitment(
-            @PathVariable String contractId) {
+            @PathVariable String contractId,
+            @RequestBody(required = false) RefundRequest request) {
         var ctx = tracingCtx(logger, "refundCommitment", "contractId", contractId);
         String commandId = UUID.randomUUID().toString();
+        String allocationContractId = request != null ? request.allocationContractId : null;
+
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
                 damlRepository.findCommitmentById(contractId).thenCompose(optContract -> {
                     var contract = ensurePresent(optContract, "Commitment not found: %s", contractId);
+
+                    if (allocationContractId != null && !allocationContractId.isBlank()) {
+                        return refundRealSettlement(contract, allocationContractId, commandId);
+                    }
                     var choice = new CommitmentContract.Refund(
-                            new com.digitalasset.transcode.java.Party(party));
+                            new com.digitalasset.transcode.java.Party(party), Optional.empty());
                     return ledger.exerciseAndGetResult(contract.contractId, choice, commandId)
-                            .thenApply(v -> {
-                                logger.info("Commitment {} refunded", contractId);
-                                return ResponseEntity.ok(Map.of("status", "refunded"));
+                            .thenApply(result -> {
+                                logger.info("Commitment {} refunded (symbolic)", contractId);
+                                return ResponseEntity.ok(Map.of(
+                                        "status", "refunded",
+                                        "receiptContractId", ((ContractId<?>) result).getContractId,
+                                        "settlementMode", "symbolic"));
                             });
                 })
         ));
+    }
+
+    /**
+     * Refund that reverses a prior Canton Coin settlement via the Splice token
+     * standard (accepter -> proposer), mirroring {@link #fulfillRealSettlement}.
+     */
+    private CompletableFuture<ResponseEntity<Map<String, String>>> refundRealSettlement(
+            Contract<CommitmentContract> contract,
+            String allocationContractId,
+            String commandId) {
+        return tokenStandardProxy.getAllocationTransferContext(allocationContractId)
+                .thenCompose(choiceContext -> {
+                    var cc = ensurePresent(choiceContext, "Transfer context not found for allocation %s", allocationContractId);
+                    TransferContext transferContext = prepareTransferContext(
+                            cc.getDisclosedContracts(),
+                            Map.of("AmuletRules", "amulet-rules", "OpenMiningRound", "open-round"));
+                    Tuple2<ContractId<Allocation>, ExtraArgs> allocationBundle =
+                            new Tuple2<>(new ContractId<>(allocationContractId), transferContext.extraArgs);
+                    var choice = new CommitmentContract.Refund(
+                            new com.digitalasset.transcode.java.Party(contract.payload.getProposer.getParty),
+                            Optional.of(allocationBundle));
+                    logger.info("Refunding commitment {} with real CC settlement via allocation {}",
+                            contract.contractId.getContractId, allocationContractId);
+                    return ledger.exerciseAndGetResult(
+                            contract.contractId, choice, commandId, transferContext.disclosedContracts)
+                            .thenApply(result -> {
+                                logger.info("Commitment {} refunded with real CC settlement", contract.contractId.getContractId);
+                                return ResponseEntity.ok(Map.of(
+                                        "status", "refunded",
+                                        "receiptContractId", ((ContractId<?>) result).getContractId,
+                                        "settlementMode", "real",
+                                        "allocationContractId", allocationContractId));
+                            });
+                });
     }
 
     // ── Settlement Receipts ──────────────────────────────────────────────────
@@ -331,25 +396,45 @@ public class CommitmentController {
         ));
     }
 
-    @PostMapping("/commitments/{contractId}/disclose")
+    // ── Dispute Cases (resolution by third party) ────────────────────────────
+
+    @GetMapping("/dispute-cases")
     @WithSpan
-    public CompletableFuture<ResponseEntity<Map<String, String>>> discloseCommitment(
+    public CompletableFuture<ResponseEntity<List<DisputeCase>>> listDisputeCases() {
+        var ctx = tracingCtx(logger, "listDisputeCases");
+        return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
+                damlRepository.findDisputeCasesForParty(party).thenApply(contracts -> {
+                    var result = contracts.stream()
+                            .map(c -> c.payload)
+                            .toList();
+                    return ResponseEntity.ok(result);
+                })
+        ));
+    }
+
+    @PostMapping("/commitments/{contractId}/resolve")
+    @WithSpan
+    public CompletableFuture<ResponseEntity<Map<String, String>>> resolveDispute(
             @PathVariable String contractId,
-            @RequestBody DiscloseRequest request) {
-        var ctx = tracingCtx(logger, "discloseCommitment", "contractId", contractId);
+            @RequestBody ResolveDisputeRequest request) {
+        var ctx = tracingCtx(logger, "resolveDispute", "contractId", contractId);
         String commandId = UUID.randomUUID().toString();
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
-                damlRepository.findCommitmentById(contractId).thenCompose(optContract -> {
-                    var contract = ensurePresent(optContract, "Commitment not found: %s", contractId);
-                    var choice = new CommitmentContract.RaiseDispute(
-                            request.reason, new com.digitalasset.transcode.java.Party(party));
-                    return ledger.exerciseAndGetResult(contract.contractId, choice, commandId)
-                            .thenApply(result -> {
-                                logger.info("Disclosure executed on commitment {} by {}", contractId, party);
+                damlRepository.findDisputeCasesForParty(party).thenCompose(disputes -> {
+                    // The DisputeCase references the commitment; resolve the matching case.
+                    var dispute = disputes.stream()
+                            .filter(d -> d.payload.getCommitmentRef.getContractId.equals(contractId))
+                            .findFirst()
+                            .orElseThrow(() -> new IllegalArgumentException(
+                                    "No open DisputeCase found for commitment: " + contractId));
+                    var choice = new DisputeCase.ResolveDispute(request.ruling);
+                    return ledger.exerciseAndGetResult(dispute.contractId, choice, commandId)
+                            .thenApply(v -> {
+                                logger.info("Dispute on commitment {} resolved: {}", contractId, request.ruling);
                                 return ResponseEntity.ok(Map.of(
-                                        "status", "disclosed",
-                                        "disputeCaseId", ((com.digitalasset.transcode.java.ContractId<?>) result).getContractId,
-                                        "disclosedTo", contract.payload.getThirdParty.getParty));
+                                        "status", "resolved",
+                                        "ruling", request.ruling,
+                                        "resolvedBy", party));
                             });
                 })
         ));
@@ -372,10 +457,18 @@ public class CommitmentController {
             String allocationContractId) {
     }
 
+    public record RefundRequest(
+            String allocationContractId) {
+    }
+
+    /** A known Canton party exposed for the UI selectors. */
+    public record PartyDescriptor(String label, String partyId, String role) {
+    }
+
     public record RaiseDisputeRequest(String reason) {
     }
 
-    public record DiscloseRequest(String reason) {
+    public record ResolveDisputeRequest(String ruling) {
     }
 
     // ── Transfer context helpers (Canton Coin settlement) ──────────────────────

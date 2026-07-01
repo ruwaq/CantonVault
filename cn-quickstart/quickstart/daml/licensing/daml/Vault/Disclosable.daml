@@ -6,7 +6,10 @@ module Vault.Disclosable where
 import DA.TextMap as TextMap
 
 -- | An immutable record that selective disclosure occurred.
--- The observer is a signatory so they can see this on their ledger.
+-- The discloser is the signatory (creator); the observer is a plain observer,
+-- so the record can be created without requiring the observer to co-author it.
+-- In Canton, divulging a contract to a party still needs that party's consent,
+-- which is why the dispute submission must be authorized by thirdParty too.
 -- Works standalone — no interface dependency required.
 template DisclosedRecord with
     sourceCid        : Text          -- contract ID of the source commitment (as text)
@@ -16,5 +19,6 @@ template DisclosedRecord with
     revealedAt       : Time
     reason           : Text
   where
-    signatory discloser, observer
+    signatory discloser
+    observer  observer
     ensure discloser /= observer

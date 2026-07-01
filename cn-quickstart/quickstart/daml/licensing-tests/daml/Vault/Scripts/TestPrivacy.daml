@@ -69,8 +69,11 @@ test_thirdparty_sees_dispute = do
   tpContracts1 <- query @CommitmentContract thirdParty
   assertMsg "pre-dispute: thirdParty sees no CommitmentContract" (null tpContracts1)
 
-  -- Raise dispute (proposer escalates — needs both signatories)
-  disputeCid <- submitMulti [proposer, accepter] [] $ exerciseCmd contractCid (RaiseDispute with reason = "buyer hasn't confirmed delivery"; actor = proposer)
+  -- Raise dispute (proposer escalates). Canton requires thirdParty to authorize
+  -- becoming an observer of the DisputeCase/DisclosedRecord, since disclosure
+  -- needs the recipient's consent. This is the privacy-preserving divulge model:
+  -- thirdParty consents to arbitrate, yet still sees ONLY the DisputeCase.
+  disputeCid <- submitMulti [proposer, accepter, thirdParty] [] $ exerciseCmd contractCid (RaiseDispute with reason = "buyer hasn't confirmed delivery"; actor = proposer)
 
   -- After dispute: thirdParty sees the DisputeCase
   Some _ <- queryContractId thirdParty disputeCid

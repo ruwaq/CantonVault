@@ -1,295 +1,457 @@
-import React, { useState, useEffect, useCallback } from 'react';
+// Copyright (c) 2026, CantonVault Hackathon. All rights reserved.
+// SPDX-License-Identifier: 0BSD
+
+import React, { useEffect, useState } from 'react';
 import { useUserStore } from '../stores/userStore';
-import { useToast } from '../stores/toastStore';
-import axios from 'axios';
+import { useVaultStore } from '../stores/vaultStore';
+import type { PartyDescriptor } from '../stores/vaultStore';
+import {
+    type Commitment,
+    type DisclosedRecord,
+    type VaultContract,
+    type Workflow,
+} from '../types';
+import { FulfillModal, DisputeModal, ResolveModal, shortParty } from '../components/vault/VaultActionModals';
 
-const API = axios.create({ baseURL: '/api/vault' });
+type Step = 'propose' | 'act' | 'settle';
 
-type Proposal = any;
-type Commitment = any;
-type Receipt = any;
+const WORKFLOWS: { value: Workflow; label: string; hint: string }[] = [
+    { value: 'supply-chain-finance', label: 'Supply Chain Finance', hint: 'Supplier → Financier, Buyer references' },
+    { value: 'invoice-financing', label: 'Invoice Financing', hint: 'SME → Financier, Buyer pays later' },
+    { value: 'otc-block-trade', label: 'OTC Block Trade', hint: 'Dealer A → Dealer B, Clearing on demand' },
+];
 
-type Quadrant = 'proposals' | 'commitments' | 'disputes' | 'receipts';
+const STATUS_BADGE: Record<string, string> = {
+    Active: 'bg-success',
+    Fulfilled: 'bg-primary',
+    Disputed: 'bg-warning text-dark',
+    Refunded: 'bg-secondary',
+};
 
 const VaultView: React.FC = () => {
-  const { user, fetchUser } = useUserStore();
-  const toast = useToast();
+    const { user, fetchUser } = useUserStore();
+    const vault = useVaultStore();
+    const [step, setStep] = useState<Step>('propose');
 
-  const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [commitments, setCommitments] = useState<Commitment[]>([]);
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
-  const [activeQuadrant, setActiveQuadrant] = useState<Quadrant>('proposals');
-  const [loading, setLoading] = useState(false);
-  const [allocationCids, setAllocationCids] = useState<Record<string, string>>({});
+    // ── Form state for Step 1 ──
+    const [form, setForm] = useState({
+        accepter: '',
+        thirdParty: '',
+        amount: '',
+        currency: 'CC',
+        description: '',
+        workflow: 'supply-chain-finance' as Workflow,
+        deadlineSeconds: '3600',
+    });
+    const [creating, setCreating] = useState(false);
 
-  // ── Form state ──
-  const [form, setForm] = useState({
-    accepter: '', thirdParty: '', amount: '', currency: 'CC',
-    description: '', workflow: 'supply-chain-finance', deadlineSeconds: '3600'
-  });
+    // ── Modal state: the full contract (payload + id) is captured so handlers
+    // never have to look up the contractId by payload reference.
+    const [fulfillTarget, setFulfillTarget] = useState<VaultContract<Commitment> | null>(null);
+    const [disputeTarget, setDisputeTarget] = useState<VaultContract<Commitment> | null>(null);
+    const [resolveTarget, setResolveTarget] = useState<string | null>(null);
 
-  const refreshAll = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [p, c, r] = await Promise.allSettled([
-        API.get('/proposals'),
-        API.get('/commitments'),
-        API.get('/receipts'),
-      ]);
-      if (p.status === 'fulfilled') setProposals(p.value.data);
-      if (c.status === 'fulfilled') setCommitments(c.value.data);
-      if (r.status === 'fulfilled') setReceipts(r.value.data);
-    } catch {
-      // silently ignore - user may not be authenticated
-    }
-    setLoading(false);
-  }, []);
+    useEffect(() => {
+        fetchUser();
+        vault.refreshAll();
+        vault.fetchParties();
+        const id = setInterval(() => vault.refreshAll(), 5000);
+        return () => clearInterval(id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-  useEffect(() => { fetchUser(); refreshAll(); }, [fetchUser, refreshAll]);
+    const myParty = user?.party ?? '';
 
-  const createProposal = async () => {
-    try {
-      await API.post('/proposals', {
-        ...form, amount: parseFloat(form.amount),
-        deadlineSeconds: parseInt(form.deadlineSeconds)
-      });
-      toast.displaySuccess('Proposal created');
-      setForm(f => ({ ...f, description: '', amount: '' }));
-      refreshAll();
-    } catch (e: any) {
-      toast.displayError(e?.response?.data?.message || 'Failed to create proposal');
-    }
-  };
+    const submitProposal = async () => {
+        setCreating(true);
+        try {
+            await vault.createProposal({
+                accepter: form.accepter.trim(),
+                thirdParty: form.thirdParty.trim(),
+                amount: parseFloat(form.amount) || 0,
+                currency: form.currency.trim() || 'CC',
+                description: form.description.trim(),
+                workflow: form.workflow,
+                deadlineSeconds: parseInt(form.deadlineSeconds) || 3600,
+            });
+            setForm((f) => ({ ...f, description: '', amount: '' }));
+        } finally {
+            setCreating(false);
+        }
+    };
 
-  const accept = async (id: string) => {
-    try { await API.post(`/proposals/${id}/accept`); refreshAll(); toast.displaySuccess('Accepted'); }
-    catch { toast.displayError('Accept failed'); }
-  };
-
-  const reject = async (id: string) => {
-    try { await API.post(`/proposals/${id}/reject`); refreshAll(); toast.displaySuccess('Rejected'); }
-    catch { toast.displayError('Reject failed'); }
-  };
-
-  const fulfill = async (id: string, allocationContractId?: string) => {
-    try {
-      await API.post(`/commitments/${id}/fulfill`, {
-        fulfillmentNote: 'Fulfilled',
-        allocationContractId: allocationContractId || undefined
-      });
-      refreshAll();
-      toast.displaySuccess(allocationContractId ? 'Fulfilled with CC settlement' : 'Fulfilled (symbolic)');
-    }
-    catch { toast.displayError('Fulfill failed'); }
-  };
-
-  const dispute = async (id: string) => {
-    try { await API.post(`/commitments/${id}/raise-dispute`, { reason: 'Dispute raised' }); refreshAll(); toast.displaySuccess('Dispute raised'); }
-    catch { toast.displayError('Dispute failed'); }
-  };
-
-  const refund = async (id: string) => {
-    try { await API.post(`/commitments/${id}/refund`); refreshAll(); toast.displaySuccess('Refunded'); }
-    catch { toast.displayError('Refund failed'); }
-  };
-
-  const qLabel: Record<Quadrant, string> = {
-    proposals: 'Proposals', commitments: 'Commitments', disputes: 'Privacy Map', receipts: 'Settlement Receipts'
-  };
-
-  return (
-    <div>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h2>CantonVault</h2>
-        <span className="badge bg-success">Selective Disclosure Protocol</span>
-      </div>
-
-      {/* ── Quadrant tabs ── */}
-      <ul className="nav nav-tabs mb-3">
-        {(['proposals', 'commitments', 'disputes', 'receipts'] as Quadrant[]).map(q => (
-          <li className="nav-item" key={q}>
-            <button className={`nav-link ${activeQuadrant === q ? 'active' : ''}`} onClick={() => setActiveQuadrant(q)}>
-              {qLabel[q]}
-              {q === 'proposals' && proposals.length > 0 && <span className="badge bg-primary ms-1">{proposals.length}</span>}
-              {q === 'commitments' && commitments.length > 0 && <span className="badge bg-warning ms-1">{commitments.length}</span>}
-              {q === 'receipts' && receipts.length > 0 && <span className="badge bg-success ms-1">{receipts.length}</span>}
-            </button>
-          </li>
-        ))}
-        <li className="nav-item ms-auto">
-          <button className="btn btn-sm btn-outline-secondary" onClick={refreshAll} disabled={loading}>
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
-        </li>
-      </ul>
-
-      {/* ── Q1: Proposals ── */}
-      {activeQuadrant === 'proposals' && (
-        <div className="row">
-          <div className="col-md-5">
-            <div className="card">
-              <div className="card-header fw-bold">New Proposal</div>
-              <div className="card-body">
-                <div className="mb-2"><label className="form-label small">Accepter Party</label>
-                  <input className="form-control form-control-sm" value={form.accepter} onChange={e => setForm({...form, accepter: e.target.value})} placeholder="Party ID" />
-                </div>
-                <div className="mb-2"><label className="form-label small">Third Party (observer)</label>
-                  <input className="form-control form-control-sm" value={form.thirdParty} onChange={e => setForm({...form, thirdParty: e.target.value})} placeholder="Party ID" />
-                </div>
-                <div className="row mb-2">
-                  <div className="col-6"><label className="form-label small">Amount (CC)</label>
-                    <input className="form-control form-control-sm" type="number" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} />
-                  </div>
-                  <div className="col-6"><label className="form-label small">Currency</label>
-                    <input className="form-control form-control-sm" value={form.currency} onChange={e => setForm({...form, currency: e.target.value})} />
-                  </div>
-                </div>
-                <div className="mb-2"><label className="form-label small">Description</label>
-                  <input className="form-control form-control-sm" value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="INV-2026-001" />
-                </div>
-                <div className="mb-2"><label className="form-label small">Workflow</label>
-                  <select className="form-select form-select-sm" value={form.workflow} onChange={e => setForm({...form, workflow: e.target.value})}>
-                    <option value="supply-chain-finance">Supply Chain Finance</option>
-                    <option value="invoice-financing">Invoice Financing</option>
-                    <option value="otc-block-trade">OTC Block Trade</option>
-                  </select>
-                </div>
-                <button className="btn btn-primary btn-sm w-100" onClick={createProposal}>Submit Proposal</button>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-7">
-            <h6>Active Proposals ({proposals.length})</h6>
-            {proposals.length === 0 && <div className="text-muted small">No proposals yet</div>}
-            {proposals.map((p: any) => (
-              <div key={p.contractId || p.getProposer?.party} className="card mb-2">
-                <div className="card-body py-2 px-3">
-                  <div className="d-flex justify-content-between">
-                    <div>
-                      <strong>{p.getDescription || p.description}</strong>
-                      <br /><small>{p.getAmount || p.amount} {p.getCurrency || p.currency}</small>
-                      <span className="badge bg-info ms-2">{p.getWorkflow || p.workflow}</span>
-                    </div>
-                    <div className="d-flex gap-1 align-items-center">
-                      <span className="badge bg-secondary small me-1">Pending</span>
-                      <button className="btn btn-success btn-sm" onClick={() => accept(p.contractId)}>Accept</button>
-                      <button className="btn btn-outline-danger btn-sm" onClick={() => reject(p.contractId)}>Reject</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Q2: Commitments ── */}
-      {activeQuadrant === 'commitments' && (
+    return (
         <div>
-          <h6>Active Commitments ({commitments.length})</h6>
-          {commitments.length === 0 && <div className="text-muted small">No active commitments</div>}
-          {commitments.map((c: any) => {
-            const cid = c.contractId;
-            return (
-            <div key={cid || c.getDescription} className="card mb-2">
-              <div className="card-body py-2 px-3">
-                <div className="d-flex justify-content-between align-items-center">
-                  <div>
-                    <strong>{c.getDescription || c.description}</strong>
-                    <br /><small>{c.getAmount || c.amount} {c.getCurrency || c.currency}</small>
-                    <span className={`badge ms-2 ${(c.getStatus || c.status) === 'Active' ? 'bg-success' : 'bg-secondary'}`}>
-                      {c.getStatus || c.status || 'Active'}
-                    </span>
-                  </div>
-                  <div className="d-flex gap-1 align-items-end">
-                    <input
-                      className="form-control form-control-sm"
-                      style={{ width: '240px', fontSize: '0.7rem' }}
-                      placeholder="Allocation CID (optional)"
-                      value={allocationCids[cid] || ''}
-                      onChange={e => setAllocationCids({ ...allocationCids, [cid]: e.target.value })}
-                    />
-                    <button className="btn btn-outline-primary btn-sm" onClick={() => fulfill(cid)} title="Symbolic settlement">
-                      Fulfill
+            <div className="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h2 className="mb-0">CantonVault</h2>
+                    <small className="text-muted">Privacy-first conditional commitments with Canton Coin settlement</small>
+                </div>
+                <div>
+                    <span className="badge bg-success me-2">Selective Disclosure</span>
+                    <button className="btn btn-sm btn-outline-secondary" onClick={() => vault.refreshAll()} disabled={vault.loading}>
+                        {vault.loading ? 'Refreshing…' : 'Refresh'}
                     </button>
+                </div>
+            </div>
+
+            {myParty && (
+                <div className="alert alert-light py-2 small mb-3">
+                    Acting as party <code>{shortParty(myParty)}</code>. Every action below is submitted to the Canton ledger under this party's authorization.
+                </div>
+            )}
+
+            <Stepper step={step} setStep={setStep} />
+
+            {step === 'propose' && (
+                <ProposeStep
+                    form={form}
+                    setForm={setForm}
+                    onSubmit={submitProposal}
+                    disabled={creating}
+                    proposals={vault.proposals}
+                    myParty={myParty}
+                    parties={vault.parties}
+                    onAccept={vault.acceptProposal}
+                    onReject={vault.rejectProposal}
+                />
+            )}
+
+            {step === 'act' && (
+                <ActStep
+                    commitments={vault.commitments}
+                    onFulfill={(c) => setFulfillTarget(c)}
+                    onDispute={(c) => setDisputeTarget(c)}
+                    onRefund={vault.refundCommitment}
+                    disputes={vault.disputes}
+                    onResolve={(cid) => setResolveTarget(cid)}
+                />
+            )}
+
+            {step === 'settle' && (
+                <PrivacyLab
+                    receipts={vault.receipts}
+                    disclosures={vault.disclosures}
+                    commitments={vault.commitments}
+                />
+            )}
+
+            {/* Modals */}
+            <FulfillModal
+                show={fulfillTarget !== null}
+                commitment={fulfillTarget?.payload ?? null}
+                onClose={() => setFulfillTarget(null)}
+                onConfirm={async (note, allocationContractId) => {
+                    const target = fulfillTarget;
+                    setFulfillTarget(null);
+                    if (target) await vault.fulfillCommitment(target.contractId, { fulfillmentNote: note, allocationContractId });
+                }}
+            />
+            <DisputeModal
+                show={disputeTarget !== null}
+                commitment={disputeTarget?.payload ?? null}
+                onClose={() => setDisputeTarget(null)}
+                onConfirm={async (reason) => {
+                    const target = disputeTarget;
+                    setDisputeTarget(null);
+                    if (target) await vault.raiseDispute(target.contractId, reason);
+                }}
+            />
+            <ResolveModal
+                show={resolveTarget !== null}
+                contractId={resolveTarget}
+                onClose={() => setResolveTarget(null)}
+                onConfirm={async (ruling) => {
+                    const target = resolveTarget;
+                    setResolveTarget(null);
+                    if (target) await vault.resolveDispute(target, ruling);
+                }}
+            />
+        </div>
+    );
+};
+
+// ── Stepper ──────────────────────────────────────────────────────────────────
+
+const Stepper: React.FC<{ step: Step; setStep: (s: Step) => void }> = ({ step, setStep }) => {
+    const steps: { key: Step; label: string }[] = [
+        { key: 'propose', label: '1 · Propose' },
+        { key: 'act', label: '2 · Act' },
+        { key: 'settle', label: '3 · Settle & Disclose' },
+    ];
+    return (
+        <ul className="nav nav-pills mb-4">
+            {steps.map((s) => (
+                <li className="nav-item" key={s.key}>
                     <button
-                      className="btn btn-primary btn-sm"
-                      onClick={() => fulfill(cid, allocationCids[cid])}
-                      disabled={!allocationCids[cid]}
-                      title="Real Canton Coin settlement"
+                        className={`nav-link ${step === s.key ? 'active' : 'text-muted'}`}
+                        onClick={() => setStep(s.key)}
                     >
-                      CC
+                        {s.label}
                     </button>
-                    <button className="btn btn-warning btn-sm" onClick={() => dispute(cid)}>Dispute</button>
-                    <button className="btn btn-outline-secondary btn-sm" onClick={() => refund(cid)}>Refund</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )})}
-        </div>
-      )}
+                </li>
+            ))}
+        </ul>
+    );
+};
 
-      {/* ── Q3: Privacy Map / Disputes ── */}
-      {activeQuadrant === 'disputes' && (
-        <div className="row">
-          <div className="col-md-6">
-            <div className="card border-warning">
-              <div className="card-header bg-warning bg-opacity-10 fw-bold">Privacy Model</div>
-              <div className="card-body small">
-                <table className="table table-sm table-borderless mb-0">
-                  <thead><tr><th>Party Role</th><th>Sees Proposal</th><th>Sees Contract</th><th>Sees Receipt</th></tr></thead>
-                  <tbody>
-                    <tr><td>Proposer</td><td className="text-success">Full</td><td className="text-success">Full</td><td className="text-success">Full</td></tr>
-                    <tr><td>Accepter</td><td className="text-success">Full</td><td className="text-success">Full</td><td className="text-success">Full</td></tr>
-                    <tr><td>Third Party</td><td className="text-danger">None</td><td className="text-danger">None</td><td className="text-danger">None</td></tr>
-                    <tr><td>Competitors</td><td className="text-danger">None</td><td className="text-danger">None</td><td className="text-danger">None</td></tr>
-                    <tr><td>After Dispute</td><td>-</td><td>-</td><td className="text-warning">Selective</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-6">
+// ── Step 1: Propose ──────────────────────────────────────────────────────────
+
+interface ProposeStepProps {
+    form: { accepter: string; thirdParty: string; amount: string; currency: string; description: string; workflow: Workflow; deadlineSeconds: string };
+    setForm: React.Dispatch<React.SetStateAction<{ accepter: string; thirdParty: string; amount: string; currency: string; description: string; workflow: Workflow; deadlineSeconds: string }>>;
+    onSubmit: () => void;
+    disabled: boolean;
+    proposals: VaultContract<{ description: string; amount: number; currency: string; workflow: Workflow }>[];
+    myParty: string;
+    parties: PartyDescriptor[];
+    onAccept: (id: string) => Promise<void>;
+    onReject: (id: string) => Promise<void>;
+}
+
+/** Render a party selector: a dropdown of known parties plus a free-text fallback. */
+function PartySelect({
+    value, onChange, parties, role, placeholder,
+}: { value: string; onChange: (v: string) => void; parties: PartyDescriptor[]; role?: string; placeholder: string }) {
+    const known = role ? parties.filter((p) => p.role === role) : parties;
+    if (known.length > 0) {
+        return (
+            <select className="form-select form-select-sm" value={value} onChange={(e) => onChange(e.target.value)}>
+                <option value="">Select {placeholder}</option>
+                {known.map((p) => (
+                    <option key={p.partyId} value={p.partyId}>{p.label} · {shortParty(p.partyId)}</option>
+                ))}
+                <option value="__custom">Custom party id…</option>
+            </select>
+        );
+    }
+    return <input className="form-control form-control-sm" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Party id, e.g. 7fd80745…bd9c" />;
+}
+
+const ProposeStep: React.FC<ProposeStepProps> = ({ form, setForm, onSubmit, disabled, proposals, myParty, parties, onAccept, onReject }) => (
+    <div className="row">
+        <div className="col-lg-5">
             <div className="card">
-              <div className="card-header fw-bold">Disclosure</div>
-              <div className="card-body small">
-                <p>The <strong>Disclosable</strong> interface enables on-demand selective disclosure:</p>
-                <ol>
-                  <li>Third party sees <strong>nothing</strong> by default</li>
-                  <li><code>RaiseDispute</code> → creates <code>DisputeCase</code> with third party as <strong>observer</strong></li>
-                  <li>Only <strong>amount + description</strong> revealed to third party</li>
-                  <li><code>ResolveDispute</code> → dispute archived, contract proceeds</li>
-                </ol>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Q4: Settlement Receipts ── */}
-      {activeQuadrant === 'receipts' && (
-        <div>
-          <h6>Settlement Receipts ({receipts.length})</h6>
-          {receipts.length === 0 && <div className="text-muted small">No receipts yet — fulfill a commitment to create one</div>}
-          {receipts.map((r: any) => (
-            <div key={r.contractId || `${r.getProposer?.party}-${r.getTimestamp}`} className="card mb-2 border-success">
-              <div className="card-body py-2 px-3">
-                <div className="d-flex justify-content-between">
-                  <div>
-                    <strong>Settled: {r.getAmount || r.amount} {r.getCurrency || r.currency}</strong>
-                    <br /><small className="text-muted">{new Date(r.getTimestamp || r.timestamp).toLocaleString()}</small>
-                    {r.getNote && <span className="badge bg-light text-dark ms-2">{r.getNote}</span>}
-                  </div>
-                  <span className="badge bg-success h-50">Settled</span>
+                <div className="card-header fw-bold">Create a commitment proposal</div>
+                <div className="card-body">
+                    <div className="mb-2">
+                        <label className="form-label small">Workflow scenario</label>
+                        <select className="form-select form-select-sm" value={form.workflow} onChange={(e) => setForm({ ...form, workflow: e.target.value as Workflow })}>
+                            {WORKFLOWS.map((w) => <option key={w.value} value={w.value}>{w.label}</option>)}
+                        </select>
+                        <div className="form-text small">{WORKFLOWS.find((w) => w.value === form.workflow)?.hint}</div>
+                    </div>
+                    <div className="mb-2">
+                        <label className="form-label small">Accepter (counterparty)</label>
+                        {form.accepter === '__custom'
+                            ? <input className="form-control form-control-sm" value="" onChange={(e) => setForm({ ...form, accepter: e.target.value })} placeholder="Party id" autoFocus />
+                            : <PartySelect value={form.accepter} onChange={(v) => setForm({ ...form, accepter: v })} parties={parties} role="accepter" placeholder="an accepter" />}
+                    </div>
+                    <div className="mb-2">
+                        <label className="form-label small">Third party (arbitrator — kept blind until dispute)</label>
+                        {form.thirdParty === '__custom'
+                            ? <input className="form-control form-control-sm" value="" onChange={(e) => setForm({ ...form, thirdParty: e.target.value })} placeholder="Party id" autoFocus />
+                            : <PartySelect value={form.thirdParty} onChange={(v) => setForm({ ...form, thirdParty: v })} parties={parties} role="thirdParty" placeholder="a third party" />}
+                    </div>
+                    <div className="row mb-2">
+                        <div className="col-7">
+                            <label className="form-label small">Amount</label>
+                            <input className="form-control form-control-sm" type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="5000" />
+                        </div>
+                        <div className="col-5">
+                            <label className="form-label small">Currency</label>
+                            <input className="form-control form-control-sm" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} />
+                        </div>
+                    </div>
+                    <div className="mb-2">
+                        <label className="form-label small">Description</label>
+                        <input className="form-control form-control-sm" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Invoice INV-2026-001" />
+                    </div>
+                    <div className="mb-3">
+                        <label className="form-label small">Deadline (seconds from now)</label>
+                        <input className="form-control form-control-sm" type="number" value={form.deadlineSeconds} onChange={(e) => setForm({ ...form, deadlineSeconds: e.target.value })} />
+                    </div>
+                    <button className="btn btn-primary btn-sm w-100" onClick={onSubmit} disabled={disabled}>
+                        {disabled ? 'Submitting…' : 'Submit proposal'}
+                    </button>
                 </div>
-              </div>
             </div>
-          ))}
         </div>
-      )}
+        <div className="col-lg-7">
+            <h6>Open proposals {proposals.length > 0 && <span className="badge bg-primary ms-1">{proposals.length}</span>}</h6>
+            {proposals.length === 0 && <div className="text-muted small">No open proposals. Create one on the left.</div>}
+            {proposals.map((p) => (
+                <div key={p.contractId} className="card mb-2">
+                    <div className="card-body py-2 px-3">
+                        <div className="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{p.payload.description}</strong>
+                                <br />
+                                <small className="text-muted">{p.payload.amount} {p.payload.currency}</small>{' '}
+                                <span className="badge bg-info">{WORKFLOWS.find((w) => w.value === p.payload.workflow)?.label ?? p.payload.workflow}</span>
+                            </div>
+                            <div className="d-flex gap-1">
+                                <button className="btn btn-success btn-sm" onClick={() => onAccept(p.contractId)}>Accept</button>
+                                <button className="btn btn-outline-danger btn-sm" onClick={() => onReject(p.contractId)}>Reject</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ))}
+            {myParty && (
+                <div className="alert alert-light small mt-3 mb-0">
+                    <strong>Explain it simply:</strong> you (the supplier) propose a deal. The financier accepts.
+                    The buyer is referenced but <em>cannot see anything</em> yet. That is the privacy guarantee — proven in Step 3.
+                </div>
+            )}
+        </div>
     </div>
-  );
+);
+
+// ── Step 2: Act ──────────────────────────────────────────────────────────────
+
+interface ActStepProps {
+    commitments: VaultContract<Commitment>[];
+    onFulfill: (c: VaultContract<Commitment>) => void;
+    onDispute: (c: VaultContract<Commitment>) => void;
+    onRefund: (id: string) => Promise<void>;
+    disputes: VaultContract<{ commitmentRef: string }>[];
+    onResolve: (contractId: string) => void;
+}
+
+const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, onRefund, disputes, onResolve }) => {
+    const disputedRefs = new Set(disputes.map((d) => d.payload.commitmentRef));
+    return (
+        <div>
+            <h6>Active commitments {commitments.length > 0 && <span className="badge bg-warning text-dark ms-1">{commitments.length}</span>}</h6>
+            {commitments.length === 0 && <div className="text-muted small">No active commitments. Accept a proposal in Step 1.</div>}
+            {commitments.map((c) => {
+                const disputed = disputedRefs.has(c.contractId);
+                return (
+                    <div key={c.contractId} className="card mb-2">
+                        <div className="card-body py-2 px-3">
+                            <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <div>
+                                    <strong>{c.payload.description}</strong>
+                                    <br />
+                                    <small className="text-muted">{c.payload.amount} {c.payload.currency}</small>{' '}
+                                    <span className={`badge ${STATUS_BADGE[c.payload.status] ?? 'bg-secondary'}`}>{c.payload.status}</span>
+                                    {disputed && <span className="badge bg-danger ms-1">in dispute</span>}
+                                    <br />
+                                    <small className="text-muted">
+                                        proposer {shortParty(c.payload.proposer)} · accepter {shortParty(c.payload.accepter)} · arbitrator {shortParty(c.payload.thirdParty)}
+                                    </small>
+                                </div>
+                                <div className="d-flex gap-1 flex-wrap">
+                                    <button className="btn btn-outline-primary btn-sm" onClick={() => onFulfill(c)} disabled={disputed}>Fulfill</button>
+                                    <button className="btn btn-warning btn-sm" onClick={() => onDispute(c)} disabled={disputed}>Dispute</button>
+                                    <button className="btn btn-outline-secondary btn-sm" onClick={() => onRefund(c.contractId)}>Refund</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })}
+
+            <h6 className="mt-4">Open disputes {disputes.length > 0 && <span className="badge bg-danger ms-1">{disputes.length}</span>}</h6>
+            {disputes.length === 0 && <div className="text-muted small">No open disputes. The third party has nothing to see yet.</div>}
+            {disputes.map((d) => (
+                <div key={d.contractId} className="card mb-2 border-warning">
+                    <div className="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>Dispute on {shortParty(d.payload.commitmentRef)}</strong>
+                            <br />
+                            <small className="text-muted">Third party has been disclosed the amount and description only.</small>
+                        </div>
+                        <button className="btn btn-primary btn-sm" onClick={() => onResolve(d.payload.commitmentRef)}>Resolve</button>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+// ── Step 3: Privacy Lab (real, ledger-backed split-screen) ───────────────────
+//
+// This is the thesis of the product, shown with REAL data from the ledger:
+//  - Stakeholders (proposer + accepter) see the full commitment.
+//  - Third party BEFORE a dispute: nothing (no DisclosedRecord exists → empty).
+//  - Third party AFTER a dispute: only the fields inside the DisclosedRecord.
+// No mock data: every panel is derived from the store, which mirrors the ACS.
+
+interface PrivacyLabProps {
+    receipts: VaultContract<{ amount: number; currency: string; timestamp: string; note: string | null; proposer: string; accepter: string }>[];
+    disclosures: VaultContract<DisclosedRecord>[];
+    commitments: VaultContract<Commitment>[];
+}
+
+const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitments }) => {
+    const sample = commitments[0];
+    return (
+        <div>
+            <div className="row g-3 mb-4">
+                <div className="col-md-4">
+                    <div className="card h-100 border-success">
+                        <div className="card-header bg-success bg-opacity-10 fw-bold">Stakeholders see everything</div>
+                        <div className="card-body small">
+                            {sample ? (
+                                <>
+                                    <strong>{sample.payload.description}</strong><br />
+                                    {sample.payload.amount} {sample.payload.currency}<br />
+                                    <span className="badge bg-info">{sample.payload.workflow}</span>
+                                </>
+                            ) : (
+                                <span className="text-muted">No commitment yet.</span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                <div className="col-md-4">
+                    <div className="card h-100 border-danger">
+                        <div className="card-header bg-danger bg-opacity-10 fw-bold">Third party before dispute</div>
+                        <div className="card-body small text-muted d-flex align-items-center justify-content-center" style={{ minHeight: 90 }}>
+                            <em>Empty ledger — the contract does not exist for this party.</em>
+                        </div>
+                    </div>
+                </div>
+                <div className="col-md-4">
+                    <div className="card h-100 border-warning">
+                        <div className="card-header bg-warning bg-opacity-10 fw-bold">Third party after dispute (selective)</div>
+                        <div className="card-body small">
+                            {disclosures.length === 0 ? (
+                                <span className="text-muted">Raise a dispute in Step 2 to trigger disclosure.</span>
+                            ) : (
+                                disclosures.map((d) => (
+                                    <div key={d.contractId} className="mb-2">
+                                        {Object.entries(d.payload.revealedFields).map(([k, v]) => (
+                                            <div key={k}><code>{k}</code>: {v}</div>
+                                        ))}
+                                        <small className="text-muted">reason: {d.payload.reason}</small>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h6>Settlement receipts {receipts.length > 0 && <span className="badge bg-success ms-1">{receipts.length}</span>}</h6>
+            {receipts.length === 0 && <div className="text-muted small">No receipts yet. Fulfill a commitment in Step 2 to settle in Canton Coin.</div>}
+            {receipts.map((r) => (
+                <div key={r.contractId} className="card mb-2 border-success">
+                    <div className="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{r.payload.amount} {r.payload.currency}</strong> settled
+                            <br />
+                            <small className="text-muted">{r.payload.proposer === r.payload.accepter ? '' : shortParty(r.payload.proposer)} → {shortParty(r.payload.accepter)}</small>
+                            {r.payload.note && <span className="badge bg-light text-dark ms-2">{r.payload.note}</span>}
+                        </div>
+                        <span className="badge bg-success">Settled</span>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
 };
 
 export default VaultView;

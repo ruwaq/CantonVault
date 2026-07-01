@@ -24,7 +24,9 @@ test_refund_blocked_before_deadline = do
     workflow = "supply-chain-finance"
     deadline = deadline
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
-  submitMustFail proposer $ exerciseCmd contractCid (Refund with actor = proposer)
+  -- Refund before deadline must fail (symbolic path: allocationCid = None).
+  submitMustFail proposer $ exerciseCmd contractCid
+    (Refund with actor = proposer, allocationCid = None)
   Some _ <- queryContractId proposer contractCid
   assertMsg "Contract should still be active after failed refund" True
   return ()
@@ -47,9 +49,15 @@ test_refund_allowed_after_deadline = do
     deadline = deadline
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   passTime (seconds 2)
-  _ <- submit proposer $ exerciseCmd contractCid (Refund with actor = proposer)
+  receiptCid <- submit proposer $ exerciseCmd contractCid
+    (Refund with actor = proposer, allocationCid = None)
+  -- Refund archives the commitment (consuming) and creates a SettlementReceipt.
   result <- queryContractId proposer contractCid
   case result of
     None -> return ()
-    Some _ -> assertMsg "Contract should be archived after refund" False
+    Some _ -> assertMsg "Commitment should be archived after refund" False
+  receiptOpt <- queryContractId proposer receiptCid
+  case receiptOpt of
+    None -> assertMsg "Refund should create a SettlementReceipt" False
+    Some receipt -> assertMsg "Receipt amount should match commitment" (receipt.amount == 100.0)
   return ()

@@ -15,6 +15,7 @@ import AppInstallsView from "./views/AppInstallsView.tsx";
 import LicensesView from './views/LicensesView';
 import VaultView from './views/VaultView';
 import { LicenseProvider } from './stores/licenseStore';
+import { VaultProvider } from './stores/vaultStore';
 import { AppInstallProvider } from "./stores/appInstallStore.tsx";
 import { TenantRegistrationProvider } from "./stores/tenantRegistrationStore.tsx";
 
@@ -24,7 +25,8 @@ const App: React.FC = () => {
         UserProvider,
         TenantRegistrationProvider,
         AppInstallProvider,
-        LicenseProvider
+        LicenseProvider,
+        VaultProvider
     );
 
     return (

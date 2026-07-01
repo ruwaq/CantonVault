@@ -23,7 +23,8 @@ test_thirdparty_resolves = do
     workflow = "supply-chain-finance"
     deadline = deadline
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
-  disputeCid <- submitMulti [proposer, accepter] [] $ exerciseCmd contractCid (RaiseDispute with reason = "unpaid"; actor = proposer)
+  -- thirdParty authorizes the disclosure (Canton divulge consent).
+  disputeCid <- submitMulti [proposer, accepter, thirdParty] [] $ exerciseCmd contractCid (RaiseDispute with reason = "unpaid"; actor = proposer)
   submit thirdParty $ exerciseCmd disputeCid (ResolveDispute with ruling = "proposer")
   result <- queryContractId thirdParty disputeCid
   case result of

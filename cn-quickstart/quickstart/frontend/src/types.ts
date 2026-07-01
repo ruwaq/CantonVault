@@ -1,0 +1,95 @@
+import type { Metadata } from './openapi';
+
+export type AppInstallStatus = 'REQUEST' | 'INSTALL';
+
+export interface AppInstallUnified {
+    status: AppInstallStatus;
+    contractId: string;
+    provider: string;
+    user: string;
+    meta: Metadata;
+    numLicensesCreated: number;
+}
+
+// ── CantonVault domain types ────────────────────────────────────────────────
+// These mirror the Daml templates in daml/licensing/daml/Vault/ and the Java
+// bindings returned by CommitmentController. The backend serializes Party fields
+// either as a string or as { party: "..." } depending on Jackson config, so we
+// normalize via `partyOf()` when reading from the API.
+
+/** Lifecycle of a CommitmentContract, matching the Daml `Status` enum. */
+export type CommitmentStatus = 'Active' | 'Fulfilled' | 'Disputed' | 'Refunded';
+
+/** Workflows the commitment can belong to (drives the demo scenario). */
+export type Workflow = 'supply-chain-finance' | 'invoice-financing' | 'otc-block-trade';
+
+/** A Party value as it may arrive from the backend: a bare string or a wrapped object. */
+export type PartyField = string | { party: string };
+
+/**
+ * Coerce a possibly-wrapped Party field into its string id.
+ * Handles both `"abc::1220..."` and `{ party: "abc::1220..." }` shapes.
+ */
+export function partyOf(value: PartyField | undefined | null): string {
+    if (value == null) return '';
+    return typeof value === 'string' ? value : value.party;
+}
+
+/** A contract as returned by the backend, pairing its ledger id with its payload. */
+export interface VaultContract<T> {
+    contractId: string;
+    payload: T;
+}
+
+export interface Proposal {
+    proposer: string;
+    accepter: string;
+    thirdParty: string;
+    amount: number;
+    currency: string;
+    description: string;
+    workflow: Workflow;
+    deadline: string; // ISO instant
+}
+
+export interface Commitment {
+    proposer: string;
+    accepter: string;
+    thirdParty: string;
+    amount: number;
+    currency: string;
+    description: string;
+    workflow: Workflow;
+    deadline: string; // ISO instant
+    status: CommitmentStatus;
+}
+
+export interface SettlementReceipt {
+    proposer: string;
+    accepter: string;
+    amount: number;
+    currency: string;
+    timestamp: string; // ISO instant
+    note: string | null;
+}
+
+/** A selective-disclosure proof created by RaiseDispute / ResolveDispute. */
+export interface DisclosedRecord {
+    sourceCid: string;
+    discloser: string;
+    observer: string;
+    revealedFields: Record<string, string>;
+    revealedAt: string; // ISO instant
+    reason: string;
+}
+
+export interface DisputeCase {
+    commitmentRef: string;
+    proposer: string;
+    accepter: string;
+    thirdParty: string;
+    reason: string;
+    amountRevealed: number;
+    descriptionRevealed: string;
+    ruling: string | null;
+}

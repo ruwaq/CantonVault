@@ -58,13 +58,28 @@ cn-quickstart/**
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/service/CommitmentController.java
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/repository/
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/repository/DamlRepository.java
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/config/
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/config/CorsConfig.java
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/security/
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/security/sharedsecret/
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/security/sharedsecret/SharedSecretConfig.java
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/security/oauth2/
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/security/oauth2/OAuth2Config.java
+!cn-quickstart/quickstart/backend/src/main/resources/
+!cn-quickstart/quickstart/backend/src/main/resources/application.yml
 !cn-quickstart/quickstart/frontend/
 !cn-quickstart/quickstart/frontend/src/
 !cn-quickstart/quickstart/frontend/src/views/
 !cn-quickstart/quickstart/frontend/src/views/VaultView.tsx
 !cn-quickstart/quickstart/frontend/src/App.tsx
+!cn-quickstart/quickstart/frontend/src/types.ts
+!cn-quickstart/quickstart/frontend/src/stores/
+!cn-quickstart/quickstart/frontend/src/stores/vaultStore.tsx
+!cn-quickstart/quickstart/frontend/src/stores/vaultApi.ts
 !cn-quickstart/quickstart/frontend/src/components/
 !cn-quickstart/quickstart/frontend/src/components/Header.tsx
+!cn-quickstart/quickstart/frontend/src/components/vault/
+!cn-quickstart/quickstart/frontend/src/components/vault/VaultActionModals.tsx
 
 # Secrets
 *.pem
@@ -75,3 +90,5 @@ cn-quickstart/**
 # Local notes
 scratch/
 notes-personal/
+.research/
+scratch/

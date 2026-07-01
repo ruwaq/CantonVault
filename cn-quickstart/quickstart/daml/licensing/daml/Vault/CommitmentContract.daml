@@ -103,16 +103,44 @@ template CommitmentContract with
           descriptionRevealed = description
           ruling = None
 
-    -- Refund: after deadline, proposer can recover committed funds.
-    choice Refund : ()
-      with actor : Party
+    -- Refund: after the deadline, a signatory can close out an unfulfilled
+    -- commitment. If `allocationCid` is provided, it executes the reverse
+    -- Canton Coin settlement (accepter -> proposer) via the Splice token
+    -- standard, mirroring Fulfill. Either way, a SettlementReceipt is created
+    -- as immutable evidence of the refund.
+    -- Usage: set allocationCid = None for a symbolic refund (no prior transfer).
+    choice Refund : ContractId SettlementReceipt
+      with
+        actor         : Party
+        allocationCid : Optional (ContractId Allocation, ExtraArgs)
       controller actor
       do
-        require "Actor is a signatory" (actor `elem` signatory this)
+        require "Actor must be proposer or accepter" (actor `elem` signatory this)
         now <- getTime
         assertMsg "Cannot refund before deadline exceeded" (now >= deadline)
-        -- TODO(promote): actual amulet return to proposer
-        pure ()
+
+        case allocationCid of
+          Some (allocCid, eArgs) -> do
+            alloc <- fetch @Allocation allocCid
+            let allocView = view @Allocation alloc
+                thisView = view $ toInterface @AllocationRequest this
+                expectedTransferLegId = settlementTransferLegId
+                expectedTransferLeg = fromSome $ TextMap.lookup expectedTransferLegId thisView.transferLegs
+                expectedSettlement = thisView.settlement
+            expectedTransferLegId === allocView.allocation.transferLegId
+            expectedTransferLeg === allocView.allocation.transferLeg
+            expectedSettlement === allocView.allocation.settlement
+            _ <- exercise allocCid (Allocation_ExecuteTransfer eArgs)
+            return ()
+          None -> return ()
+
+        create SettlementReceipt with
+          proposer = accepter    -- funds flow back to the original proposer
+          accepter = proposer
+          amount = amount
+          currency = currency
+          timestamp = now
+          note = Some ("refunded via CantonVault: " <> workflow)
 
     -- | AllocationRequest interface implementation enables Canton Coin settlement
     -- via the Splice token standard. The proposer commits to send CC to the accepter
