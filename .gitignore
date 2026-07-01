@@ -47,6 +47,7 @@ cn-quickstart/**
 !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/
 !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/**
 !cn-quickstart/quickstart/daml/licensing/daml.yaml
+!cn-quickstart/quickstart/run-localnet.sh
 !cn-quickstart/quickstart/backend/
 !cn-quickstart/quickstart/backend/src/
 !cn-quickstart/quickstart/backend/src/main/
@@ -60,6 +61,7 @@ cn-quickstart/**
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/repository/DamlRepository.java
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/config/
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/config/CorsConfig.java
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/config/VaultPartyProperties.java
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/security/
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/security/sharedsecret/
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/security/sharedsecret/SharedSecretConfig.java

@@ -66,12 +66,12 @@ public class CommitmentController {
             AuthUtils auth,
             DamlRepository damlRepository,
             TokenStandardProxy tokenStandardProxy,
-            @org.springframework.beans.factory.annotation.Value("${canton-vault.parties:}") List<java.util.Map<String, String>> rawParties) {
+            com.digitalasset.quickstart.config.VaultPartyProperties partyProperties) {
         this.ledger = ledger;
         this.auth = auth;
         this.damlRepository = damlRepository;
         this.tokenStandardProxy = tokenStandardProxy;
-        this.knownParties = rawParties == null ? List.of() : rawParties.stream()
+        this.knownParties = partyProperties.getParties().stream()
                 .map(m -> new PartyDescriptor(
                         m.get("label"),
                         m.getOrDefault("party-id", m.get("partyId")),
