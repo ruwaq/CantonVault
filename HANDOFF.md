@@ -12,7 +12,7 @@ CantonVault es un protocolo Daml de **compromisos condicionales privados** para 
 **Verificado y funcionando:**
 - 12/12 tests Daml pasan (incluida la privacy claim, probada no prometida)
 - Backend Spring Boot compila y corre conectado a un nodo Canton real
-- Frontend React compila limpio (cero `any`), con landing profesional + app
+- Frontend React compila limpio (0 `any` — corregido en hardening P0.1), con landing profesional + app
 - Stack completo levantado en LocalNet (Docker): canton, splice, postgres, backend, pqs, wallets
 - Flujo end-to-end real: `POST /vault/proposals` → contrato en el ACS del ledger → recuperado vía PQS
 
@@ -23,7 +23,7 @@ CantonVault es un protocolo Daml de **compromisos condicionales privados** para 
 > **No hay que reconstruir nada — la arquitectura es correcta.** Solo endurecer.
 > Plan detallado ejecutable: **`docs/superpowers/plans/2026-07-02-production-hardening.md`**.
 > Decision-log: `docs/DECISION-LOG.md` (entrada 2026-07-02).
-> ⚠️ **Corrección**: la claim "zero `any`" del frontend es **FALSA** — hay 10 `any` reales (se corrigen en P0.1).
+> ⚠️ **Corrección**: la claim "zero `any`" del frontend era **FALSA** — había 11 `any` reales. **Corregido en hardening P0.1 (2026-07-02).** Verificado con `grep -rn ": any\|as any\|<any>" src | grep -v openapi.d.ts` → 0 resultados.
 
 ---
 
@@ -141,6 +141,7 @@ cantonvault/                                   ← repo raíz (git)
 ## 5. Lo que FALTA (priorizado)
 
 ### P0 — Entrega hackathon (deadline 13 Jul 2026)
+- [x] ~~Hardening P0 (quick wins)~~ → COMPLETADO 2026-07-02. Ver `docs/DECISION-LOG.md` entrada 2026-07-02.
 - [ ] **Video pitch (3 min)**: grabar flujo Propose→Accept→Fulfill→Dispute→Privacy Lab. Script en `docs/decisiones/03-posicionamiento-pitch.md`.
 - [ ] **Video demo técnico (3 min)**: screen recording mostrando el ACS del ledger (en Seaport o LocalNet).
 - [ ] **Subir .dar a Seaport** (live link): `app.devnet.seaport.to/encode-hackathon` → "Deploy DAR" → subir `daml/licensing/.daml/dist/quickstart-licensing-0.0.4.dar`.

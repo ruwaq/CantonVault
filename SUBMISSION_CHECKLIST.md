@@ -26,8 +26,8 @@ Build on Canton Hackathon 2026 | Deadline: **July 13, 2026, 13:59 CEST**
 
 - [x] 12 Daml tests passing (incl. privacy + dispute resolution, fixed this session)
 - [x] Backend compiles (`./gradlew :backend:compileJava`)
-- [x] Frontend compiles (`cd frontend && npx tsc --noEmit`) — typed store
-  - ⚠️ **Auditoría 2026-07-02**: se hallaron 10 `any` reales (la claim "zero any" era inexacta). Se corrigen en P0.1 del plan de hardening (`docs/superpowers/plans/2026-07-02-production-hardening.md`).
+- [x] Frontend compiles (`cd frontend && npx tsc --noEmit`) — typed store, 0 `any` (corregido P0.1, 2026-07-02)
+  - ✅ **Hardening P0.1 completado**: se eliminaron los 11 `any`. Verificado con grep + tsc.
 - [x] No magic numbers, no hardcoded secrets
 - [x] `.gitignore` properly configured (allowlist covers all Vault files)
 - [x] `Refund` choice executes real Canton Coin settlement (no more TODO)

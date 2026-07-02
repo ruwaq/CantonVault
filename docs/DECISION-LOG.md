@@ -71,14 +71,30 @@
 
 ---
 
+## 2026-07-02 — Ejecución del plan de hardening P0 (completada)
+
+- **Contexto**: Sesión de hardening pre-hackathon. Se ejecutaron todas las tareas P0 del plan `docs/superpowers/plans/2026-07-02-production-hardening.md`.
+- **Resultados**:
+  - P0.1 ✅ **11 `any` eliminados** del frontend (vaultStore, error.ts, api.ts, userStore, tenantRegistrationStore, custom.d.ts). Verificado: `grep` → 0 resultados, `tsc --noEmit` → 0 errores.
+  - P0.2 ✅ **Stale closure corregido** en `autoConnect`. `fetchUser` ahora retorna `AuthenticatedUser | null`; `autoConnect` usa el valor fresco en vez del closure.
+  - P0.3 ✅ **`@ControllerAdvice` global** creado (`GlobalExceptionHandler.java`) + `application.yml` actualizado (`stacktrace: never`, `include-exception: false`). Backend compila BUILD SUCCESSFUL.
+  - P0.4 ✅ **CI jobs añadidos**: `frontend-build` (tsc + lint + build) y `backend-test` (Gradle test).
+  - P0.6 ✅ **`.gitignore` allowlist corregido**: reemplazado el listado manual de archivos frontend por `!cn-quickstart/quickstart/frontend/src/**`. Esto destrabó **24 archivos** que estaban ignorados (api.ts, error.ts, custom.d.ts, main.tsx, index.css, todos los utils, components, stores, y views adicionales). También se añadieron `package.json`, `package-lock.json`, `tsconfig.json`, `vite.config.ts` que nunca estuvieron trackeados.
+  - P0.5+P0.7 ✅ **Docs actualizados**: HANDOFF, SUBMISSION_CHECKLIST, DECISION-LOG.
+- **Hallazgo inesperado**: El allowlist del `.gitignore` era demasiado restrictivo — solo trackeaba 14 de 36 archivos del frontend. Corregido con patrón recursivo `src/**`.
+- **Decisión**: Commit atómico al final de P0 con todos los cambios.
+
+---
+
 ## Pendientes para próxima sesión
 
-- [ ] Ejecutar plan de hardening P0 (quick wins pre-hackathon): `docs/superpowers/plans/2026-07-02-production-hardening.md`
+- [ ] Ejecutar plan de hardening **P1** (security hardening): `docs/superpowers/plans/2026-07-02-production-hardening.md`
 - [ ] Confirmar versions exactas al clonar cn-quickstart
 - [ ] Capturar respuesta de Jatin sobre Seaport (URL, party ID format, .dar upload path)
 - [ ] Decisión sobre Disclosure interface vs patrón DisputeCase manual (verificar si compila en SDK 3.4.11)
 - [ ] Si aparece import circular entre CommitmentContract y DisputeCase, decidir solución aquí
 - [ ] Decisión T1: ¿`Fulfill` debe bloquearse tras `deadline`? (ver plan §Tests Daml)
+- [x] ~~Ejecutar plan de hardening P0 (quick wins pre-hackathon)~~ → COMPLETADO 2026-07-02
 
 ---
 

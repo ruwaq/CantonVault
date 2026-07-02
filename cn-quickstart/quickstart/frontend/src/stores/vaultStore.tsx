@@ -191,15 +191,22 @@ const normalizeDispute = (raw: RawDispute): DisputeCase => ({
     ruling: raw.ruling ?? null,
 });
 
+/** Shape of a raw contract envelope from the backend. */
+interface RawContractEnvelope {
+    contractId?: string;
+    payload?: Record<string, unknown>;
+    getCid?: string;
+}
+
 /** Pull a contractId from a raw backend item (top-level or nested). */
-const cidOf = (item: any): string =>
+const cidOf = (item: RawContractEnvelope): string =>
     item?.contractId ??
     item?.payload?.contractId ??
     item?.getCid ??
     '';
 
 /** Map a raw array into typed VaultContracts, dropping items without a contractId. */
-function toContracts<T>(rawList: any[], normalize: (raw: any) => T): VaultContract<T>[] {
+function toContracts<T>(rawList: RawContractEnvelope[], normalize: (raw: Record<string, unknown>) => T): VaultContract<T>[] {
     return (rawList ?? [])
         .map((item) => {
             const payload = item?.payload ?? item;

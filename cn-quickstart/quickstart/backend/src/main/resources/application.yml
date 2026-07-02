@@ -6,11 +6,11 @@ server:
   # Review Error settings here and set acceptable values for production use.
   # This configuration is for development purposes.
   error:
-    include-message: always
-    include-binding-errors: always
-    include-stacktrace: always
-    include-path: always
-    include-exception: true
+    include-message: on_param
+    include-binding-errors: on_param
+    include-stacktrace: never
+    include-path: never
+    include-exception: false
   port: ${BACKEND_PORT}
 
 logging:

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { isAxiosError } from 'axios';
 import { useToast } from './toastStore';
 import api from '../api';
 import { useNavigate } from 'react-router-dom';
@@ -27,17 +28,20 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     const toast = useToast();
     const navigate = useNavigate();
 
-    const fetchUser = useCallback(async () => {
+    const fetchUser = useCallback(async (): Promise<AuthenticatedUser | null> => {
         setLoading(true);
         try {
             const client: Client = await api.getClient();
             const response = await client.getAuthenticatedUser();
             setUser(response.data);
+            return response.data;
         } catch (error) {
-            if ((error as any)?.response?.status === 401) {
+            if (isAxiosError(error) && error.response?.status === 401) {
                 setUser(null);
+                return null;
             } else {
                 toast.displayError('Error fetching user');
+                return null;
             }
         } finally {
             setLoading(false);
@@ -52,8 +56,8 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
      *  the demo party via a silent form POST, then refetch. Resolves once the user
      *  is available (or if login fails). */
     const autoConnect = useCallback(async () => {
-        await fetchUser();
-        if (user !== null) return; // already connected
+        const current = await fetchUser();
+        if (current !== null) return; // already connected (fresh value, not closure)
         // Silent POST to Spring Security form login; the browser follows the 302
         // and sets the JSESSIONID cookie. We then refetch the authenticated user.
         try {
@@ -65,7 +69,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         } catch {
             toast.displayError('Could not connect to the Canton node');
         }
-    }, [fetchUser, user, toast]);
+    }, [fetchUser, toast]);
 
     const getCsrfToken = (): string => {
         const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
