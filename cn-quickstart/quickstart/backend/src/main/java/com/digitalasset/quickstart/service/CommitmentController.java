@@ -227,19 +227,19 @@ public class CommitmentController {
         var choiceContextFut = tokenStandardProxy.getAllocationTransferContext(allocationContractId);
         return choiceContextFut.thenCompose(choiceContext -> {
             var cc = ensurePresent(choiceContext, "Transfer context not found for allocation %s", allocationContractId);
-            TransferContext transferContext = prepareTransferContext(
+            TransferContextBuilder.TransferContext transferContext = TransferContextBuilder.prepare(
                     cc.getDisclosedContracts(),
                     Map.of("AmuletRules", "amulet-rules", "OpenMiningRound", "open-round"));
 
             Tuple2<ContractId<Allocation>, ExtraArgs> allocationBundle =
-                    new Tuple2<>(new ContractId<>(allocationContractId), transferContext.extraArgs);
+                    new Tuple2<>(new ContractId<>(allocationContractId), transferContext.extraArgs());
             var choice = new CommitmentContract.Fulfill(note, Optional.of(allocationBundle));
 
             logger.info("Fulfilling commitment {} with real CC settlement via allocation {}",
                     contract.contractId.getContractId, allocationContractId);
 
             return ledger.exerciseAndGetResult(
-                    contract.contractId, choice, commandId, transferContext.disclosedContracts)
+                    contract.contractId, choice, commandId, transferContext.disclosedContracts())
                     .thenApply(result -> {
                         logger.info("Commitment {} fulfilled with real CC settlement", contract.contractId.getContractId);
                         return ResponseEntity.ok(Map.of(
@@ -331,18 +331,18 @@ public class CommitmentController {
         return tokenStandardProxy.getAllocationTransferContext(allocationContractId)
                 .thenCompose(choiceContext -> {
                     var cc = ensurePresent(choiceContext, "Transfer context not found for allocation %s", allocationContractId);
-                    TransferContext transferContext = prepareTransferContext(
+                    TransferContextBuilder.TransferContext transferContext = TransferContextBuilder.prepare(
                             cc.getDisclosedContracts(),
                             Map.of("AmuletRules", "amulet-rules", "OpenMiningRound", "open-round"));
                     Tuple2<ContractId<Allocation>, ExtraArgs> allocationBundle =
-                            new Tuple2<>(new ContractId<>(allocationContractId), transferContext.extraArgs);
+                            new Tuple2<>(new ContractId<>(allocationContractId), transferContext.extraArgs());
                     var choice = new CommitmentContract.Refund(
                             new com.digitalasset.transcode.java.Party(contract.payload.getProposer.getParty),
                             Optional.of(allocationBundle));
                     logger.info("Refunding commitment {} with real CC settlement via allocation {}",
                             contract.contractId.getContractId, allocationContractId);
                     return ledger.exerciseAndGetResult(
-                            contract.contractId, choice, commandId, transferContext.disclosedContracts)
+                            contract.contractId, choice, commandId, transferContext.disclosedContracts())
                             .thenApply(result -> {
                                 logger.info("Commitment {} refunded with real CC settlement", contract.contractId.getContractId);
                                 return ResponseEntity.ok(Map.of(
@@ -469,65 +469,7 @@ public class CommitmentController {
     }
 
     // ── Transfer context helpers (Canton Coin settlement) ──────────────────────
+    // Moved to TransferContextBuilder (shared with LicenseApiImpl).
 
-    private record TransferContext(
-            ExtraArgs extraArgs,
-            List<CommandsOuterClass.DisclosedContract> disclosedContracts) {
-    }
-
-    private TransferContext prepareTransferContext(
-            List<DisclosedContract> disclosedContracts,
-            Map<String, String> metaMap) {
-        var disclosures = disclosedContracts
-                .stream()
-                .map(this::toLedgerApiDisclosedContract)
-                .toList();
-        Map<String, AnyValue> choiceContextMap = disclosures
-                .stream()
-                .map(dc -> {
-                    var metaKey = metaMap.get(dc.getTemplateId().getEntityName());
-                    if (metaKey != null) {
-                        return Map.entry(metaKey, toAnyValueContractId(dc.getContractId()));
-                    }
-                    return null;
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        return new TransferContext(
-                new ExtraArgs(new ChoiceContext(choiceContextMap), new Metadata(Map.of())),
-                disclosures);
-    }
-
-    private CommandsOuterClass.DisclosedContract toLedgerApiDisclosedContract(DisclosedContract dc) {
-        ValueOuterClass.Identifier templateId = parseTemplateIdentifier(dc.getTemplateId());
-        byte[] blob = Base64.getDecoder().decode(dc.getCreatedEventBlob());
-        return CommandsOuterClass.DisclosedContract.newBuilder()
-                .setTemplateId(templateId)
-                .setContractId(dc.getContractId())
-                .setCreatedEventBlob(ByteString.copyFrom(blob))
-                .build();
-    }
-
-    private static ValueOuterClass.Identifier parseTemplateIdentifier(String templateIdStr) {
-        String[] parts = templateIdStr.split(":");
-        if (parts.length < 3) {
-            throw new IllegalArgumentException("Invalid templateId format: " + templateIdStr);
-        }
-        String packageId = parts[0];
-        String moduleName = parts[1];
-        StringBuilder entityNameBuilder = new StringBuilder();
-        for (int i = 2; i < parts.length; i++) {
-            if (i > 2) entityNameBuilder.append(":");
-            entityNameBuilder.append(parts[i]);
-        }
-        return ValueOuterClass.Identifier.newBuilder()
-                .setPackageId(packageId)
-                .setModuleName(moduleName)
-                .setEntityName(entityNameBuilder.toString())
-                .build();
-    }
-
-    private static AnyValue toAnyValueContractId(String contractId) {
-        return new AnyValue.AnyValue_AV_ContractId(new ContractId<>(contractId));
-    }
+    // ── End of CommitmentController ────────────────────────────────────────
 }

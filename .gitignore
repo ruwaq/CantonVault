@@ -87,6 +87,7 @@ cn-quickstart/**
 # Backend — GlobalExceptionHandler + ValidationConfig
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/service/GlobalExceptionHandler.java
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/service/DemoAuthController.java
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/service/TransferContextBuilder.java
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/web/
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/web/ValidationConfig.java
 # Backend tests (P1.4)

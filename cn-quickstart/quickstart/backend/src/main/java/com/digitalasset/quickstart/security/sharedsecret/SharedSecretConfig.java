@@ -92,7 +92,12 @@ public class SharedSecretConfig {
                 .forEach((tenantId, props) -> {
                     props.getUsers()
                             .forEach(userId -> {
-                                var userBuilder = User.withUsername(userId).password("{noop}");
+                                var userBuilder = User.withUsername(userId)
+                                    // PRODUCTION-HARDENING: replace {noop} with BCrypt
+                                    // (requires password hashing on user creation).
+                                    // {noop} is intentional for the hackathon demo — users
+                                    // have empty passwords and authenticate via DemoAuthController.
+                                    .password("{noop}");
                                 if (props.isInternal())
                                     userBuilder.roles("ADMIN");
                                 users.add(userBuilder.build());
