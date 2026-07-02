@@ -1,15 +1,28 @@
 // Copyright (c) 2026, CantonVault Hackathon. All rights reserved.
 // SPDX-License-Identifier: 0BSD
 
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useUserStore } from '../stores/userStore';
 import './landing.css';
 
 const LandingView: React.FC = () => {
-    const { user } = useUserStore();
-    const appLink = user ? '/vault' : '/login';
-    const appLabel = user ? 'Open CantonVault →' : 'Launch the demo →';
+    const { user, autoConnect } = useUserStore();
+    const navigate = useNavigate();
+    const [connecting, setConnecting] = useState(false);
+
+    // dApp-style connect: authenticate transparently, then drop the visitor
+    // straight into CantonVault ready to transact. No login screen shown.
+    const launch = async () => {
+        setConnecting(true);
+        if (user === null) {
+            await autoConnect();
+        }
+        setConnecting(false);
+        navigate('/vault');
+    };
+
+    const launchLabel = connecting ? 'Connecting…' : (user ? 'Open CantonVault →' : 'Launch the demo →');
 
     return (
         <div className="cv-landing">
@@ -28,9 +41,9 @@ const LandingView: React.FC = () => {
                         their ledger. Privacy is an emergent property of the protocol, not a bolted-on layer.
                     </p>
                     <div className="cv-hero-cta">
-                        <Link to={appLink} className="btn btn-light btn-lg cv-btn-launch">
-                            {appLabel}
-                        </Link>
+                        <button onClick={launch} disabled={connecting} className="btn btn-light btn-lg cv-btn-launch">
+                            {launchLabel}
+                        </button>
                         <a href="#how" className="btn btn-outline-light btn-lg cv-btn-ghost">How it works ↓</a>
                     </div>
                     <div className="cv-hero-stats">
@@ -232,7 +245,7 @@ const LandingView: React.FC = () => {
                 <div className="container text-center">
                     <h2>See it in action</h2>
                     <p>Create a private commitment, fulfill it with real Canton Coin, and watch the Privacy Lab prove that the third party sees nothing.</p>
-                    <Link to={appLink} className="btn btn-light btn-lg cv-btn-launch mt-3">{appLabel}</Link>
+                    <button onClick={launch} disabled={connecting} className="btn btn-light btn-lg cv-btn-launch mt-3">{launchLabel}</button>
                 </div>
             </section>
 
