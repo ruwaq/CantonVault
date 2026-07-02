@@ -18,18 +18,15 @@ const LoginView: React.FC = () => {
     useEffect(() => { fetchUser(); }, [fetchUser]);
     useEffect(() => { if (user !== null) navigate('/home'); }, [user, navigate]);
 
-    /** POST the Spring Security form programmatically and let the browser follow the redirect. */
-    const enterDemo = () => {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '/login';
-        const u = document.createElement('input');
-        u.type = 'hidden'; u.name = 'username'; u.value = 'app-provider';
-        const p = document.createElement('input');
-        p.type = 'hidden'; p.name = 'password'; p.value = '';
-        form.appendChild(u); form.appendChild(p);
-        document.body.appendChild(form);
-        form.submit();
+    /** Call the server-side demo-session endpoint — no credentials in the browser. */
+    const enterDemo = async () => {
+        try {
+            await fetch('/api/demo-session', { method: 'POST' });
+            await fetchUser();
+        } catch {
+            // On failure, fetchUser will still run and may recover via autoConnect
+            await fetchUser();
+        }
     };
 
     return (

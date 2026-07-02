@@ -58,13 +58,10 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     const autoConnect = useCallback(async () => {
         const current = await fetchUser();
         if (current !== null) return; // already connected (fresh value, not closure)
-        // Silent POST to Spring Security form login; the browser follows the 302
-        // and sets the JSESSIONID cookie. We then refetch the authenticated user.
+        // Server-side demo session: the backend authenticates as the demo party
+        // and sets the JSESSIONID cookie — zero credentials in the bundle.
         try {
-            const params = new URLSearchParams();
-            params.append('username', 'app-provider');
-            params.append('password', '');
-            await fetch('/login', { method: 'POST', body: params, redirect: 'manual' });
+            await fetch('/api/demo-session', { method: 'POST' });
             await fetchUser();
         } catch {
             toast.displayError('Could not connect to the Canton node');

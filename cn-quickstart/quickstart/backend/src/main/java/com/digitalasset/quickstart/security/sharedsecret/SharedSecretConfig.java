@@ -55,6 +55,7 @@ public class SharedSecretConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.GET, "/login", "/user", "/login-links", "/feature-flags", "/error", "/oauth2/authorization/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/logout").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/demo-session").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
