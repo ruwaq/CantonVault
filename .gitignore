@@ -89,6 +89,7 @@ cn-quickstart/**
 !cn-quickstart/quickstart/frontend/src/stores/
 !cn-quickstart/quickstart/frontend/src/stores/vaultStore.tsx
 !cn-quickstart/quickstart/frontend/src/stores/vaultApi.ts
+!cn-quickstart/quickstart/frontend/src/stores/userStore.tsx
 !cn-quickstart/quickstart/frontend/src/components/
 !cn-quickstart/quickstart/frontend/src/components/Header.tsx
 !cn-quickstart/quickstart/frontend/src/components/vault/
