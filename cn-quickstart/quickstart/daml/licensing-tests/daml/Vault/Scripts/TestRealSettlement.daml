@@ -1,0 +1,46 @@
+-- | Real Canton Coin settlement test — SKELETON (requires Splice testing infra).
+--
+-- T3 cannot be implemented as a standalone script because it requires:
+-- 1. AmuletRegistry (mock DSO party, featured app, tapped funds)
+-- 2. WalletClient (list holdings, accept allocations)
+-- 3. RegistryApi (allocation factory, disclosed contracts)
+-- 4. Splice internal modules (AmuletAllocation, AmuletRules, mining rounds)
+--
+-- The full implementation would follow the pattern in
+-- Splice/Tests/TestAmuletTokenDvP.daml (~200 lines).
+--
+-- TODO: implement when Splice testing infrastructure is available in the test package.
+module Vault.Scripts.TestRealSettlement where
+
+import Daml.Script
+import DA.Time
+import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
+import Vault.CommitmentContract (CommitmentContract(..), Fulfill(..))
+import Vault.SettlementReceipt (SettlementReceipt(..))
+
+-- | Placeholder: verifies that symbolic settlement still works as baseline.
+-- When Splice testing infra is available, replace with real allocation flow.
+test_real_settlement_placeholder : Script ()
+test_real_settlement_placeholder = do
+  proposer <- allocateParty "Supplier"
+  accepter <- allocateParty "Financier"
+  thirdParty <- allocateParty "Buyer"
+  now <- getTime
+  let deadline = addRelTime now (seconds 999999)
+  proposalCid <- submit proposer $ createCmd CommitmentProposal with
+    proposer = proposer
+    accepter = accepter
+    thirdParty = thirdParty
+    amount = 100.0
+    currency = "CC"
+    description = "T3: placeholder — real settlement test pending Splice infra"
+    workflow = "supply-chain-finance"
+    deadline = deadline
+  contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
+  -- Symbolic settlement as baseline (real settlement with allocationCid pending)
+  receiptCid <- submit accepter $ exerciseCmd contractCid (Fulfill with
+    fulfillmentNote = "T3 placeholder — real CC settlement pending"
+    allocationCid = None)
+  receipts <- query @SettlementReceipt proposer
+  assertMsg "Baseline symbolic settlement must still work" (not (null receipts))
+  return ()

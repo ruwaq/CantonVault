@@ -107,8 +107,8 @@ cn-quickstart/**
 !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestNegativeAmount.daml
 !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestDisputeByThirdParty.daml
 !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestReceiptContents.daml
-# T3 (real settlement) pendiente:
-# !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestRealSettlement.daml
+# T3 (real settlement) — placeholder until Splice testing infra is wired in:
+!cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestRealSettlement.daml
 
 # Secrets
 *.pem
