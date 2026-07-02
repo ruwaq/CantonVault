@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
 type ModalProps = {
@@ -20,6 +20,19 @@ type ModalProps = {
     confirmButtonDisabled?: boolean;
 };
 
+/** CSS selector for elements that can receive keyboard focus. */
+const FOCUSABLE = [
+    'a[href]',
+    'button:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])',
+].join(', ');
+
+/** Unique id for the modal title so aria-labelledby can reference it. */
+let modalTitleIdCounter = 0;
+
 export default function Modal({
     show,
     title,
@@ -36,20 +49,67 @@ export default function Modal({
     contentClassName = '',
     confirmButtonClassName = '',
     confirmButtonLabel = 'Close',
-    confirmButtonDisabled = false
+    confirmButtonDisabled = false,
 }: ModalProps) {
+    const modalRef = useRef<HTMLDivElement>(null);
+    const previousFocusRef = useRef<HTMLElement | null>(null);
+    const titleIdRef = useRef(`cv-modal-title-${++modalTitleIdCounter}`);
+
+    /** Return the first and last focusable elements inside the modal. */
+    const getFocusableEdges = useCallback((): [HTMLElement, HTMLElement] | [null, null] => {
+        if (!modalRef.current) return [null, null];
+        const els = modalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE);
+        if (els.length === 0) return [null, null];
+        return [els[0], els[els.length - 1]];
+    }, []);
+
+    // ── Focus trap + Escape ──────────────────────────────────────────────
     useEffect(() => {
         if (!show) return;
+
+        // Save the currently focused element so we can restore it on unmount
+        previousFocusRef.current = document.activeElement as HTMLElement;
+
+        // Move focus into the modal on open
+        const timer = setTimeout(() => {
+            const [first] = getFocusableEdges();
+            first?.focus();
+        }, 0);
 
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape' || e.key === 'Esc') {
                 onClose?.();
+                return;
+            }
+            if (e.key !== 'Tab') return;
+
+            const [first, last] = getFocusableEdges();
+            if (!first || !last) return;
+
+            if (e.shiftKey) {
+                // Shift+Tab: if focus is on first element, wrap to last
+                if (document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                }
+            } else {
+                // Tab: if focus is on last element, wrap to first
+                if (document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [show, onClose]);
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('keydown', handleKeyDown);
+            // Restore focus to the element that was focused before the modal opened
+            previousFocusRef.current?.focus();
+            previousFocusRef.current = null;
+        };
+    }, [show, onClose, getFocusableEdges]);
 
     if (!show) return null;
 
@@ -74,28 +134,35 @@ export default function Modal({
                 />
             )}
             <div
+                ref={modalRef}
                 className={modalClasses}
                 role="dialog"
                 aria-modal="true"
+                aria-labelledby={titleIdRef.current}
                 style={{ zIndex: zIndexBase + 5 }}
             >
-                <div className={dialogClasses}  onClick={(e) => e.stopPropagation()}>
+                <div className={dialogClasses} onClick={(e) => e.stopPropagation()}>
                     <div className={['modal-content', contentClassName].filter(Boolean).join(' ')}>
                         <div className="modal-header">
-                            <h5 className="modal-title">{title}</h5>
+                            <h5 className="modal-title" id={titleIdRef.current}>{title}</h5>
                             <button type="button" className="btn-close" aria-label="Close" onClick={onClose} />
                         </div>
                         <div className="modal-body">{children}</div>
                         <div className="modal-footer">
-                            {footer ?? <button className={`btn btn-secondary ${confirmButtonClassName}`} 
-                                            disabled={confirmButtonDisabled}
-                                            onClick={() => (onConfirm ? onConfirm() : onClose())}>{confirmButtonLabel}
-                                       </button>}
+                            {footer ?? (
+                                <button
+                                    className={`btn btn-secondary ${confirmButtonClassName}`}
+                                    disabled={confirmButtonDisabled}
+                                    onClick={() => (onConfirm ? onConfirm() : onClose())}
+                                >
+                                    {confirmButtonLabel}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
             </div>
         </>,
-        document.body
+        document.body,
     );
 }
