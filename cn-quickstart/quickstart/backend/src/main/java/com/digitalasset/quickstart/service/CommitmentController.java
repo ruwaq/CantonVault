@@ -31,10 +31,19 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import quickstart_licensing.vault.commitmentcontract.CommitmentContract;
 import quickstart_licensing.vault.commitmentcontract.DisputeCase;
@@ -47,6 +56,7 @@ import splice_api_token_metadata_v1.splice.api.token.metadatav1.ChoiceContext;
 import splice_api_token_metadata_v1.splice.api.token.metadatav1.ExtraArgs;
 import splice_api_token_metadata_v1.splice.api.token.metadatav1.Metadata;
 
+@Validated
 @RestController
 @RequestMapping("/vault")
 public class CommitmentController {
@@ -114,7 +124,7 @@ public class CommitmentController {
     @PostMapping("/proposals")
     @WithSpan
     public CompletableFuture<ResponseEntity<Map<String, String>>> createProposal(
-            @RequestBody CreateProposalRequest request) {
+            @Valid @RequestBody CreateProposalRequest request) {
         var ctx = tracingCtx(logger, "createProposal");
         String commandId = UUID.randomUUID().toString();
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () -> {
@@ -200,7 +210,7 @@ public class CommitmentController {
     @WithSpan
     public CompletableFuture<ResponseEntity<Map<String, String>>> fulfillCommitment(
             @PathVariable String contractId,
-            @RequestBody(required = false) FulfillRequest request) {
+            @Valid @RequestBody(required = false) FulfillRequest request) {
         var ctx = tracingCtx(logger, "fulfillCommitment", "contractId", contractId);
         String commandId = UUID.randomUUID().toString();
         String note = request != null && request.fulfillmentNote != null
@@ -270,7 +280,7 @@ public class CommitmentController {
     @WithSpan
     public CompletableFuture<ResponseEntity<Map<String, String>>> raiseDispute(
             @PathVariable String contractId,
-            @RequestBody RaiseDisputeRequest request) {
+            @Valid @RequestBody RaiseDisputeRequest request) {
         var ctx = tracingCtx(logger, "raiseDispute", "contractId", contractId);
         String commandId = UUID.randomUUID().toString();
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
@@ -294,7 +304,7 @@ public class CommitmentController {
     @WithSpan
     public CompletableFuture<ResponseEntity<Map<String, String>>> refundCommitment(
             @PathVariable String contractId,
-            @RequestBody(required = false) RefundRequest request) {
+            @Valid @RequestBody(required = false) RefundRequest request) {
         var ctx = tracingCtx(logger, "refundCommitment", "contractId", contractId);
         String commandId = UUID.randomUUID().toString();
         String allocationContractId = request != null ? request.allocationContractId : null;
@@ -416,7 +426,7 @@ public class CommitmentController {
     @WithSpan
     public CompletableFuture<ResponseEntity<Map<String, String>>> resolveDispute(
             @PathVariable String contractId,
-            @RequestBody ResolveDisputeRequest request) {
+            @Valid @RequestBody ResolveDisputeRequest request) {
         var ctx = tracingCtx(logger, "resolveDispute", "contractId", contractId);
         String commandId = UUID.randomUUID().toString();
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
@@ -443,17 +453,17 @@ public class CommitmentController {
     // ── Request DTOs ─────────────────────────────────────────────────────────
 
     public record CreateProposalRequest(
-            String accepter,
-            String thirdParty,
-            java.math.BigDecimal amount,
-            String currency,
-            String description,
-            String workflow,
-            long deadlineSeconds) {
+            @NotBlank String accepter,
+            @NotBlank String thirdParty,
+            @NotNull @Positive java.math.BigDecimal amount,
+            @NotBlank @Size(max = 10) String currency,
+            @NotBlank @Size(max = 500) String description,
+            @NotBlank String workflow,
+            @Min(1) @Max(31536000) long deadlineSeconds) {
     }
 
     public record FulfillRequest(
-            String fulfillmentNote,
+            @Size(max = 500) String fulfillmentNote,
             String allocationContractId) {
     }
 
@@ -465,10 +475,12 @@ public class CommitmentController {
     public record PartyDescriptor(String label, String partyId, String role) {
     }
 
-    public record RaiseDisputeRequest(String reason) {
+    public record RaiseDisputeRequest(
+            @NotBlank @Size(max = 500) String reason) {
     }
 
-    public record ResolveDisputeRequest(String ruling) {
+    public record ResolveDisputeRequest(
+            @NotBlank String ruling) {
     }
 
     // ── Transfer context helpers (Canton Coin settlement) ──────────────────────
