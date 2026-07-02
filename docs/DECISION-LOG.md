@@ -107,3 +107,11 @@
 - **Razón**: por qué
 - **Alternativas descartadas**: qué más consideraste y por qué no
 ```
+
+## 2026-07-02 — P1.7: Investigación y decisión sobre actAs
+
+- **Contexto**: `LedgerApi.java:131-132,202-203` envía TODOS los comandos al ledger con `actAs = appProviderParty`. El `AuthenticatedPartyProvider` obtiene la party del usuario autenticado, pero nunca se usa para firmar comandos.
+- **Hallazgo**: El backend opera como **single-tenant trusted proxy**. El modelo Daml delega la autorización a los contratos (vía signatories/observers/controllers), no al `actAs` del comando. Todos los contratos Vault tienen al AppProvider como controller implícito.
+- **Decisión**: **No cambiar ahora.** Cambiar `actAs` al usuario real requeriría que cada tenant tuviera su propia party en Canton con los derechos adecuados, lo que implica cambios en el modelo Daml (añadir multi-party signing). Para el hackathon/demo, el patrón actual es correcto y seguro (el backend autentica a los usuarios y el modelo Daml enforces las reglas de negocio).
+- **Recomendación**: Para producción multi-tenant (P2), implementar `actAs` por usuario real. Requiere: (1) onboardear cada tenant como party en Canton, (2) modificar contratos Daml para que el controller sea el tenant (no AppProvider), (3) añadir el concepto de "delegación de firma" al modelo.
+- **Riesgo aceptado**: Un usuario malicioso que comprometa el backend podría ejecutar comandos como AppProvider. Mitigación: el backend ya está protegido por Spring Security (CSRF + autenticación). En shared-secret, el riesgo es bajo porque el demo es single-user. En OAuth2, cada tenant tiene su propio token.

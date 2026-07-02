@@ -1,0 +1,33 @@
+# Copyright (c) 2026, CantonVault Hackathon. All rights reserved.
+# SPDX-License-Identifier: 0BSD
+
+version: 2
+updates:
+  # Backend (Gradle)
+  - package-ecosystem: "gradle"
+    directory: "/cn-quickstart/quickstart"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "backend"
+
+  # Frontend (npm)
+  - package-ecosystem: "npm"
+    directory: "/cn-quickstart/quickstart/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "frontend"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "ci"
