@@ -52,7 +52,7 @@ const AuthenticatedLinks: React.FC = () => {
     return (
         <ul className="navbar-nav me-auto mb-2 mb-lg-0">
             <li className="nav-item">
-                <Link className="nav-link" to="/">Home</Link>
+                <Link className="nav-link" to="/home">Home</Link>
             </li>
             <li className="nav-item">
                 <Link className="nav-link" to="/app-installs">AppInstalls</Link>

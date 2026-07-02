@@ -14,6 +14,7 @@ import ToastNotification from './components/ToastNotification';
 import AppInstallsView from "./views/AppInstallsView.tsx";
 import LicensesView from './views/LicensesView';
 import VaultView from './views/VaultView';
+import LandingView from './views/LandingView';
 import { LicenseProvider } from './stores/licenseStore';
 import { VaultProvider } from './stores/vaultStore';
 import { AppInstallProvider } from "./stores/appInstallStore.tsx";
@@ -31,17 +32,26 @@ const App: React.FC = () => {
 
     return (
         <AppProviders>
-            <Header />
-            <main className="container mt-4">
-                <Routes>
-                    <Route path="/" element={<HomeView />} />
-                    <Route path="/tenants" element={<TenantRegistrationView />} />
-                    <Route path="/login" element={<LoginView />} />
-                    <Route path="/app-installs" element={<AppInstallsView />} />
-                    <Route path="/licenses" element={<LicensesView />} />
-                    <Route path="/vault" element={<VaultView />} />
-                </Routes>
-            </main>
+            <Routes>
+                {/* Public landing page — full-width, no app chrome */}
+                <Route path="/" element={<LandingView />} />
+                {/* Authenticated app — with header nav */}
+                <Route path="/*" element={
+                    <>
+                        <Header />
+                        <main className="container mt-4">
+                            <Routes>
+                                <Route path="/home" element={<HomeView />} />
+                                <Route path="/tenants" element={<TenantRegistrationView />} />
+                                <Route path="/login" element={<LoginView />} />
+                                <Route path="/app-installs" element={<AppInstallsView />} />
+                                <Route path="/licenses" element={<LicensesView />} />
+                                <Route path="/vault" element={<VaultView />} />
+                            </Routes>
+                        </main>
+                    </>
+                } />
+            </Routes>
             <ToastNotification />
         </AppProviders>
     );

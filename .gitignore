@@ -74,10 +74,15 @@ cn-quickstart/**
 !cn-quickstart/quickstart/docker/backend-service/env/
 !cn-quickstart/quickstart/docker/backend-service/env/app.env
 !cn-quickstart/quickstart/frontend/
+!cn-quickstart/quickstart/frontend/index.html
 !cn-quickstart/quickstart/frontend/src/
 !cn-quickstart/quickstart/frontend/src/views/
 !cn-quickstart/quickstart/frontend/src/views/VaultView.tsx
+!cn-quickstart/quickstart/frontend/src/views/LandingView.tsx
+!cn-quickstart/quickstart/frontend/src/views/landing.css
+!cn-quickstart/quickstart/frontend/src/views/HomeView.tsx
 !cn-quickstart/quickstart/frontend/src/App.tsx
+!cn-quickstart/quickstart/frontend/src/App.css
 !cn-quickstart/quickstart/frontend/src/types.ts
 !cn-quickstart/quickstart/frontend/src/stores/
 !cn-quickstart/quickstart/frontend/src/stores/vaultStore.tsx
