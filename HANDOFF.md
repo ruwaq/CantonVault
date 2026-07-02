@@ -1,109 +1,218 @@
-# HANDOFF — Sesión 2026-06-30
+# HANDOFF — CantonVault (sesión 2026-07-02)
 
-**Fecha**: 2026-06-30 12:30
-**Última commit antes de esta sesión**: `c3d7b43 docs: hackathon submission README`
-**Estado**: Auditoría + refactor de producción completado. 12/12 tests Daml verdes, backend BUILD SUCCESSFUL, frontend cero errores TS. Queda conectar backend a DevNet (requiere credenciales reales) y grabar demo.
-
----
-
-## Qué se hizo esta sesión
-
-### Bugs críticos arreglados (preexistentes, rompían la tesis del producto)
-1. **`DisclosedRecord` tenía mal diseño de privacidad**: `signatory discloser, observer` hacía que thirdParty tuviera que ser signatario (requería co-autoría). Corregido a `signatory discloser` + `observer observer`.
-2. **`RaiseDispute` fallaba en Canton**: crear el contrato de disclosure requería autorización de thirdParty (modelo de divulge). Tests `test_thirdparty_sees_dispute` y `test_thirdparty_resolves` ahora pasan → **la privacidad está probada por tests**.
-
-### `Refund` completado con Canton Coin real
-- Antes: `pure ()` (TODO). Ahora ejecuta `Allocation_ExecuteTransfer` inverso (accepter→proposer) si se pasa un `allocationCid`, simétrico a `Fulfill`. Crea `SettlementReceipt` como evidencia.
-
-### Backend (FRENTE A)
-- **A2**: Añadido `GET /dispute-cases` y `POST /commitments/{id}/resolve`. Eliminado endpoint duplicado `/disclose` (ejecutaba el mismo `RaiseDispute` que `/raise-dispute`).
-- **A4**: CORS configurado (`CorsConfig.java` + `.cors()` en ambos filter chains shared-secret y oauth2). Orígenes configurables via `CORS_ALLOWED_ORIGINS`.
-- **B4**: Endpoint `GET /vault/parties` que expone las parties onboardadas del config, para que el UI use selectores (no pegar hashes).
-
-### Frontend (FRENTE B) — reescrito a fondo, cero `any`
-- **B1**: Tipos reales en `types.ts` (`Proposal`, `Commitment`, `Status`, `SettlementReceipt`, `DisclosedRecord`, `DisputeCase`) + normalizador `partyOf()`.
-- **B2**: Store `vaultStore.tsx` (patrón `licenseStore`) con `withErrorHandling`, `commandId`, polling. Llama `/disclosures` y `/dispute-cases` (antes nunca llamados). `VaultProvider` en `App.tsx`.
-- **B3**: `VaultView.tsx` reescrita: wizard 3 pasos (Propose → Act → Settle & Disclose) + **Privacy Lab real** (3 paneles con datos del ledger: stakeholders ven todo, third party antes del dispute ve vacío, third party después del dispute ve solo lo del `DisclosedRecord`).
-- **B5**: Modales (`FulfillModal`, `DisputeModal`, `ResolveModal`) reusando `Modal.tsx`.
-
-### `.gitignore` arreglado
-- Los archivos nuevos/modificados no estaban en la allowlist y **no se hubieran subido al repo público**. Actualizado para trackear stores, components/vault, config, security y application.yml.
+> **Para el próximo agente/modelo que tome este proyecto.** Lee esto entero antes de tocar nada.
+> Última actualización: 2026-07-02. Estado: **producto funcional end-to-end contra Canton real (LocalNet)**.
 
 ---
 
-## Verificación (todo verde)
-```bash
-cd "/Users/munay/dev/Build on Canton Hackathon/cn-quickstart/quickstart"
-~/.daml/bin/daml build --package-root daml/licensing          # DAR v0.0.4 creado
-~/.daml/bin/daml test --package-root daml/licensing-tests     # 12/12 ok
-./gradlew :backend:compileJava -x :daml:compileDaml           # BUILD SUCCESSFUL
-cd frontend && npx tsc --noEmit                                # sin errores
-```
+## 0. TL;DR — dónde estamos
+
+CantonVault es un protocolo Daml de **compromisos condicionales privados** para finanzas institucionales. Dos partes acuerdan un trato; un tercero **no ve nada** hasta una disputa (privacy por diseño del protocolo Canton, no por cifrado). Settlement atómico en Canton Coin.
+
+**Verificado y funcionando:**
+- 12/12 tests Daml pasan (incluida la privacy claim, probada no prometida)
+- Backend Spring Boot compila y corre conectado a un nodo Canton real
+- Frontend React compila limpio (cero `any`), con landing profesional + app
+- Stack completo levantado en LocalNet (Docker): canton, splice, postgres, backend, pqs, wallets
+- Flujo end-to-end real: `POST /vault/proposals` → contrato en el ACS del ledger → recuperado vía PQS
+
+**Lo que falta** (ver §5): video/demo para entrega, y explorar DevNet (bloqueado, ver §6).
 
 ---
 
-## Lo que falta
+## 1. Quick start — cómo levantar todo (3 comandos)
 
-### A3 — Conexión de red (RESUELTO el enfoque)
-
-**Investigación de la sesión (2026-06-30)**: tras probar la conectividad real, se confirmó que:
-- El **participant del DevNet de Canton NO es públicamente accesible** por internet (es una red permissionada institucional). Todos los probes a `ledger-api.validator.devnet.sandbox.fivenorth.io` y variantes hacen timeout.
-- **Seaport (`app.devnet.seaport.to`) es un IDE web (SPA "5N Seaport")**, no un gateway API. Sirve para que humanos suban `.dar` y creen contratos; **no expone** endpoints de ledger API consumibles por un backend.
-- El cn-quickstart es 100% gRPC y requiere un **nodo splice-validator propio** para hablar con cualquier Canton (local o DevNet). No hay "conectarse al DevNet sin nodo propio".
-
-**Decisión**: el camino profesional y funcional es **LocalNet** (`make start`), que levanta una red Canton REAL (no mock) con splice-validator + participant + Postgres + backend. Es la arquitectura de producción correcta. Para el "live link" del hackathon, se sube el `.dar` a Seaport.
-
-#### Cómo correr CantonVault local (Canton real)
 ```bash
 cd "/Users/munay/dev/Build on Canton Hackathon/cn-quickstart/quickstart"
 
-# 1. Asegurar que Docker Desktop está corriendo
-docker info
+# 0. Docker Desktop debe estar corriendo
+open -a Docker && docker info
 
-# 2. (solo primera vez) Configurar entorno local
-make setup    # interactivo: elegir AUTH_MODE=shared-secret, LocalNet
+# 1. (opcional) liberar el puerto 8080 si open-webui u otra app lo ocupa
+docker stop open-webui 2>/dev/null
 
-# 3. Levantar Canton + Splice + Postgres + backend
-make start    # hace build + docker compose up -d
+# 2. Levantar Canton + Splice + Postgres + backend
+./run-localnet.sh up
 
-# 4. Frontend en modo dev (hot reload)
-make start-vite-dev   # Vite en :5173, proxy a backend :8080
-
-# 5. Abrir http://localhost:5173 → login app-provider/app-provider → /vault
-```
-
-#### Cómo subir el .dar a Seaport (live link para el hackathon)
-1. Ve a https://app.devnet.seaport.to/encode-hackathon (org "Encode Hackathon")
-2. **Deploy DAR & Create Contract** o **Upload DAR to Validator**
-3. Sube `cn-quickstart/quickstart/daml/licensing/.daml/dist/quickstart-licensing-0.0.4.dar`
-4. Selecciona el validator "Encode Hackathon"
-5. Esto cumple el requirement "Deployed DAR on 5N Sandbox DevNet" del checklist
-
-> **Nota sobre parties del selector UI**: las parties para el dropdown vienen de `application.yml` (`canton-vault.parties`). En LocalNet, las asigna Canton al onboarding (ver logs de `make start`). Poner esas en `VAULT_PROPOSER_PARTY`, `VAULT_ACCEPTER_PARTY`, `VAULT_THIRDPARTY_PARTY`.
-
-### Demo
-- Grabar flujo: Propose → Accept → Fulfill (CC) → Dispute → Privacy Lab muestra selective disclosure.
-- La killer feature ahora es REAL: el panel "third party before dispute" está vacío porque no hay `DisclosedRecord`, y "after dispute" muestra solo los campos revelados.
-
----
-
-## Comandos rápidos
-```bash
-cd "/Users/munay/dev/Build on Canton Hackathon/cn-quickstart/quickstart"
-
-# Desarrollo local (LocalNet docker)
-~/.daml/bin/daml build --package-root daml/licensing
-~/.daml/bin/daml test --package-root daml/licensing-tests
-./gradlew :backend:compileJava -x :daml:compileDaml
+# 3. Frontend en modo dev (hot reload)
 cd frontend && npm run dev
-
-# Backend + frontend corriendo
-docker compose -f docker/modules/localnet/compose.yaml up -d   # Canton + Postgres
-./gradlew :backend:bootRun                                       # backend :8080
-cd frontend && npm run dev                                       # Vite :5173
 ```
 
-## Arquitectura del flujo (explain to a baby)
-1. **Propose**: tú (Supplier) propones un trato al Financier. El Buyer queda **referenciado pero ciego**.
-2. **Act**: el Financier acepta → compromiso activo. Cumplen → Fulfill mueve Canton Coin. Si hay problema → Dispute.
-3. **Settle & Disclose**: el Privacy Lab muestra 3 perspectivas reales — stakeholders ven todo, Buyer ve **nada** hasta el dispute, y tras el dispute ve **solo** monto + descripción.
+Abrir **`http://localhost:5173`** → landing de CantonVault → click "Launch the demo" → auto-connect → CantonVault.
+
+> ⚠️ **Path con espacios**: el proyecto vive en `Build on Canton Hackathon/`. El Makefile del upstream rompe por los espacios (construye paths absolutos sin escapar). **SIEMPRE usa `./run-localnet.sh`**, nunca `make start` directamente.
+
+### Credenciales / login
+- Modo: `shared-secret` (definido en `.env.local`)
+- No hay pantalla de login visible: el frontend hace **auto-connect** transparente (POST silencioso como `app-provider`, password vacía)
+- Si necesitas loguear a mano: usuario `app-provider`, password **vacía**
+
+### Comandos del wrapper `run-localnet.sh`
+| Comando | Qué hace |
+|---|---|
+| `./run-localnet.sh up` | Levanta todos los contenedores |
+| `./run-localnet.sh down` | Para y elimina contenedores |
+| `./run-localnet.sh logs` | Tail de logs |
+| `./run-localnet.sh ps` | Lista contenedores |
+| `./run-localnet.sh restart-backend` | Reconstruye y reinicia solo el backend (tras cambiar Java) |
+
+---
+
+## 2. Arquitectura del proyecto
+
+```
+cantonvault/                                   ← repo raíz (git)
+├── README.md                                  ← presentación del proyecto (hackathon)
+├── HANDOFF.md                                 ← ESTE documento
+├── SUBMISSION_CHECKLIST.md                    ← checklist de entrega
+├── PARTY_IDS.txt                              ← party IDs del DevNet (Seaport)
+├── docs/                                      ← estrategia, investigación, decisiones
+└── cn-quickstart/quickstart/                  ← la app (sobre el upstream cn-quickstart)
+    ├── run-localnet.sh                        ← wrapper docker compose (fix path espacios)
+    ├── daml/licensing/daml/Vault/             ← CONTRATOS DAML (nuestro código)
+    │   ├── CommitmentContract.daml            ← núcleo + Fulfill/Refund/RaiseDispute + AllocationRequest
+    │   ├── CommitmentProposal.daml            ← patrón Propose
+    │   ├── Disclosable.daml                   ← DisclosedRecord (proof de disclosure)
+    │   └── SettlementReceipt.daml             ← recibo inmutable
+    ├── daml/licensing-tests/daml/Vault/Scripts/ ← 12 tests Daml Script
+    ├── backend/.../service/CommitmentController.java  ← API REST /vault/*
+    ├── backend/.../config/VaultPartyProperties.java   ← parties del config
+    ├── backend/.../config/CorsConfig.java             ← CORS
+    └── frontend/src/
+        ├── views/LandingView.tsx              ← landing pública (vende el producto)
+        ├── views/LoginView.tsx                ← fallback (auto-connect lo bypassa)
+        ├── views/HomeView.tsx                 ← dashboard autenticado
+        ├── views/VaultView.tsx                ← LA APP: wizard 3 pasos + Privacy Lab
+        ├── stores/vaultStore.tsx              ← store tipado (cero any)
+        ├── stores/userStore.tsx               ← autoConnect()
+        ├── components/vault/VaultActionModals.tsx ← modales Fulfill/Dispute/Resolve
+        └── types.ts                           ← tipos del dominio + normalizador
+```
+
+### Flujo del producto (explain to a baby)
+1. **Propose** — tú (Supplier) creas un compromiso. El árbitro **no lo ve**.
+2. **Act** — el financiero acepta. Fulfill mueve Canton Coin. O Dispute escala al árbitro.
+3. **Privacy Lab** — 3 paneles reales del ledger: stakeholders ven todo, árbitro ve nada (o solo monto+descripción tras disputa), competidor ve nada siempre.
+
+---
+
+## 3. Lo que se hizo (resumen de sesiones previas)
+
+### Auditoría + fixes críticos (commit `cd37656`)
+- **Bug privacidad arreglado**: `DisclosedRecord` tenía `thirdParty` como signatario (rompía la tesis). Ahora es `observer`.
+- **Bug dispute arreglado**: `RaiseDispute` fallaba en Canton (requería auth de thirdParty para divulge). Tests `test_thirdparty_sees_dispute` + `test_thirdparty_resolves` ahora pasan.
+- **Refund completado**: era `pure ()` (TODO). Ahora ejecuta `Allocation_ExecuteTransfer` inverso + `SettlementReceipt`.
+- Frontend rehecho: cero `any`, store tipado, modales, wizard 3 pasos, Privacy Lab real.
+
+### Runtime (commits `6e8d969`, `bb52fa8`)
+- `run-localnet.sh`: wrapper que fixea el bug del path con espacios en docker compose.
+- `VaultPartyProperties`: fix de `@Value List<Map>` que no compila en Spring → `@ConfigurationProperties`.
+- `app.env`: inyecta las party IDs al contenedor backend para el selector UI.
+
+### UX/UI (commits `6155411`, `42b8dc0`, `2616394`)
+- Landing profesional (hero, problema, solución, tabla de privacidad, arquitectura).
+- Login reducido a 1 botón, luego **eliminado** (auto-connect transparente dApp-style).
+
+### Verificación (esta sesión)
+- 12/12 Daml tests, backend BUILD SUCCESSFUL, frontend tsc 0 errores.
+- Stack corriendo: Vite :5173 + backend :8080 + Canton LocalNet.
+
+---
+
+## 4. Reglas técnicas IMPORTANTES (no romper)
+
+1. **Path con espacios**: usa `run-localnet.sh`, nunca `make start`.
+2. **`.gitignore` allowlist**: el repo ignora `cn-quickstart/**` y re-habilita archivo por archivo. **Cada archivo nuevo que crees en cn-quickstart DEBE añadirse al `.gitignore`** o no se subirá al repo.
+3. **Refund es `consuming`**: devuelve `ContractId SettlementReceipt` y archiva el `CommitmentContract`. No romper este contrato.
+4. **`RaiseDispute` requiere auth de thirdParty**: en Canton, divulgar un contrato a un observer exige su consentimiento. Los tests usan `submitMulti [proposer, accepter, thirdParty]`.
+5. **Login en shared-secret**: password vacía (`{noop}`). El auto-connect hace POST a `/login` (no `/login/shared-secret`).
+6. **Puerto 8080**: el backend lo necesita. `open-webui` u otras apps pueden ocuparlo — para ellas antes de levantar.
+
+---
+
+## 5. Lo que FALTA (priorizado)
+
+### P0 — Entrega hackathon (deadline 13 Jul 2026)
+- [ ] **Video pitch (3 min)**: grabar flujo Propose→Accept→Fulfill→Dispute→Privacy Lab. Script en `docs/decisiones/03-posicionamiento-pitch.md`.
+- [ ] **Video demo técnico (3 min)**: screen recording mostrando el ACS del ledger (en Seaport o LocalNet).
+- [ ] **Subir .dar a Seaport** (live link): `app.devnet.seaport.to/encode-hackathon` → "Deploy DAR" → subir `daml/licensing/.daml/dist/quickstart-licensing-0.0.4.dar`.
+- [ ] **Push a GitLab**: hay 8 commits sin pushear. `git push origin main` (repo: `gitlab.com/PrometeoDev/cantonvault`).
+
+### P1 — Mejoras técnicas (post-entrega o si hay tiempo)
+- [ ] **Multi-party real en demo**: hoy AppProvider hace los 3 roles. Para demo de privacidad real con 2 parties distintas logueadas, hace falta multi-sesión o un endpoint que actúe como party arbitrar.
+- [ ] **Contract keys**: `key (proposer, accepter, description)` para uniqueness. Post-hackathon (sandbox no lo soporta aún).
+- [ ] **Tests E2E Playwright**: el quickstart los incluye; no los hemos corrido.
+- [ ] **DAR modularization**: separar el módulo Vault en su propio package.
+
+### P2 — Producción real
+- [ ] Auth OAuth2 (Keycloak) en vez de shared-secret.
+- [ ] Conexión a DevNet real (ver §6 — bloqueado por accesibilidad del participant).
+- [ ] CI/CD (`.github/workflows/daml-test.yml` existe; ampliar con backend+frontend).
+
+---
+
+## 6. Hallazgo crítico sobre el DevNet (leer antes de intentar)
+
+Se investigó a fondo el 2026-06-30/07-02. **Conclusiones firmes:**
+
+- **El participant del DevNet NO es públicamente accesible** por internet. Canton es permissionada. Todos los probes a `ledger-api.validator.devnet.sandbox.fivenorth.io` y variantes → timeout.
+- **Seaport (`app.devnet.seaport.to`) es un IDE web (SPA)**, no un gateway API. Sirve para que humanos suban `.dar` y creen contratos. **No expone** endpoints de ledger API consumibles por el backend.
+- **El cn-quickstart es 100% gRPC** y requiere un **nodo splice-validator propio** para hablar con cualquier Canton. Por eso LocalNet es el camino correcto.
+
+> **NO pierdas tiempo intentando "conectar el backend al DevNet directamente"** — no es posible técnicamente. El camino profesional es LocalNet (que YA funciona) + subir el `.dar` a Seaport para el live link.
+
+---
+
+## 7. Verificación rápida (ejecutar al empezar)
+
+```bash
+cd "/Users/munay/dev/Build on Canton Hackathon/cn-quickstart/quickstart"
+export PATH="$HOME/.daml/bin:$PATH"
+
+# Tests
+daml test --package-root daml/licensing-tests   # 12 tests, todos ok
+./gradlew :backend:compileJava -x :daml:compileDaml   # BUILD SUCCESSFUL
+cd frontend && npx tsc -b --noEmit               # sin errores
+
+# Runtime (si Docker está corriendo)
+curl -s -o /dev/null -w "%{http_code}" http://localhost:5173   # 200
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/feature-flags   # 200
+```
+
+Si algo falla, ver §1 (cómo levantar) y §4 (reglas).
+
+---
+
+## 8. Commits pendientes de push (8 commits ahead of origin/main)
+
+```
+625d49d chore: track userStore.tsx (autoConnect) in gitignore allowlist
+2616394 feat(auth): transparent auto-connect — zero login friction
+5d56ff1 chore: track LoginView + login.css in gitignore allowlist
+42b8dc0 feat(login): one-click demo entry
+6155411 feat(landing): professional product landing page
+bb52fa8 fix(vault): inject demo parties into backend container via app.env
+6e8d969 fix(vault): runtime - LocalNet end-to-end working against real Canton
+cd37656 feat(vault): production audit - fix privacy bugs, real Refund, rebuild frontend
+```
+
+**Push pendiente**: `git push origin main`
+
+---
+
+## 9. Para una auditoría profesional (próxima sesión)
+
+Si la próxima sesión es una **auditoría de código/profesional**, foco recomendado:
+
+1. **Seguridad Daml**: revisar `CommitmentContract.daml` choices — ¿puede un no-signatario ejercer algo? ¿`Refund` tras deadline es seguro? ¿`RaiseDispute` filtra info?
+2. **Backend**: `CommitmentController.java` — validación de inputs, manejo de errores, ¿tokens/amounts pueden ser negativos? ¿Hay rate limiting?
+3. **PQS**: ¿los queries `activeWhere` con SQL string son seguros de inyección? (usan JdbcTemplate parametrizado, pero revisar).
+4. **Frontend**: ¿el `autoConnect` expone credenciales? (no, pero revisar). ¿XSS en `revealedFields`?
+5. **Privacidad real**: ¿el demo muestra privacidad genuina o solo con 1 party? (hoy AppProvider hace los 3 roles — ver P1).
+6. **Cobertura de tests**: ¿cubren edge cases? (refund tras fulfill, dispute tras refund, double-accept).
+
+**Status actual honesto**: el producto es **funcional y verificado** para LocalNet. La privacidad está **probada por tests Daml** (no solo claim). El settlement es **real (Canton Coin)**. Los gaps principales son de **presentación/demo** (video, live link), no de código.
+
+---
+
+*Fin del handoff. Cualquier duda, los detalles están en los commits y en `docs/`.*

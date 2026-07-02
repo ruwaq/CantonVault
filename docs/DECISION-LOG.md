@@ -32,6 +32,17 @@
 
 ---
 
+## 2026-07-02 — Auditoría de producción + runtime + UX
+
+- **Bugs críticos arreglados (preexistentes)**: `DisclosedRecord` tenía mal diseño (thirdParty era signatario). `RaiseDispute` fallaba en Canton (divulge requiere auth de observer). Tests `test_thirdparty_sees_dispute` + `test_thirdparty_resolves` ahora pasan → **privacy probada por tests**.
+- **Refund completado**: era `pure ()` TODO. Ahora `Allocation_ExecuteTransfer` inverso + `SettlementReceipt`.
+- **Backend**: endpoints `/dispute-cases` + `/resolve`, eliminado `/disclose` duplicado, CORS, `/vault/parties`, `VaultPartyProperties`.
+- **Frontend rehecho**: cero `any`, store tipado, wizard 3 pasos, Privacy Lab real, landing profesional, auto-connect dApp-style.
+- **Runtime**: `run-localnet.sh` (fix path con espacios), stack LocalNet verificado end-to-end (proposal creado en ledger Canton real, recuperado vía PQS).
+- **DevNet investigado a fondo**: participant NO es públicamente accesible, Seaport es IDE no API. Decisión: LocalNet + subir .dar a Seaport para live link.
+
+---
+
 ## Pendientes para próxima sesión
 
 - [ ] Confirmar versions exactas al clonar cn-quickstart
