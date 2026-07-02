@@ -33,8 +33,9 @@ const App: React.FC = () => {
     return (
         <AppProviders>
             <Routes>
-                {/* Public landing page — full-width, no app chrome */}
+                {/* Full-screen public pages — no app chrome */}
                 <Route path="/" element={<LandingView />} />
+                <Route path="/login" element={<LoginView />} />
                 {/* Authenticated app — with header nav */}
                 <Route path="/*" element={
                     <>
@@ -43,7 +44,6 @@ const App: React.FC = () => {
                             <Routes>
                                 <Route path="/home" element={<HomeView />} />
                                 <Route path="/tenants" element={<TenantRegistrationView />} />
-                                <Route path="/login" element={<LoginView />} />
                                 <Route path="/app-installs" element={<AppInstallsView />} />
                                 <Route path="/licenses" element={<LicensesView />} />
                                 <Route path="/vault" element={<VaultView />} />
