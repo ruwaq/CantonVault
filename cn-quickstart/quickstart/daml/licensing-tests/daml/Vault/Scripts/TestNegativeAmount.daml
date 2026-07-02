@@ -1,0 +1,44 @@
+-- | Ensure the CommitmentProposal rejects non-positive amounts at creation.
+module Vault.Scripts.TestNegativeAmount where
+
+import Daml.Script
+import DA.Time
+import Vault.CommitmentProposal (CommitmentProposal(..))
+
+test_zero_amount_rejected : Script ()
+test_zero_amount_rejected = do
+  proposer <- allocateParty "Supplier"
+  accepter <- allocateParty "Financier"
+  thirdParty <- allocateParty "Buyer"
+  now <- getTime
+  let deadline = addRelTime now (seconds 999999)
+  -- CommitmentProposal has `ensure amount > 0.0` — zero must be rejected
+  submitMustFail proposer $ createCmd CommitmentProposal with
+    proposer = proposer
+    accepter = accepter
+    thirdParty = thirdParty
+    amount = 0.0
+    currency = "CC"
+    description = "T6: zero amount rejected"
+    workflow = "supply-chain-finance"
+    deadline = deadline
+  return ()
+
+test_negative_amount_rejected : Script ()
+test_negative_amount_rejected = do
+  proposer <- allocateParty "Supplier"
+  accepter <- allocateParty "Financier"
+  thirdParty <- allocateParty "Buyer"
+  now <- getTime
+  let deadline = addRelTime now (seconds 999999)
+  -- CommitmentProposal has `ensure amount > 0.0` — negative must be rejected
+  submitMustFail proposer $ createCmd CommitmentProposal with
+    proposer = proposer
+    accepter = accepter
+    thirdParty = thirdParty
+    amount = -1.0
+    currency = "CC"
+    description = "T6: negative amount rejected"
+    workflow = "supply-chain-finance"
+    deadline = deadline
+  return ()

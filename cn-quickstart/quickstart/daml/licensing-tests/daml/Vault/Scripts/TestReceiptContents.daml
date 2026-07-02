@@ -1,0 +1,40 @@
+-- | Verify that the SettlementReceipt created by Fulfill contains the
+-- correct amount, currency, and note fields.
+module Vault.Scripts.TestReceiptContents where
+
+import Daml.Script
+import DA.Time
+import DA.Text (isInfixOf)
+import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
+import Vault.CommitmentContract (CommitmentContract(..), Fulfill(..))
+import Vault.SettlementReceipt (SettlementReceipt(..))
+
+test_fulfill_receipt_contents : Script ()
+test_fulfill_receipt_contents = do
+  proposer <- allocateParty "Supplier"
+  accepter <- allocateParty "Financier"
+  thirdParty <- allocateParty "Buyer"
+  now <- getTime
+  let deadline = addRelTime now (seconds 999999)
+  proposalCid <- submit proposer $ createCmd CommitmentProposal with
+    proposer = proposer
+    accepter = accepter
+    thirdParty = thirdParty
+    amount = 250.75
+    currency = "EUR"
+    description = "T8: receipt contents check"
+    workflow = "supply-chain-finance"
+    deadline = deadline
+  contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
+  receiptCid <- submit accepter $ exerciseCmd contractCid (Fulfill with
+    fulfillmentNote = "T8 test note"
+    allocationCid = None)
+  -- Fetch the receipt and validate its contents
+  Some receipt <- queryContractId proposer receiptCid
+  assertMsg "Receipt amount must match commitment" (receipt.amount == 250.75)
+  assertMsg "Receipt currency must match commitment" (receipt.currency == "EUR")
+  case receipt.note of
+    None -> assertMsg "Receipt should have a note" False
+    Some note -> assertMsg "Receipt note should contain fulfillment note" 
+      ("T8 test note" `isInfixOf` note)
+  return ()

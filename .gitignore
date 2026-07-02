@@ -100,13 +100,14 @@ cn-quickstart/**
 # Daml tests nuevos (T1-T8) — añadir aquí cuando se creen:
 !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestFulfillDeadline.daml
 !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestDoubleFulfill.daml
-# T3-T8 pendientes:
+# T3-T8:
+!cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestRefundThenFulfill.daml
+!cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestInvalidRuling.daml
+!cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestNegativeAmount.daml
+!cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestDisputeByThirdParty.daml
+!cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestReceiptContents.daml
+# T3 (real settlement) pendiente:
 # !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestRealSettlement.daml
-# !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestRefundThenFulfill.daml
-# !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestInvalidRuling.daml
-# !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestNegativeAmount.daml
-# !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestDisputeByThirdParty.daml
-# !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestReceiptContents.daml
 
 # Secrets
 *.pem

@@ -1,0 +1,31 @@
+-- | Only proposer or accepter can RaiseDispute. The thirdParty cannot
+-- initiate a dispute (they are not a signatory/controller of the commitment).
+module Vault.Scripts.TestDisputeByThirdParty where
+
+import Daml.Script
+import DA.Time
+import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
+import Vault.CommitmentContract (CommitmentContract(..), RaiseDispute(..))
+
+test_dispute_by_thirdparty_fails : Script ()
+test_dispute_by_thirdparty_fails = do
+  proposer <- allocateParty "Supplier"
+  accepter <- allocateParty "Financier"
+  thirdParty <- allocateParty "Buyer"
+  now <- getTime
+  let deadline = addRelTime now (seconds 999999)
+  proposalCid <- submit proposer $ createCmd CommitmentProposal with
+    proposer = proposer
+    accepter = accepter
+    thirdParty = thirdParty
+    amount = 100.0
+    currency = "CC"
+    description = "T7: third party cannot dispute"
+    workflow = "supply-chain-finance"
+    deadline = deadline
+  contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
+  -- Third party tries to raise a dispute — must fail
+  submitMustFail thirdParty $ exerciseCmd contractCid (RaiseDispute with
+    reason = "unauthorized dispute attempt"
+    actor = thirdParty)
+  return ()

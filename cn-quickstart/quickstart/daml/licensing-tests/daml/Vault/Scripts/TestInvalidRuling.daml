@@ -1,0 +1,33 @@
+-- | ResolveDispute rejects rulings that are not "proposer" or "accepter".
+module Vault.Scripts.TestInvalidRuling where
+
+import Daml.Script
+import DA.Time
+import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
+import Vault.CommitmentContract (CommitmentContract(..), RaiseDispute(..), DisputeCase(..), ResolveDispute(..))
+
+test_resolve_invalid_ruling_fails : Script ()
+test_resolve_invalid_ruling_fails = do
+  proposer <- allocateParty "Supplier"
+  accepter <- allocateParty "Financier"
+  thirdParty <- allocateParty "Buyer"
+  now <- getTime
+  let deadline = addRelTime now (seconds 999999)
+  proposalCid <- submit proposer $ createCmd CommitmentProposal with
+    proposer = proposer
+    accepter = accepter
+    thirdParty = thirdParty
+    amount = 100.0
+    currency = "CC"
+    description = "T5: invalid ruling"
+    workflow = "supply-chain-finance"
+    deadline = deadline
+  contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
+  -- Raise dispute as proposer
+  disputeCid <- submit proposer $ exerciseCmd contractCid (RaiseDispute with
+    reason = "test dispute"
+    actor = proposer)
+  -- Resolve with invalid ruling: must fail (only "proposer" or "accepter" allowed)
+  submitMustFail thirdParty $ exerciseCmd disputeCid (ResolveDispute with
+    ruling = "neither")
+  return ()
