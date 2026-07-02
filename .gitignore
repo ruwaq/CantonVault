@@ -81,6 +81,8 @@ cn-quickstart/**
 !cn-quickstart/quickstart/frontend/src/views/LandingView.tsx
 !cn-quickstart/quickstart/frontend/src/views/landing.css
 !cn-quickstart/quickstart/frontend/src/views/HomeView.tsx
+!cn-quickstart/quickstart/frontend/src/views/LoginView.tsx
+!cn-quickstart/quickstart/frontend/src/views/login.css
 !cn-quickstart/quickstart/frontend/src/App.tsx
 !cn-quickstart/quickstart/frontend/src/App.css
 !cn-quickstart/quickstart/frontend/src/types.ts

@@ -1,0 +1,78 @@
+/* CantonVault login — one button, nothing else. */
+
+.cv-login {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  color: #fff;
+  overflow: hidden;
+}
+.cv-login-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(135deg, #0a1f44 0%, #15327a 50%, #1f6feb 100%);
+}
+.cv-login-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 85% 15%, rgba(111, 190, 255, 0.3), transparent 45%),
+    radial-gradient(circle at 15% 85%, rgba(99, 102, 241, 0.35), transparent 50%);
+}
+
+.cv-login-card {
+  text-align: center;
+  max-width: 420px;
+  width: 100%;
+}
+.cv-login-mark {
+  font-size: 3.5rem;
+  margin-bottom: 1rem;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+}
+.cv-login-card h1 {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+  background: linear-gradient(180deg, #fff, #cfe0ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.cv-login-sub {
+  color: #b8d0ff;
+  font-size: 1.05rem;
+  margin: 0.75rem 0 2.5rem;
+  line-height: 1.5;
+}
+
+.cv-login-enter {
+  background: #fff;
+  color: #0a1f44;
+  font-size: 1.2rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  padding: 1rem 2.5rem;
+  width: 100%;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+.cv-login-enter:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+.cv-login-enter:active { transform: translateY(0); }
+
+.cv-login-note {
+  margin-top: 1.5rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.88rem;
+}
