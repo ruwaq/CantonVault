@@ -1,0 +1,68 @@
+-- | Tests for Fulfill behavior around the deadline boundary.
+-- T1: Decision pending — should Fulfill be blocked after deadline like Refund is?
+-- Currently Fulfill has NO deadline guard (unlike Refund), so it succeeds even after
+-- the deadline passes. This test DOCUMENTS the current behavior; the decision whether
+-- to add a guard is recorded in docs/DECISION-LOG.md.
+module Vault.Scripts.TestFulfillDeadline where
+
+import Daml.Script
+import DA.Time
+import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
+import Vault.CommitmentContract (CommitmentContract(..), Fulfill(..))
+import Vault.SettlementReceipt (SettlementReceipt(..))
+
+-- | Confirm that Fulfill works before the deadline (baseline, same as TestFulfill).
+test_fulfill_before_deadline : Script ()
+test_fulfill_before_deadline = do
+  proposer <- allocateParty "Supplier"
+  accepter <- allocateParty "Financier"
+  thirdParty <- allocateParty "Buyer"
+  now <- getTime
+  let deadline = addRelTime now (seconds 999999)
+  proposalCid <- submit proposer $ createCmd CommitmentProposal with
+    proposer = proposer
+    accepter = accepter
+    thirdParty = thirdParty
+    amount = 100.0
+    currency = "CC"
+    description = "T1: fulfill before deadline"
+    workflow = "supply-chain-finance"
+    deadline = deadline
+  contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
+  -- Fulfill well before deadline
+  receiptCid <- submit accepter $ exerciseCmd contractCid (Fulfill with
+    fulfillmentNote = "fulfilled on time"
+    allocationCid = None)
+  receipts <- query @SettlementReceipt proposer
+  assertMsg "Proposer must see receipt after timely Fulfill" (not (null receipts))
+  return ()
+
+-- | Document current behavior: Fulfill succeeds even after the deadline.
+-- If this behavior is deemed incorrect, add `assertMsg "deadline exceeded" (now <= deadline)`
+-- to CommitmentContract.Fulfill.
+test_fulfill_after_deadline : Script ()
+test_fulfill_after_deadline = do
+  proposer <- allocateParty "Supplier"
+  accepter <- allocateParty "Financier"
+  thirdParty <- allocateParty "Buyer"
+  now <- getTime
+  let deadline = addRelTime now (seconds 1)
+  proposalCid <- submit proposer $ createCmd CommitmentProposal with
+    proposer = proposer
+    accepter = accepter
+    thirdParty = thirdParty
+    amount = 200.0
+    currency = "CC"
+    description = "T1: fulfill after deadline"
+    workflow = "supply-chain-finance"
+    deadline = deadline
+  contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
+  -- Wait past the deadline
+  passTime (seconds 2)
+  -- Fulfill still works (no deadline guard on Fulfill choice)
+  receiptCid <- submit accepter $ exerciseCmd contractCid (Fulfill with
+    fulfillmentNote = "fulfilled after deadline (no guard)"
+    allocationCid = None)
+  receipts <- query @SettlementReceipt proposer
+  assertMsg "Proposer should still see receipt even after deadline" (not (null receipts))
+  return ()

@@ -98,8 +98,15 @@ cn-quickstart/**
 !cn-quickstart/quickstart/backend/src/test/java/com/digitalasset/quickstart/service/
 !cn-quickstart/quickstart/backend/src/test/java/com/digitalasset/quickstart/service/CommitmentControllerTest.java
 # Daml tests nuevos (T1-T8) — añadir aquí cuando se creen:
-# !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestDoubleFulfill.daml
-# (etc. — un patrón por cada test nuevo)
+!cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestFulfillDeadline.daml
+!cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestDoubleFulfill.daml
+# T3-T8 pendientes:
+# !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestRealSettlement.daml
+# !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestRefundThenFulfill.daml
+# !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestInvalidRuling.daml
+# !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestNegativeAmount.daml
+# !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestDisputeByThirdParty.daml
+# !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestReceiptContents.daml
 
 # Secrets
 *.pem

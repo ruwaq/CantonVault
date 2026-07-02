@@ -1,0 +1,40 @@
+-- | Verify that a second Fulfill on the same commitment is rejected.
+-- T2: Fulfill is a consuming choice, so exercising it archives the contract.
+-- A subsequent Fulfill must fail (submitMustFail).
+module Vault.Scripts.TestDoubleFulfill where
+
+import Daml.Script
+import DA.Time
+import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
+import Vault.CommitmentContract (CommitmentContract(..), Fulfill(..))
+import Vault.SettlementReceipt (SettlementReceipt(..))
+
+test_double_fulfill_fails : Script ()
+test_double_fulfill_fails = do
+  proposer <- allocateParty "Supplier"
+  accepter <- allocateParty "Financier"
+  thirdParty <- allocateParty "Buyer"
+  now <- getTime
+  let deadline = addRelTime now (seconds 999999)
+  proposalCid <- submit proposer $ createCmd CommitmentProposal with
+    proposer = proposer
+    accepter = accepter
+    thirdParty = thirdParty
+    amount = 100.0
+    currency = "CC"
+    description = "T2: double fulfill must fail"
+    workflow = "supply-chain-finance"
+    deadline = deadline
+  contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
+  -- First fulfill: succeeds
+  receiptCid <- submit accepter $ exerciseCmd contractCid (Fulfill with
+    fulfillmentNote = "first fulfillment"
+    allocationCid = None)
+  -- Second fulfill on the SAME contract: must fail (contract is archived)
+  submitMustFail accepter $ exerciseCmd contractCid (Fulfill with
+    fulfillmentNote = "second attempt"
+    allocationCid = None)
+  -- Verify the first receipt is still the only one
+  receipts <- query @SettlementReceipt proposer
+  assertMsg "Only one receipt should exist after double-fulfill attempt" (length receipts == 1)
+  return ()
