@@ -107,13 +107,8 @@ public class CommitmentController {
     public CompletableFuture<ResponseEntity<List<CommitmentProposal>>> listProposals() {
         var ctx = tracingCtx(logger, "listProposals");
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
-                damlRepository.findActiveCommitmentProposals().thenApply(contracts -> {
+                damlRepository.findCommitmentProposalsForParty(party).thenApply(contracts -> {
                     var result = contracts.stream()
-                            .filter(c -> {
-                                String proposer = c.payload.getProposer.getParty;
-                                String accepter = c.payload.getAccepter.getParty;
-                                return party.equals(proposer) || party.equals(accepter);
-                            })
                             .map(c -> c.payload)
                             .toList();
                     return ResponseEntity.ok(result);
@@ -192,13 +187,8 @@ public class CommitmentController {
     public CompletableFuture<ResponseEntity<List<CommitmentContract>>> listCommitments() {
         var ctx = tracingCtx(logger, "listCommitments");
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
-                damlRepository.findActiveCommitments().thenApply(contracts -> {
+                damlRepository.findCommitmentsForParty(party).thenApply(contracts -> {
                     var result = contracts.stream()
-                            .filter(c -> {
-                                String proposer = c.payload.getProposer.getParty;
-                                String accepter = c.payload.getAccepter.getParty;
-                                return party.equals(proposer) || party.equals(accepter);
-                            })
                             .map(c -> c.payload)
                             .toList();
                     return ResponseEntity.ok(result);
@@ -371,13 +361,8 @@ public class CommitmentController {
     public CompletableFuture<ResponseEntity<List<SettlementReceipt>>> listReceipts() {
         var ctx = tracingCtx(logger, "listReceipts");
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
-                damlRepository.findSettlementReceipts().thenApply(contracts -> {
+                damlRepository.findSettlementReceiptsForParty(party).thenApply(contracts -> {
                     var result = contracts.stream()
-                            .filter(c -> {
-                                String proposer = c.payload.getProposer.getParty;
-                                String accepter = c.payload.getAccepter.getParty;
-                                return party.equals(proposer) || party.equals(accepter);
-                            })
                             .map(c -> c.payload)
                             .toList();
                     return ResponseEntity.ok(result);
