@@ -18,6 +18,13 @@ CantonVault es un protocolo Daml de **compromisos condicionales privados** para 
 
 **Lo que falta** (ver §5): video/demo para entrega, y explorar DevNet (bloqueado, ver §6).
 
+> 📋 **AUDITORÍA + PLAN DE HARDENING (2026-07-02):** se hizo una auditoría completa de producción.
+> Hallazgos: 6 críticos (seguridad/validación), 8 high backend, 9 frontend, 8 gaps de tests Daml.
+> **No hay que reconstruir nada — la arquitectura es correcta.** Solo endurecer.
+> Plan detallado ejecutable: **`docs/superpowers/plans/2026-07-02-production-hardening.md`**.
+> Decision-log: `docs/DECISION-LOG.md` (entrada 2026-07-02).
+> ⚠️ **Corrección**: la claim "zero `any`" del frontend es **FALSA** — hay 10 `any` reales (se corrigen en P0.1).
+
 ---
 
 ## 1. Quick start — cómo levantar todo (3 comandos)
@@ -127,6 +134,7 @@ cantonvault/                                   ← repo raíz (git)
 4. **`RaiseDispute` requiere auth de thirdParty**: en Canton, divulgar un contrato a un observer exige su consentimiento. Los tests usan `submitMulti [proposer, accepter, thirdParty]`.
 5. **Login en shared-secret**: password vacía (`{noop}`). El auto-connect hace POST a `/login` (no `/login/shared-secret`).
 6. **Puerto 8080**: el backend lo necesita. `open-webui` u otras apps pueden ocuparlo — para ellas antes de levantar.
+7. **`.gitignore` allowlist (recordatorio)**: el repo ignora `cn-quickstart/**` y re-habilita archivo por archivo. **Cada archivo NUEVO que crees en `cn-quickstart/` DEBE añadirse al `.gitignore`** o no se subirá. Los archivos que solo EDITAS (ya trackeados) no lo necesitan. El plan de hardening crea varios archivos nuevos — cada uno tiene su entrada de `.gitignore` documentada en `docs/superpowers/plans/2026-07-02-production-hardening.md` (P0.6).
 
 ---
 
@@ -200,18 +208,27 @@ cd37656 feat(vault): production audit - fix privacy bugs, real Refund, rebuild f
 
 ---
 
-## 9. Para una auditoría profesional (próxima sesión)
+## 9. Auditoría profesional — REALIZADA (2026-07-02)
 
-Si la próxima sesión es una **auditoría de código/profesional**, foco recomendado:
+La auditoría recomendada abajo **ya se ejecutó** el 2026-07-02. Resultado:
 
-1. **Seguridad Daml**: revisar `CommitmentContract.daml` choices — ¿puede un no-signatario ejercer algo? ¿`Refund` tras deadline es seguro? ¿`RaiseDispute` filtra info?
-2. **Backend**: `CommitmentController.java` — validación de inputs, manejo de errores, ¿tokens/amounts pueden ser negativos? ¿Hay rate limiting?
-3. **PQS**: ¿los queries `activeWhere` con SQL string son seguros de inyección? (usan JdbcTemplate parametrizado, pero revisar).
-4. **Frontend**: ¿el `autoConnect` expone credenciales? (no, pero revisar). ¿XSS en `revealedFields`?
-5. **Privacidad real**: ¿el demo muestra privacidad genuina o solo con 1 party? (hoy AppProvider hace los 3 roles — ver P1).
-6. **Cobertura de tests**: ¿cubren edge cases? (refund tras fulfill, dispute tras refund, double-accept).
+| Pregunta | Respuesta |
+|---|---|
+| ¿No-signatario puede ejercer un choice Daml? | ❌ No (controllers correctos), pero **sin tests de fallo** que lo prueben |
+| ¿`Refund` tras deadline es seguro? | ✅ Sí (gated + tested) |
+| ¿`Fulfill` tras deadline? | ⚠️ **No decidido** — `Fulfill` no tiene guard de deadline (T1 del plan) |
+| ¿Amounts pueden ser negativos? | ⚠️ Daml los frenaría, pero el backend no valida antes (C4 → P1.3) |
+| ¿Rate limiting? | ❌ No hay |
+| ¿SQL inyección en PQS? | ✅ No — todo parametrizado |
+| ¿`autoConnect` expone credenciales? | ⚠️ **Sí** — hardcoded en el bundle JS (C3 → P1.1) |
+| ¿XSS en `revealedFields`? | ✅ No — React auto-escapa, cero `dangerouslySetInnerHTML` |
+| ¿Privacidad real en el demo? | ⚠️ Probada por tests, pero el demo usa 1 party (AppProvider) para 3 roles |
+| ¿Tests cubren edge cases? | ⚠️ Solo happy paths + 2 de fallo; faltan double-op, settlement real, etc. |
 
-**Status actual honesto**: el producto es **funcional y verificado** para LocalNet. La privacidad está **probada por tests Daml** (no solo claim). El settlement es **real (Canton Coin)**. Los gaps principales son de **presentación/demo** (video, live link), no de código.
+**Status actual honesto**: el producto es **funcional y verificado** para LocalNet. La privacidad está **probada por tests Daml** (no solo claim). El settlement es **real (Canton Coin)**. **No es production-ready** — hay 6 issues críticos de seguridad/validación, pero ninguno requiere re-arquitectura.
+
+**Para corregir todo**, sigue el plan ejecutable:
+→ **`docs/superpowers/plans/2026-07-02-production-hardening.md`** (P0 quick wins ~3h, P1 security, P2 producción).
 
 ---
 

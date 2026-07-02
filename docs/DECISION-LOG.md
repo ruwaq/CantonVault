@@ -43,12 +43,42 @@
 
 ---
 
+## 2026-07-02 — Auditoría completa de producción + plan de hardening
+
+- **Contexto**: Usuario pidió auditoría completa del proyecto: qué mejorar, borrar, reconstruir para producción. Se ejecutó code-review exhaustivo de las 3 capas (Daml, backend Java/Spring, frontend React/TS) + CI/CD + tests, con verificación directa de hallazgos.
+- **Hallazgos críticos (6)**:
+  - C1 CSRF deshabilitado en `SharedSecretConfig.java:53` (regresión vs OAuth2 profile que sí lo tiene).
+  - C2 Passwords `{noop}` vacías (`SharedSecretConfig.java:88`, `AdminApiImpl.java:121`).
+  - C3 Credenciales `app-provider`/password vacía hardcodeadas en el bundle del frontend (`userStore.tsx:61-62`, `LoginView.tsx:27-29`).
+  - C4 Sin validación de inputs financieros (`CommitmentController.java:445` — amount negativo, deadline overflow).
+  - C5 Stack traces y `include-exception: true` filtrados al cliente (`application.yml:9-13`), sin `@ControllerAdvice`.
+  - C6 Cero tests de backend (no existe `backend/src/test/`).
+- **Hallazgos high**: 8 en backend (actAs siempre appProvider, fetch-all-then-filter con SQL filtrado sin usar, DriverManagerDataSource sin pooling, defaults Postgres débiles, gRPC plaintext, sin rate limiting, duplicación de código), 9 en frontend (stale closure en autoConnect, 10× `any`, sin focus trap, 2 flujos login divergentes, fetchUser en 7 sitios, errores solo como toast, reverse tabnabbing).
+- **Gaps de tests Daml (8)**: el más importante — `Fulfill` no tiene guard de deadline (no decidido si es bug o feature), rama de settlement real (`allocationCid = Some`) sin testear, sin tests de doble-operación.
+- **CI**: solo corre Daml + backend compile. Frontend y E2E no se verifican nunca.
+- **Claim corregida**: el HANDOFF y SUBMISSION_CHECKLIST decían "zero `any`" en el frontend → **FALSO**. Hay 10 `any` reales (`vaultStore.tsx:195,202`, `error.ts:12,25,27,28,35`, `api.ts:8`, `userStore.tsx:37`, `tenantRegistrationStore.tsx:54`, `custom.d.ts:5`).
+- **Verificado como CORRECTO (no tocar)**:
+  - Modelo de privacidad Daml — `thirdParty` fuera de signatory/observer; privacy por diseño del protocolo Canton, probada por tests con aserciones reales (`TestPrivacy`, `TestOtcBlockTrade`, `TestWorkflow`).
+  - Settlement atómico vía Splice AllocationRequest interface.
+  - SQL parametrizado (sin inyección) — `JdbcTemplate` con `?` placeholders en todos los callers.
+  - CORS acotado con allowlist explícita (no `*`).
+  - Sin secretos commiteados (`.env.local` no trackeado; `app.env` solo placeholders `${VAR}`; party IDs son públicos).
+  - Sin superficie XSS (cero `dangerouslySetInnerHTML`, cero `eval`).
+  - Sin memory leaks (intervalos y listeners se limpian).
+  - Limpieza: sin `console.log`/`debugger` en frontend; solo 2 TODOs en backend.
+- **Decisión**: **No borrar ni reconstruir nada.** La arquitectura es correcta. Solo endurecer (seguridad, validación, tests).
+- **Plan detallado**: `docs/superpowers/plans/2026-07-02-production-hardening.md` — 3 fases (P0 quick wins pre-hackathon ~3h, P1 security hardening, P2 producción real) + gaps de tests Daml. Cada tarea tiene ubicación exacta, código de ejemplo, y verificación.
+
+---
+
 ## Pendientes para próxima sesión
 
+- [ ] Ejecutar plan de hardening P0 (quick wins pre-hackathon): `docs/superpowers/plans/2026-07-02-production-hardening.md`
 - [ ] Confirmar versions exactas al clonar cn-quickstart
 - [ ] Capturar respuesta de Jatin sobre Seaport (URL, party ID format, .dar upload path)
 - [ ] Decisión sobre Disclosure interface vs patrón DisputeCase manual (verificar si compila en SDK 3.4.11)
 - [ ] Si aparece import circular entre CommitmentContract y DisputeCase, decidir solución aquí
+- [ ] Decisión T1: ¿`Fulfill` debe bloquearse tras `deadline`? (ver plan §Tests Daml)
 
 ---
 
