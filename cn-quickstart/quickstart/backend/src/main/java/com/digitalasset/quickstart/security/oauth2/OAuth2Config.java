@@ -30,9 +30,11 @@ import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 
-
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
@@ -99,17 +101,62 @@ public class OAuth2Config {
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(new Converter<>() {
-            private final JwtGrantedAuthoritiesConverter defaultGrantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
+            private final JwtGrantedAuthoritiesConverter defaultGrantedAuthoritiesConverter =
+                    new JwtGrantedAuthoritiesConverter();
 
             @Override
             public Collection<GrantedAuthority> convert(Jwt jwt) {
-                Collection<GrantedAuthority> authorities = new HashSet<>(defaultGrantedAuthoritiesConverter.convert(jwt));
-                // there is only one AppProvider issuer that can issue JWT to authenticate to ResourceServer
-                // we consider anybody with JWT from that issuer to be admin
-                authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
-                authorities.add(new PartyAuthority(partyId));
-                authorities.add(new TenantAuthority(tenantId));
+                Collection<GrantedAuthority> authorities = new HashSet<>(
+                        defaultGrantedAuthoritiesConverter.convert(jwt));
+
+                // Extract Keycloak realm roles from realm_access.roles claim.
+                // Example: { "realm_access": { "roles": ["admin", "operator"] } }
+                List<String> realmRoles = extractKeycloakRealmRoles(jwt);
+                for (String role : realmRoles) {
+                    // Map realm roles to Spring Security roles (ROLE_ prefix convention)
+                    String springRole = role.toUpperCase().startsWith("ROLE_") ? role.toUpperCase() : "ROLE_" + role.toUpperCase();
+                    authorities.add(new SimpleGrantedAuthority(springRole));
+                }
+
+                // Extract party_id and tenant_id from JWT claims (Keycloak mappers).
+                // In production, these claims are mapped by Keycloak protocol mappers
+                // from user attributes or group memberships.
+                String jwtPartyId = jwt.getClaimAsString("party_id");
+                String jwtTenantId = jwt.getClaimAsString("tenant_id");
+
+                if (jwtPartyId != null) {
+                    authorities.add(new PartyAuthority(jwtPartyId));
+                }
+                if (jwtTenantId != null) {
+                    authorities.add(new TenantAuthority(jwtTenantId));
+                }
+
+                // If no claims were found, fall back to the single-tenant config
+                // (backward compatibility with dev/quickstart setup).
+                if (jwtPartyId == null || jwtTenantId == null) {
+                    authorities.add(new PartyAuthority(partyId));
+                    authorities.add(new TenantAuthority(tenantId));
+                }
+
                 return authorities;
+            }
+
+            /**
+             * Extract Keycloak realm_access roles from the JWT claim.
+             * Standard Keycloak JWT structure:
+             * { "realm_access": { "roles": ["admin", "user"] } }
+             */
+            @SuppressWarnings("unchecked")
+            private List<String> extractKeycloakRealmRoles(Jwt jwt) {
+                try {
+                    Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+                    if (realmAccess != null && realmAccess.get("roles") instanceof List) {
+                        return (List<String>) realmAccess.get("roles");
+                    }
+                } catch (Exception e) {
+                    // Claim not present or malformed — no roles from this source
+                }
+                return List.of();
             }
         });
         return converter;

@@ -1,9 +1,10 @@
 // Copyright (c) 2026, Digital Asset (Switzerland) GmbH and/or its affiliates. All rights reserved.
 // SPDX-License-Identifier: 0BSD
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useUserStore } from '../stores/userStore';
+import { useVaultStore } from '../stores/vaultStore';
 
 const Header: React.FC = () => {
     return (
@@ -99,6 +100,9 @@ const UserSection: React.FC = () => {
     return (
         <ul className="navbar-nav ms-auto">
             <li className="nav-item">
+                <BalanceBadge />
+            </li>
+            <li className="nav-item">
                 <span className="nav-link fw-bold" id="user-name">
                     {user.name}
                 </span>
@@ -109,6 +113,22 @@ const UserSection: React.FC = () => {
                 </button>
             </li>
         </ul>
+    );
+};
+
+/** Shows the authenticated party's Canton Coin balance in the header. */
+const BalanceBadge: React.FC = () => {
+    const { balance, fetchBalance } = useVaultStore();
+    useEffect(() => { fetchBalance(); }, [fetchBalance]);
+
+    if (balance === null || balance === undefined) {
+        return <span className="nav-link text-muted small">CC: —</span>;
+    }
+    return (
+        <span className="nav-link small">
+            <span className="badge bg-success me-1">CC</span>
+            {balance.toFixed(2)}
+        </span>
     );
 };
 

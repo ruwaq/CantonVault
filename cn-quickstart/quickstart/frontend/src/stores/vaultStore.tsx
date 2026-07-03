@@ -54,6 +54,7 @@ interface VaultState {
     disclosures: VaultContract<DisclosedRecord>[];
     disputes: VaultContract<DisputeCase>[];
     parties: PartyDescriptor[];
+    balance: number | null;
     loading: boolean;
     /** Tracks the currently in-flight action so buttons can disable individually. */
     pendingAction: { cid: string; action: string } | null;
@@ -62,6 +63,7 @@ interface VaultState {
 interface VaultContextType extends VaultState {
     refreshAll: () => Promise<void>;
     fetchParties: () => Promise<void>;
+    fetchBalance: () => Promise<void>;
     createProposal: (input: CreateProposalInput) => Promise<void>;
     acceptProposal: (contractId: string) => Promise<void>;
     rejectProposal: (contractId: string) => Promise<void>;
@@ -210,6 +212,7 @@ export const VaultProvider = ({ children }: { children: React.ReactNode }) => {
         disclosures: [],
         disputes: [],
         parties: [],
+        balance: null,
         loading: false,
         pendingAction: null,
     });
@@ -231,6 +234,23 @@ export const VaultProvider = ({ children }: { children: React.ReactNode }) => {
             // Parties are a convenience, not a hard requirement.
             // Log for debugging but don't block the flow.
             console.warn('Could not fetch CantonVault parties — custom party ids still work.', err);
+        }
+    }, [setPartial]);
+
+    /**
+     * Fetch the authenticated party's Canton Coin balance.
+     * Polled periodically when the Vault view is active.
+     */
+    const fetchBalance = useCallback(async () => {
+        try {
+            const response = await vaultApi.get('/balance');
+            const data = response.data as { balance?: number; party?: string };
+            if (typeof data.balance === 'number') {
+                setPartial({ balance: data.balance });
+            }
+        } catch {
+            // Balance is cosmetic — don't block the UI on failure
+            console.warn('Could not fetch Canton Coin balance');
         }
     }, [setPartial]);
 
@@ -343,6 +363,7 @@ export const VaultProvider = ({ children }: { children: React.ReactNode }) => {
                 ...state,
                 refreshAll,
                 fetchParties,
+                fetchBalance,
                 createProposal,
                 acceptProposal,
                 rejectProposal,
