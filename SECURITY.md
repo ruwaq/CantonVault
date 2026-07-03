@@ -37,9 +37,21 @@ All CRITICAL and actionable HIGH findings have been remediated. Verification:
 | ID | Issue | Fix |
 |----|-------|-----|
 | H2 | Default DB credentials `postgres/postgres` | `@PostConstruct` warning; env var override docs |
+| H3 | `Refund` symbolic-only (no reverse CC transfer) | ✅ Added `allocationCid` to Refund for real reverse settlement |
 | H5 | `allocationRequest_WithdrawImpl` no actor check | Documented; Splice layer enforces authorization |
 | H7 | No global 401 interceptor in frontend | Added to both `api.ts` and `vaultApi.ts` |
 | H8 | Backend Docker container runs as root | `compose.yaml` documented with non-root path + `BACKEND_USER` |
+
+### Production Readiness (2026-07-03)
+
+| ID | Issue | Fix |
+|----|-------|-----|
+| P1 | `SecurityAutoConfiguration` excluded globally — zero auth if no profile | Removed exclusion; Spring Security defaults as safe fallback |
+| P2 | `{noop}` plaintext passwords | BCrypt via `DelegatingPasswordEncoder` in SharedSecretConfig + AdminApiImpl |
+| P3 | Symbolic settlement (null allocationCid) allowed in production | `SYMBOLIC_SETTLEMENT_ENABLED=false` rejects Fulfill/Refund without real allocation |
+| P10 | LedgerConfig defaulted to localhost:6865 silently | Crashes on startup if `LEDGER_HOST` or `LEDGER_APPLICATION_ID` not set |
+| P9 | Contract keys on CommitmentProposal | Documented as Daml 3.4.x limitation (multi-package build restriction) |
+| P4-P8 | Hardcoded OAuth2 secrets, Keycloak admin/admin, `start-dev`, TLS off | Protected by `cn-quickstart/**` gitignore; production must inject via env vars/secrets manager |
 
 ### MEDIUM (selected)
 
@@ -67,10 +79,40 @@ This audit was performed as part of the Build on Canton Hackathon 2026. For secu
 
 ## Configuration
 
-```bash
-# Required for demo mode (shared-secret profile):
-export DEMO_TOKEN=<your-token>
+### Development (shared-secret profile)
 
-# For production, use the OAuth2 profile:
-export AUTH_MODE=oauth2
+```bash
+export DEMO_TOKEN=<random-token>
+export AUTH_MODE=shared-secret
 ```
+
+### Production (OAuth2 profile)
+
+```bash
+# REQUIRED — app crashes on startup if missing:
+export AUTH_MODE=oauth2
+export LEDGER_HOST=<canton-participant-host>
+export LEDGER_APPLICATION_ID=<your-app-id>
+export SYMBOLIC_SETTLEMENT_ENABLED=false
+
+# OAuth2 (Keycloak or any OIDC provider):
+export OAUTH2_ISSUER_URI=https://auth.yourdomain.com/realms/AppProvider
+export OAUTH2_CLIENT_ID=app-provider-backend
+export OAUTH2_CLIENT_SECRET=<your-client-secret>  # NEVER commit
+
+# DB + CORS + parties (see application.yml for all options)
+export POSTGRES_HOST=<db-host>
+export POSTGRES_USERNAME=<db-user>
+export POSTGRES_PASSWORD=<db-password>
+export CORS_ALLOWED_ORIGINS=https://yourdomain.com
+```
+
+### Production guards
+
+| Feature | Config | Effect |
+|---------|--------|--------|
+| Symbolic settlement | `SYMBOLIC_SETTLEMENT_ENABLED=false` | Rejects Fulfill/Refund without real `allocationContractId` |
+| Demo auto-login | `AUTH_MODE=oauth2` | `DemoAuthController` not created |
+| Plaintext passwords | BCrypt | All passwords hashed via `DelegatingPasswordEncoder` |
+| Default ledger host | Crash | `LedgerConfig` requires explicit `LEDGER_HOST` |
+| Debug logging | `WARN/INFO` | `Http11InputBuffer` not logged |
