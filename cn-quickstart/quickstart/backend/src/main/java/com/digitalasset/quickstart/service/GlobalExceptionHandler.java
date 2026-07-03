@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.Map;
+import java.util.concurrent.CompletionException;
 
 /** Normalizes all controller errors so internals are never leaked to the client. */
 @RestControllerAdvice
@@ -29,7 +30,37 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArg(IllegalArgumentException ex) {
-        return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        log.warn("Illegal argument in request", ex);
+        return ResponseEntity.badRequest().body(Map.of("error", "Invalid request"));
+    }
+
+    /** Maps gRPC status codes to appropriate HTTP responses. */
+    @ExceptionHandler(io.grpc.StatusRuntimeException.class)
+    public ResponseEntity<Map<String, String>> handleGrpc(io.grpc.StatusRuntimeException ex) {
+        HttpStatus httpStatus = switch (ex.getStatus().getCode()) {
+            case NOT_FOUND        -> HttpStatus.NOT_FOUND;
+            case INVALID_ARGUMENT -> HttpStatus.BAD_REQUEST;
+            case UNAUTHENTICATED  -> HttpStatus.UNAUTHORIZED;
+            case PERMISSION_DENIED -> HttpStatus.FORBIDDEN;
+            case UNAVAILABLE      -> HttpStatus.SERVICE_UNAVAILABLE;
+            case DEADLINE_EXCEEDED -> HttpStatus.GATEWAY_TIMEOUT;
+            case ALREADY_EXISTS   -> HttpStatus.CONFLICT;
+            default               -> HttpStatus.INTERNAL_SERVER_ERROR;
+        };
+        log.error("gRPC ledger error: code={} description={}", ex.getStatus().getCode(), ex.getStatus().getDescription());
+        return ResponseEntity.status(httpStatus).body(Map.of("error", "Ledger error"));
+    }
+
+    /** Unwraps CompletionExceptions that wrap gRPC errors. */
+    @ExceptionHandler(CompletionException.class)
+    public ResponseEntity<Map<String, String>> handleCompletion(CompletionException ex) {
+        Throwable cause = ex.getCause();
+        if (cause instanceof io.grpc.StatusRuntimeException grpcEx) {
+            return handleGrpc(grpcEx);
+        }
+        log.error("Async completion failed", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(Map.of("error", "Internal server error"));
     }
 
     @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
