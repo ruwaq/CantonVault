@@ -10,6 +10,9 @@ import com.digitalasset.quickstart.security.AuthenticatedPartyProvider;
 import com.digitalasset.quickstart.security.AuthenticatedUserProvider;
 import com.digitalasset.quickstart.security.TokenProvider;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -36,8 +39,16 @@ import java.util.Optional;
 @Profile("shared-secret")
 public class SharedSecretConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(SharedSecretConfig.class);
+
     private final TenantPropertiesRepository tenantPropertiesRepository;
     private final SecurityConfig securityConfig;
+
+    /** The demo token used as the shared password for all in-memory users.
+     *  If blank (not set), users are still created but login is effectively
+     *  disabled because /api/demo-session rejects requests without a token. */
+    @Value("${demo.token:}")
+    private String demoToken;
 
     public SharedSecretConfig(TenantPropertiesRepository tenantPropertiesRepository, SecurityConfig securityConfig) {
         this.tenantPropertiesRepository = tenantPropertiesRepository;
@@ -68,8 +79,7 @@ public class SharedSecretConfig {
                 .exceptionHandling(exceptionHandling -> exceptionHandling
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                            response.getWriter().write("Unauthorized" + authException.getMessage() + " " + authException.getCause());
-
+                            response.getWriter().write("Unauthorized");
                         })
                 ).formLogin(form -> form.loginPage("/login").permitAll())
                 .logout(logout -> logout
@@ -88,6 +98,13 @@ public class SharedSecretConfig {
     @Bean
     public UserDetailsManager userDetailsManager() {
         var users = new ArrayList<UserDetails>();
+        var effectivePassword = (demoToken != null && !demoToken.isBlank())
+                ? "{noop}" + demoToken
+                : "{noop}disabled";
+        if (demoToken == null || demoToken.isBlank()) {
+            log.warn("DEMO_TOKEN not set — demo users will have disabled passwords. "
+                    + "Set DEMO_TOKEN environment variable to enable demo auth.");
+        }
         tenantPropertiesRepository.getAllTenants()
                 .forEach((tenantId, props) -> {
                     props.getUsers()
@@ -95,9 +112,9 @@ public class SharedSecretConfig {
                                 var userBuilder = User.withUsername(userId)
                                     // PRODUCTION-HARDENING: replace {noop} with BCrypt
                                     // (requires password hashing on user creation).
-                                    // {noop} is intentional for the hackathon demo — users
-                                    // have empty passwords and authenticate via DemoAuthController.
-                                    .password("{noop}");
+                                    // For the hackathon demo, the password matches the
+                                    // DEMO_TOKEN env var so /api/demo-session can auth.
+                                    .password(effectivePassword);
                                 if (props.isInternal())
                                     userBuilder.roles("ADMIN");
                                 users.add(userBuilder.build());

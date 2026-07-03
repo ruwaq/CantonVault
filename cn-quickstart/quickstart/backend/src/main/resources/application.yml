@@ -15,21 +15,30 @@ server:
 
 logging:
   level:
-    org.apache.coyote.http11.Http11InputBuffer: DEBUG
-    com.digitalasset.quickstart.oauth.Interceptor: DEBUG
+    org.apache.coyote.http11.Http11InputBuffer: WARN
+    com.digitalasset.quickstart.oauth.Interceptor: INFO
     org.springframework: ERROR
     org.springframework.security: INFO
 #    org.springframework.security.web.FilterChainProxy: TRACE
+
+# Demo mode authentication token. When set, /api/demo-session requires
+# a matching demoToken in the request body. Leave blank to disable demo auth.
+demo:
+  token: ${DEMO_TOKEN:}
 
 management:
   endpoints:
     web:
       exposure:
-        include: '*'
+        include: 'health,info,prometheus'
+  endpoint:
+    health:
+      show-details: when-authorized
 
 ledger:
   application-id: ${AUTH_APP_PROVIDER_BACKEND_USER_ID:AppId}
   registry-base-uri: ${REGISTRY_BASE_URI}
+  tls-enabled: ${LEDGER_TLS_ENABLED:false}
 
 # Access to the application is restricted to authorized end users from organization (e.g. AppProvider, AppUser) registered as tenant.
 # Backend service starts with a single AppProvider internal tenant. Additional tenant registration is available through
