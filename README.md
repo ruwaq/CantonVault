@@ -4,7 +4,7 @@
 [![Network](https://img.shields.io/badge/network-Canton%20DevNet-green)](https://devnet.cantonloop.com)
 [![Daml](https://img.shields.io/badge/contracts-Daml%203.x-orange)](https://docs.digitalasset.com/daml)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](./LICENSE)
-[![Tests](https://img.shields.io/badge/tests-12%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-21%20passing-brightgreen)]()
 
 > Selective disclosure protocol where privacy is an **emergent property of stakeholder scoping** — competitors see empty ledgers by design, not by encryption.
 
@@ -160,6 +160,26 @@ cd frontend && npx tsc --noEmit                               # Frontend typeche
 **Ande (andelabs)** — Solo builder  
 - Full-stack blockchain developer with Daml/Rust/Solidity expertise  
 - Focused on institutional DeFi primitives and privacy-preserving protocols
+
+---
+
+## Security
+
+See [SECURITY.md](./SECURITY.md) for the full audit report (2026-07-03), vulnerability disclosures, and hardening guidelines.
+
+### Quick setup
+
+```bash
+# 1. Set the demo token (required — auth is disabled without it)
+export DEMO_TOKEN=demo
+
+# 2. Start the local network
+./cn-quickstart/quickstart/run-localnet.sh
+
+# 3. Open http://app-provider.localhost:5173
+```
+
+> **⚠️ The `shared-secret` auth profile is intended for local development and hackathon demos only.** Never deploy to an accessible network without setting a strong `DEMO_TOKEN` and using the OAuth2 profile for production.
 
 ---
 
