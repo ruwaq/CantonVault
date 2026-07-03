@@ -1,6 +1,9 @@
 -- | Propose pattern: a proposal to enter a commitment contract.
 -- TODO(production): add contract key (proposer, accepter, description)
 -- for uniqueness guarantees and efficient lookup via fetchByKey.
+-- NOTE: Contract keys are not yet supported in this Canton/Daml version
+-- (3.4.11) for templates in the multi-package Splice build. Revisit when
+-- upgrading to Daml 3.5+ or when Canton adds support.
 module Vault.CommitmentProposal where
 
 import Vault.CommitmentContract (CommitmentContract(..))

@@ -125,7 +125,10 @@ cn-quickstart/**
 !cn-quickstart/quickstart/docker/modules/devnet/onboarding/
 !cn-quickstart/quickstart/docker/modules/devnet/onboarding/Dockerfile
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/config/PostgresConfig.java
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/config/LedgerConfig.java
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/service/CommitmentController.java
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/service/AdminApiImpl.java
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/App.java
 
 # Secrets — NEVER commit files containing credentials, tokens, or keys.
 # Docker env files (oauth2.env, keycloak.env, etc.) are protected by the

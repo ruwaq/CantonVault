@@ -24,6 +24,8 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
@@ -33,6 +35,7 @@ import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Configuration
 @EnableWebSecurity
@@ -96,13 +99,23 @@ public class SharedSecretConfig {
     }
 
     @Bean
+    public PasswordEncoder passwordEncoder() {
+        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+    }
+
+    @Bean
     public UserDetailsManager userDetailsManager() {
         var users = new ArrayList<UserDetails>();
+        var encoder = passwordEncoder();
+        // PRODUCTION: use BCrypt (via DelegatingPasswordEncoder) instead of {noop}.
+        // The DEMO_TOKEN is the shared credential — hashed with BCrypt at startup.
+        // request.login() in DemoAuthController passes the raw token; Spring's
+        // DaoAuthenticationProvider matches it against the encoded password.
         var effectivePassword = (demoToken != null && !demoToken.isBlank())
-                ? "{noop}" + demoToken
-                : "{noop}disabled";
+                ? encoder.encode(demoToken)
+                : encoder.encode(UUID.randomUUID().toString()); // disabled — unknowable random password
         if (demoToken == null || demoToken.isBlank()) {
-            log.warn("DEMO_TOKEN not set — demo users will have disabled passwords. "
+            log.warn("DEMO_TOKEN not set — demo users have random (unknowable) passwords. "
                     + "Set DEMO_TOKEN environment variable to enable demo auth.");
         }
         tenantPropertiesRepository.getAllTenants()
@@ -110,10 +123,6 @@ public class SharedSecretConfig {
                     props.getUsers()
                             .forEach(userId -> {
                                 var userBuilder = User.withUsername(userId)
-                                    // PRODUCTION-HARDENING: replace {noop} with BCrypt
-                                    // (requires password hashing on user creation).
-                                    // For the hackathon demo, the password matches the
-                                    // DEMO_TOKEN env var so /api/demo-session can auth.
                                     .password(effectivePassword);
                                 if (props.isInternal())
                                     userBuilder.roles("ADMIN");

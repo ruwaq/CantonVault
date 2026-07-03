@@ -68,3 +68,9 @@ canton-vault:
 # CORS: comma-separated origins allowed to call the backend with credentials.
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://app-provider.localhost,http://app-provider.localhost:5173}
+
+# Production guard: set to false to reject Fulfill/Refund with null allocationCid
+# (symbolic settlement). Must be true for development/demo. Default is true for
+# backward compatibility; override to false in production.
+canton-vault:
+  symbolic-settlement-enabled: ${SYMBOLIC_SETTLEMENT_ENABLED:true}

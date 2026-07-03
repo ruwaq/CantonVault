@@ -41,6 +41,7 @@ import jakarta.validation.constraints.Size;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -70,6 +71,10 @@ public class CommitmentController {
 
     /** Onboarded Canton parties for the demo, declared in application.yml. */
     private final List<PartyDescriptor> knownParties;
+
+    /** When false, rejects Fulfill/Refund with null allocationCid (production mode). */
+    @Value("${canton-vault.symbolic-settlement-enabled:true}")
+    private boolean symbolicSettlementEnabled;
 
     public CommitmentController(
             LedgerApi ledger,
@@ -214,6 +219,11 @@ public class CommitmentController {
                     if (allocationContractId != null && !allocationContractId.isBlank()) {
                         return fulfillRealSettlement(contract, note, allocationContractId, commandId);
                     }
+                    if (!symbolicSettlementEnabled) {
+                        return CompletableFuture.completedFuture(
+                                ResponseEntity.badRequest().body(Map.of(
+                                        "error", "Symbolic settlement is disabled. Provide an allocationContractId for real Canton Coin settlement.")));
+                    }
                     return fulfillSymbolic(contract, note, commandId);
                 })
         ));
@@ -305,6 +315,11 @@ public class CommitmentController {
 
                     if (allocationContractId != null && !allocationContractId.isBlank()) {
                         return refundRealSettlement(contract, allocationContractId, commandId);
+                    }
+                    if (!symbolicSettlementEnabled) {
+                        return CompletableFuture.completedFuture(
+                                ResponseEntity.badRequest().body(Map.of(
+                                        "error", "Symbolic settlement is disabled. Provide an allocationContractId for real Canton Coin refund.")));
                     }
                     var choice = new CommitmentContract.Refund(
                             new com.digitalasset.transcode.java.Party(party), Optional.empty());
