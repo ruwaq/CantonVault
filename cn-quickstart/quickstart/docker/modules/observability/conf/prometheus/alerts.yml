@@ -1,0 +1,50 @@
+# CantonVault Prometheus Alerting Rules
+# Production alerts for the Vault application and Canton ledger connection.
+
+groups:
+  - name: cantonvault
+    rules:
+      - alert: LedgerUnreachable
+        expr: up{job="backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend cannot reach Canton ledger"
+          description: "The backend service at {{ $labels.instance }} has been unreachable for 2 minutes."
+
+      - alert: SettlementFailure
+        expr: rate(http_server_requests_seconds_count{uri=~"/vault/commitments/.*/fulfill", status="5xx"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Canton Coin settlement failures detected"
+          description: "{{ $value }} settlement failures in the last 5 minutes on {{ $labels.instance }}."
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{uri=~"/vault/.*"}[5m])) > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High P99 latency on Vault endpoints"
+          description: "P99 latency is {{ $value }}s on {{ $labels.instance }}."
+
+      - alert: PqsConnectionPoolExhausted
+        expr: hikaricp_connections_active{pool="pqs"} / hikaricp_connections_max{pool="pqs"} > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PQS connection pool near exhaustion"
+          description: "{{ $value | humanizePercentage }} of PQS connections in use."
+
+      - alert: HighCommandSubmitRate
+        expr: rate(grpc_client_requests_sent_total{method="Submit"}[1m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High command submission rate to ledger"
+          description: "{{ $value }} commands/sec being submitted to Canton ledger."

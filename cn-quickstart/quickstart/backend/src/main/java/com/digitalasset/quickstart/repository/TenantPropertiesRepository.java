@@ -46,7 +46,14 @@ public class TenantPropertiesRepository {
                 users_json TEXT
             )
             """);
-        log.info("Tenant schema ready");
+        jdbc.execute("""
+            CREATE TABLE IF NOT EXISTS command_dedup (
+                command_id   VARCHAR(64) PRIMARY KEY,
+                status       VARCHAR(32) NOT NULL DEFAULT 'SUBMITTED',
+                created_at   TIMESTAMP NOT NULL DEFAULT NOW()
+            )
+            """);
+        log.info("Tenant + idempotency schema ready");
     }
 
     public static class TenantProperties {

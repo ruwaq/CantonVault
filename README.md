@@ -163,6 +163,59 @@ cd frontend && npx tsc --noEmit                               # Frontend typeche
 
 ---
 
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────┐
+│ FRONTEND (React 18 + TypeScript + Vite)              │
+│ VaultView: propose → accept → fulfill → dispute      │
+│ Wallet deep-link: Splice wallet-web-ui for signing   │
+├──────────────────────────────────────────────────────┤
+│ BACKEND (Spring Boot 3.4 + Java 21)                  │
+│ REST API (/vault/*) → LedgerApi (gRPC multi-party)   │
+│ PQS (Postgres read replica) → DamlRepository          │
+│ Auth: OAuth2 Keycloak (JWT claims: party_id, roles)  │
+│ Tenant store: Postgres (survives restarts)           │
+├──────────────────────────────────────────────────────┤
+│ DAML CONTRACTS (SDK 3.4.11)                          │
+│ CommitmentProposal → Accept → CommitmentContract      │
+│ Fulfill (real DvP CC) / Refund / RaiseDispute         │
+│ AllocationRequest interface (Splice token standard)   │
+│ SettlementReceipt + DisclosedRecord (evidence)        │
+├──────────────────────────────────────────────────────┤
+│ CANTON NETWORK (DevNet / mainnet)                    │
+│ Participant node (gRPC) + PQS (Postgres projection)  │
+│ Splice Registry (token standard factory + context)    │
+│ Wallet-web-ui (user-controlled signing)              │
+└──────────────────────────────────────────────────────┘
+```
+
+## DvP Pattern (reusable for Canton ecosystem)
+
+CantonVault implements the **Delivery-vs-Payment** pattern using the Splice
+`AllocationRequest` interface — the same pattern used by the official
+`TestAmuletTokenDvP` and `LicenseRenewalRequest` in the Canton quickstart.
+
+### Key design decisions for mainnet settlement
+
+| Decision | Why |
+|----------|-----|
+| `instrumentAdmin = DSO` | The Canton Coin (Amulet) admin must be the DSO party, not the proposer. Without this, the allocation factory rejects settlement. |
+| `executor = accepter` | The `Allocation_ExecuteTransfer` must be exercised by the settlement executor. Since `Fulfill` is `controller accepter`, the executor must be the accepter. |
+| `requestedAt = createdAt` | The allocation factory requires `requestedAt <= now`. Using `deadline` (a future timestamp) blocks all settlement. Set to contract creation time. |
+| Field-level validation vs `===` | The allocation factory adjusts metadata/timestamps. Validate individual fields (amount, sender, receiver, instrumentAdmin) rather than strict record equality. |
+
+### How to reuse this pattern
+
+1. Make your template implement `AllocationRequest` (from `splice-api-token-allocation-request-v1`)
+2. Set `settlement.executor` = the party who exercises your settlement choice
+3. Set `transferLeg.sender/receiver/amount/instrumentId` correctly
+4. Use `RegistryApi.getAllocationFactory` to create the allocation
+5. Use `RegistryApi.getAllocation_TransferContext` to build `ExtraArgs`
+6. Exercise `Allocation_ExecuteTransfer` with the allocation contract ID + ExtraArgs
+
+Full reference implementation: `daml/licensing-tests/daml/Vault/Scripts/TestRealSettlement.daml`
+
 ## Security
 
 See [SECURITY.md](./SECURITY.md) for the full audit report (2026-07-03), vulnerability disclosures, and hardening guidelines.

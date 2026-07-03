@@ -1,0 +1,27 @@
+# Production override for compose.yaml
+# Usage: docker compose -f compose.yaml -f compose.prod.yaml up
+#
+# Changes from dev:
+# - Backend: multi-stage, non-root Dockerfile (uid 1001)
+# - TLS: enabled on ledger gRPC connection
+# - Auth: OAuth2 only (shared-secret profile not loaded)
+# - Symbolic settlement: disabled
+
+services:
+  backend-service:
+    # Override the dev image with the production-hardened multi-stage build
+    image: cantonvault-backend:latest
+    build:
+      context: .
+      dockerfile: docker/backend-service/Dockerfile
+    # Run as non-root user (created in Dockerfile)
+    user: "1001:1001"
+    environment:
+      # Production guards (override dev defaults)
+      - AUTH_MODE=oauth2
+      - SYMBOLIC_SETTLEMENT_ENABLED=false
+      - LEDGER_TLS_ENABLED=true
+      - SPRING_PROFILES_ACTIVE=oauth2
+    # Remove dev volume mounts (the Dockerfile bundles everything)
+    volumes:
+      - onboarding:/onboarding

@@ -3,18 +3,11 @@
 
 services:
   backend-service:
-    # PRODUCTION-HARDENING: replace this image with the multi-stage, non-root
-    # Dockerfile at docker/backend-service/Dockerfile. Change to:
-    #   build:
-    #     context: .
-    #     dockerfile: docker/backend-service/Dockerfile
-    # and set BACKEND_USER=1001 (or remove the `user:` override below).
-    # The current `image:` + volume-mount is optimized for fast local iteration.
+    # Dev mode: eclipse-temurin image + volume-mounted backend.tar for fast
+    # local iteration. For production, use compose.prod.yaml override:
+    #   docker compose -f compose.yaml -f compose.prod.yaml up
     image: "eclipse-temurin:${JAVA_VERSION}"
     container_name: backend-service
-    # Non-root override: set BACKEND_USER=1001 when using the hardened Dockerfile.
-    # The eclipse-temurin image has no pre-created user, so leave blank for dev.
-    user: ${BACKEND_USER:-}
     labels:
       - "description=Backend service supporting the Quickstart Licensing workflow.
        Note: The APP_PROVIDER_PARTY environment variable is dynamically resolved at runtime before the main process is initiated."
