@@ -55,11 +55,11 @@ All CRITICAL and actionable HIGH findings have been remediated. Verification:
 
 ## Known Limitations (by design)
 
-| ID | Issue | Rationale |
-|----|-------|-----------|
-| H3 | `Refund` is symbolic-only (no reverse CC transfer) | Requires Splice reverse AllocationRequest — planned for post-hackathon |
-| H4 | `Fulfill` controller = accepter (receiver confirms) | DvP design: the receiver triggers settlement; Splice allocation flow separately authorized |
-| H6 | `RequireAuth` guard is client-side only | Backend is the authoritative auth boundary; frontend guard is UX sugar |
+| ID | Issue | Status | Rationale |
+|----|-------|--------|-----------|
+| H3 | `Refund` is symbolic-only (no reverse CC transfer) | ✅ **RESOLVED** | `Refund` now accepts optional `allocationCid` for reverse CC transfer (accepter → proposer). Symbolic path still available for tests/demo. |
+| H4 | `Fulfill` controller = accepter (receiver confirms) | By design | Correct for supply-chain finance: the financier (accepter) confirms delivery and triggers payment to the supplier (proposer). The proposer pre-authorizes the transfer via Splice AllocationRequest — no unilateral action possible. |
+| H6 | `RequireAuth` guard is client-side only | By design | Frontend guard prevents UI flash — the backend is the **authoritative** auth boundary. Mitigated by: C1 (DEMO_TOKEN required), H7 (global 401 interceptor). Every API call is independently authenticated server-side. |
 
 ## Disclosure
 
