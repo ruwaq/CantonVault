@@ -16,6 +16,7 @@ test_otc_block_trade_happy_path = do
   dealerB <- allocateParty "DealerB"
   clearing <- allocateParty "ClearingHouse"
   competitor <- allocateParty "CompetitorDealer"
+  dso <- allocateParty "DSO"
 
   now <- getTime
   let deadline = addRelTime now (seconds 6000)
@@ -30,6 +31,7 @@ test_otc_block_trade_happy_path = do
     description = "OTC Block: US0378331005 10Y $10M @ 98.50"
     workflow = "otc-block-trade"
     deadline = deadline
+    instrumentAdmin = dso
 
   -- 2. PRIVACY: Clearing must NOT see the proposal
   clearingProposals <- query @CommitmentProposal clearing
@@ -82,6 +84,7 @@ test_otc_competing_dealers = do
   dealerB <- allocateParty "DealerB"
   dealerC <- allocateParty "DealerC"
   clearing <- allocateParty "ClearingHouse"
+  dso <- allocateParty "DSO"
 
   now <- getTime
   let deadline = addRelTime now (seconds 6000)
@@ -96,6 +99,7 @@ test_otc_competing_dealers = do
     description = "OTC Block: US912810FM95 30Y $5M @ 102.25"
     workflow = "otc-block-trade"
     deadline = deadline
+    instrumentAdmin = dso
   contractAB <- submit dealerB $ exerciseCmd proposalAB AcceptProposal
 
   -- Meanwhile, Dealer A and Dealer C negotiate separately
@@ -108,6 +112,7 @@ test_otc_competing_dealers = do
     description = "OTC Block: XS2607074236 5Y $3M @ 99.80"
     workflow = "otc-block-trade"
     deadline = deadline
+    instrumentAdmin = dso
   contractAC <- submit dealerC $ exerciseCmd proposalAC AcceptProposal
 
   -- PRIVACY: Dealer C cannot see Dealer A's trade with Dealer B

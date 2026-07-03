@@ -14,6 +14,7 @@ test_supply_chain_finance_happy_path = do
   financier <- allocateParty "Financier"
   buyer <- allocateParty "Buyer-Corp"
   competitor <- allocateParty "Competitor"
+  dso <- allocateParty "DSO"
 
   now <- getTime
   let deadline = addRelTime now (seconds 6000)
@@ -28,6 +29,7 @@ test_supply_chain_finance_happy_path = do
     description = "Supply chain finance INV-2026-001 factoring"
     workflow = "supply-chain-finance"
     deadline = deadline
+    instrumentAdmin = dso
 
   -- 2. Competitor must NOT see the proposal
   competitorProposals <- query @CommitmentProposal competitor

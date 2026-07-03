@@ -11,6 +11,7 @@ test_thirdparty_resolves = do
   proposer <- allocateParty "Supplier"
   accepter <- allocateParty "Financier"
   thirdParty <- allocateParty "Buyer"
+  dso <- allocateParty "DSO"
   now <- getTime
   let deadline = addRelTime now (seconds 6000)
   proposalCid <- submit proposer $ createCmd CommitmentProposal with
@@ -22,6 +23,7 @@ test_thirdparty_resolves = do
     description = "Supply chain finance INV-2026-005"
     workflow = "supply-chain-finance"
     deadline = deadline
+    instrumentAdmin = dso
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- thirdParty authorizes the disclosure (Canton divulge consent).
   disputeCid <- submitMulti [proposer, accepter, thirdParty] [] $ exerciseCmd contractCid (RaiseDispute with reason = "unpaid"; actor = proposer)

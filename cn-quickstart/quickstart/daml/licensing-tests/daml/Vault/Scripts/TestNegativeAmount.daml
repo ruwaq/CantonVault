@@ -10,6 +10,7 @@ test_zero_amount_rejected = do
   proposer <- allocateParty "Supplier"
   accepter <- allocateParty "Financier"
   thirdParty <- allocateParty "Buyer"
+  dso <- allocateParty "DSO"
   now <- getTime
   let deadline = addRelTime now (seconds 999999)
   -- CommitmentProposal has `ensure amount > 0.0` — zero must be rejected
@@ -22,6 +23,7 @@ test_zero_amount_rejected = do
     description = "T6: zero amount rejected"
     workflow = "supply-chain-finance"
     deadline = deadline
+    instrumentAdmin = dso
   return ()
 
 test_negative_amount_rejected : Script ()
@@ -29,6 +31,7 @@ test_negative_amount_rejected = do
   proposer <- allocateParty "Supplier"
   accepter <- allocateParty "Financier"
   thirdParty <- allocateParty "Buyer"
+  dso <- allocateParty "DSO"
   now <- getTime
   let deadline = addRelTime now (seconds 999999)
   -- CommitmentProposal has `ensure amount > 0.0` — negative must be rejected
@@ -41,4 +44,5 @@ test_negative_amount_rejected = do
     description = "T6: negative amount rejected"
     workflow = "supply-chain-finance"
     deadline = deadline
+    instrumentAdmin = dso
   return ()

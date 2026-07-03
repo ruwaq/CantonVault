@@ -11,6 +11,7 @@ test_resolve_invalid_ruling_fails = do
   proposer <- allocateParty "Supplier"
   accepter <- allocateParty "Financier"
   thirdParty <- allocateParty "Buyer"
+  dso <- allocateParty "DSO"
   now <- getTime
   let deadline = addRelTime now (seconds 999999)
   proposalCid <- submit proposer $ createCmd CommitmentProposal with
@@ -22,6 +23,7 @@ test_resolve_invalid_ruling_fails = do
     description = "T5: invalid ruling"
     workflow = "supply-chain-finance"
     deadline = deadline
+    instrumentAdmin = dso
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- Raise dispute as proposer (consuming now — requires thirdParty consent
   -- for divulgence since DisputeCase has observer thirdParty)

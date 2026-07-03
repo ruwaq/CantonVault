@@ -17,6 +17,7 @@ test_fulfill_before_deadline = do
   proposer <- allocateParty "Supplier"
   accepter <- allocateParty "Financier"
   thirdParty <- allocateParty "Buyer"
+  dso <- allocateParty "DSO"
   now <- getTime
   let deadline = addRelTime now (seconds 999999)
   proposalCid <- submit proposer $ createCmd CommitmentProposal with
@@ -28,6 +29,7 @@ test_fulfill_before_deadline = do
     description = "T1: fulfill before deadline"
     workflow = "supply-chain-finance"
     deadline = deadline
+    instrumentAdmin = dso
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- Fulfill well before deadline
   receiptCid <- submit accepter $ exerciseCmd contractCid (Fulfill with
@@ -45,6 +47,7 @@ test_fulfill_after_deadline_fails = do
   proposer <- allocateParty "Supplier"
   accepter <- allocateParty "Financier"
   thirdParty <- allocateParty "Buyer"
+  dso <- allocateParty "DSO"
   now <- getTime
   let deadline = addRelTime now (seconds 1)
   proposalCid <- submit proposer $ createCmd CommitmentProposal with
@@ -56,6 +59,7 @@ test_fulfill_after_deadline_fails = do
     description = "T1: fulfill after deadline (now blocked)"
     workflow = "supply-chain-finance"
     deadline = deadline
+    instrumentAdmin = dso
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- Wait past the deadline
   passTime (seconds 2)

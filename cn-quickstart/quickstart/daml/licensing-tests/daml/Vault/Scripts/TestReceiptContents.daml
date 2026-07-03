@@ -14,6 +14,7 @@ test_fulfill_receipt_contents = do
   proposer <- allocateParty "Supplier"
   accepter <- allocateParty "Financier"
   thirdParty <- allocateParty "Buyer"
+  dso <- allocateParty "DSO"
   now <- getTime
   let deadline = addRelTime now (seconds 999999)
   proposalCid <- submit proposer $ createCmd CommitmentProposal with
@@ -25,6 +26,7 @@ test_fulfill_receipt_contents = do
     description = "T8: receipt contents check"
     workflow = "supply-chain-finance"
     deadline = deadline
+    instrumentAdmin = dso
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   receiptCid <- submit accepter $ exerciseCmd contractCid (Fulfill with
     fulfillmentNote = "T8 test note"

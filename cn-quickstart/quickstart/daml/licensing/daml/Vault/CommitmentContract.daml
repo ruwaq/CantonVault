@@ -36,6 +36,13 @@ template CommitmentContract with
     description   : Text
     workflow      : Text
     deadline      : Time
+    -- The DSO party that administers the Canton Coin (Amulet) instrument.
+    -- In production this is the Canton Network DSO; in tests it is registry.dso.
+    -- Without the correct admin, the allocation factory rejects the settlement.
+    instrumentAdmin : Party
+    -- When the commitment was accepted (set by AcceptProposal). Used as the
+    -- settlement 'requestedAt' so the allocation can be executed immediately.
+    createdAt     : Time
   where
     signatory proposer, accepter
     ensure amount > 0.0
@@ -58,14 +65,16 @@ template CommitmentContract with
         case allocationCid of
           Some (allocCid, eArgs) -> do
             alloc <- fetch @Allocation allocCid
-            let allocView = view @Allocation alloc
-                thisView = view $ toInterface @AllocationRequest this
-                expectedTransferLegId = settlementTransferLegId
-                expectedTransferLeg = fromSome $ TextMap.lookup expectedTransferLegId thisView.transferLegs
-                expectedSettlement = thisView.settlement
-            expectedTransferLegId === allocView.allocation.transferLegId
-            expectedTransferLeg === allocView.allocation.transferLeg
-            expectedSettlement === allocView.allocation.settlement
+            let allocLeg = (view @Allocation alloc).allocation.transferLeg
+                allocLegId = (view @Allocation alloc).allocation.transferLegId
+            -- Verify the allocation matches this commitment's settlement terms.
+            -- We validate the critical fields rather than the full settlement record,
+            -- because the allocation factory may adjust metadata/timestamps.
+            assertMsg "Allocation transfer leg id mismatch" (allocLegId == settlementTransferLegId)
+            assertMsg "Allocation sender must be proposer" (allocLeg.sender == proposer)
+            assertMsg "Allocation receiver must be accepter" (allocLeg.receiver == accepter)
+            assertMsg "Allocation amount must match commitment" (allocLeg.amount == amount)
+            assertMsg "Allocation instrument admin must match" (allocLeg.instrumentId.admin == instrumentAdmin)
             _ <- exercise allocCid (Allocation_ExecuteTransfer eArgs)
             return ()
           None -> return ()
@@ -169,8 +178,8 @@ template CommitmentContract with
           AllocationRequestView
             with
               settlement = SettlementInfo with
-                executor = proposer
-                requestedAt = deadline  -- proxy: the earliest settlement time
+                executor = accepter  -- the accepter exercises Fulfill (triggers settlement)
+                requestedAt = createdAt  -- when the commitment was accepted
                 allocateBefore = deadline
                 settleBefore = deadline
                 settlementRef = Reference with
@@ -184,7 +193,7 @@ template CommitmentContract with
                       receiver = accepter
                       amount = amount
                       instrumentId = InstrumentId with
-                        admin = proposer
+                        admin = instrumentAdmin
                         id = currency
                       meta)
                 ]

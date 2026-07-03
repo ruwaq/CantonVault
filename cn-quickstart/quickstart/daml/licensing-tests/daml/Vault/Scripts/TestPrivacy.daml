@@ -15,6 +15,7 @@ test_thirdparty_privacy = do
   proposer <- allocateParty "Supplier"
   accepter <- allocateParty "Financier"
   thirdParty <- allocateParty "Buyer"
+  dso <- allocateParty "DSO"
 
   now <- getTime
   let deadline = addRelTime now (seconds 6000)
@@ -29,6 +30,7 @@ test_thirdparty_privacy = do
     description = "Supply chain finance INV-2026-001"
     workflow = "supply-chain-finance"
     deadline = deadline
+    instrumentAdmin = dso
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
 
   -- CRITICAL: thirdParty must NOT see CommitmentContract
@@ -50,6 +52,7 @@ test_thirdparty_sees_dispute = do
   proposer <- allocateParty "Supplier"
   accepter <- allocateParty "Financier"
   thirdParty <- allocateParty "Buyer"
+  dso <- allocateParty "DSO"
 
   now <- getTime
   let deadline = addRelTime now (seconds 6000)
@@ -63,6 +66,7 @@ test_thirdparty_sees_dispute = do
     description = "Supply chain finance INV-2026-001"
     workflow = "supply-chain-finance"
     deadline = deadline
+    instrumentAdmin = dso
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
 
   -- Before dispute: thirdParty sees nothing

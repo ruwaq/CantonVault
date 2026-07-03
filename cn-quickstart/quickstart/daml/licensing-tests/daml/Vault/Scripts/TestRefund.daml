@@ -12,6 +12,7 @@ test_refund_blocked_before_deadline = do
   proposer <- allocateParty "Supplier"
   accepter <- allocateParty "Financier"
   thirdParty <- allocateParty "Buyer"
+  dso <- allocateParty "DSO"
   now <- getTime
   let deadline = addRelTime now (seconds 9999999)
   proposalCid <- submit proposer $ createCmd CommitmentProposal with
@@ -23,6 +24,7 @@ test_refund_blocked_before_deadline = do
     description = "Supply chain finance INV-2026-003"
     workflow = "supply-chain-finance"
     deadline = deadline
+    instrumentAdmin = dso
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- Refund before deadline must fail (symbolic path: allocationCid = None).
   submitMustFail proposer $ exerciseCmd contractCid
@@ -36,6 +38,7 @@ test_refund_allowed_after_deadline = do
   proposer <- allocateParty "Supplier"
   accepter <- allocateParty "Financier"
   thirdParty <- allocateParty "Buyer"
+  dso <- allocateParty "DSO"
   now <- getTime
   let deadline = addRelTime now (seconds 1)
   proposalCid <- submit proposer $ createCmd CommitmentProposal with
@@ -47,6 +50,7 @@ test_refund_allowed_after_deadline = do
     description = "Supply chain finance INV-2026-004"
     workflow = "supply-chain-finance"
     deadline = deadline
+    instrumentAdmin = dso
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   passTime (seconds 2)
   receiptCid <- submit proposer $ exerciseCmd contractCid

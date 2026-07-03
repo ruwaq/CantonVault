@@ -12,6 +12,7 @@ test_dispute_by_thirdparty_fails = do
   proposer <- allocateParty "Supplier"
   accepter <- allocateParty "Financier"
   thirdParty <- allocateParty "Buyer"
+  dso <- allocateParty "DSO"
   now <- getTime
   let deadline = addRelTime now (seconds 999999)
   proposalCid <- submit proposer $ createCmd CommitmentProposal with
@@ -23,6 +24,7 @@ test_dispute_by_thirdparty_fails = do
     description = "T7: third party cannot dispute"
     workflow = "supply-chain-finance"
     deadline = deadline
+    instrumentAdmin = dso
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- Third party tries to raise a dispute — must fail
   submitMustFail thirdParty $ exerciseCmd contractCid (RaiseDispute with

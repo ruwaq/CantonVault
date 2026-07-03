@@ -11,6 +11,7 @@ test_propose_accept = do
   proposer <- allocateParty "SME"
   accepter <- allocateParty "Financier"
   thirdParty <- allocateParty "Buyer"
+  dso <- allocateParty "DSO"
   now <- getTime
   let deadline = addRelTime now (seconds 6000)
   proposalCid <- submit proposer $ createCmd CommitmentProposal with
@@ -22,6 +23,7 @@ test_propose_accept = do
     description = "Invoice INV-2026-001 factoring"
     workflow = "supply-chain-finance"
     deadline = deadline
+    instrumentAdmin = dso
   -- Accepter exercises AcceptProposal
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- Both should see the resulting CommitmentContract

@@ -17,6 +17,9 @@ template CommitmentProposal with
     description   : Text
     workflow      : Text
     deadline      : Time
+    -- The DSO party that administers the Canton Coin (Amulet) instrument.
+    -- Propagated to CommitmentContract.instrumentAdmin on accept.
+    instrumentAdmin : Party
   where
     signatory proposer
     observer  accepter
@@ -39,6 +42,8 @@ template CommitmentProposal with
           description = description
           workflow = workflow
           deadline = deadline
+          instrumentAdmin = instrumentAdmin
+          createdAt = now
 
     choice RejectProposal : ()
       controller accepter

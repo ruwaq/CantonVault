@@ -1,46 +1,203 @@
--- | Real Canton Coin settlement test — SKELETON (requires Splice testing infra).
+-- | Real Canton Coin settlement test for CantonVault.
 --
--- T3 cannot be implemented as a standalone script because it requires:
--- 1. AmuletRegistry (mock DSO party, featured app, tapped funds)
--- 2. WalletClient (list holdings, accept allocations)
--- 3. RegistryApi (allocation factory, disclosed contracts)
--- 4. Splice internal modules (AmuletAllocation, AmuletRules, mining rounds)
+-- This test proves that the Vault CommitmentContract can execute a REAL
+-- DvP (Delivery-vs-Payment) settlement using the Splice token standard:
+-- the accepter pays Canton Coin to the proposer upon fulfillment.
 --
--- The full implementation would follow the pattern in
--- Splice/Tests/TestAmuletTokenDvP.daml (~200 lines).
+-- Flow mirrors TestLicense.daml (Licensing.Scripts.TestLicense):
+--   1. Initialize AmuletRegistry (DSO, featured app, funded parties)
+--   2. Create CommitmentProposal → AcceptProposal → CommitmentContract
+--   3. Accepter sees the requested allocation in their wallet
+--   4. Accepter accepts the allocation via the registry factory
+--   5. Proposer fetches the allocation and exercises Fulfill with real CC
+--   6. Verify Canton Coins moved from accepter to proposer
 --
--- TODO: implement when Splice testing infrastructure is available in the test package.
+-- In CantonVault's supply-chain-finance scenario:
+--   Proposer = Supplier (delivers goods, receives payment)
+--   Accepter = Financier (confirms delivery, triggers payment)
 module Vault.Scripts.TestRealSettlement where
 
 import Daml.Script
+
+import DA.Assert ((===))
 import DA.Time
+import DA.List (head, sortOn)
+import DA.Optional (isNone)
+import DA.Foldable (forA_)
+
+import Splice.Api.Token.MetadataV1 as Api.Token.MetadataV1
+import Splice.Api.Token.AllocationV1 as Api.Token.AllocationV1
+import Splice.Api.Token.HoldingV1
+import Splice.Api.Token.AllocationRequestV1
+import Splice.Api.Token.AllocationInstructionV1
+
+import Splice.Testing.Registries.AmuletRegistry qualified as AmuletRegistry
+import Splice.Testing.TokenStandard.RegistryApi qualified as RegistryApi
+import Splice.Testing.TokenStandard.WalletClient qualified as WalletClient
+import Splice.Testing.Utils
+
 import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
 import Vault.CommitmentContract (CommitmentContract(..), Fulfill(..))
 import Vault.SettlementReceipt (SettlementReceipt(..))
 
--- | Placeholder: verifies that symbolic settlement still works as baseline.
--- When Splice testing infra is available, replace with real allocation flow.
-test_real_settlement_placeholder : Script ()
-test_real_settlement_placeholder = do
+-------------------------------------------------------------------------------
+-- Helpers
+-------------------------------------------------------------------------------
+
+{- |
+  Find the single allocation matching a settlement Reference.
+  Mirrors fetchAllocationsForRenewal from TestLicense.daml.
+-}
+fetchAllocationForCommitment : Party -> Reference -> Script (ContractId Allocation, AllocationView)
+fetchAllocationForCommitment p ref = do
+  allocs <- queryInterface @Allocation p
+  let matchingAllocs = do
+        (cid, Some alloc) <- allocs
+        guard (alloc.allocation.settlement.settlementRef == ref)
+        pure (cid, alloc)
+  length matchingAllocs === 1
+  pure $ head $ sortOn (\(_, alloc) -> alloc.allocation.settlement.settlementRef.id) matchingAllocs
+
+-------------------------------------------------------------------------------
+-- Test: Real Canton Coin settlement (DvP)
+-------------------------------------------------------------------------------
+
+{- |
+  End-to-end test: the accepter pays real Canton Coins to the proposer
+  when exercising Fulfill on a CommitmentContract.
+-}
+test_real_settlement_dvp : Script ()
+test_real_settlement_dvp = script do
+  let initialAccepterBalance = 100.0
+      commitmentAmount = 30.0
+
+  -----------------------------------------------------
+  -- 1. Initialize the Amulet registry and fund parties
+  -----------------------------------------------------
+  registry <- AmuletRegistry.initialize AmuletRegistry.defaultAmuletRegistryConfig
+
+  proposer <- allocatePartyExact "Supplier"      -- pays CC to accepter
+  accepter <- allocatePartyExact "Financier"     -- receives CC
+
+  -- Feature both apps so both parties can send/receive CC payments
+  AmuletRegistry.featureApp registry accepter
+  AmuletRegistry.featureApp registry proposer
+
+  -- Fund the proposer so they can pay the commitment amount
+  AmuletRegistry.tapLockedAndUnlockedFunds registry proposer initialAccepterBalance
+
+  -- Verify the proposer starts with the expected balance
+  WalletClient.checkBalance proposer registry.instrumentId initialAccepterBalance
+
+  -----------------------------------------------------
+  -- 2. Create the commitment proposal and accept it
+  -----------------------------------------------------
+  now <- getTime
+  let deadline = addRelTime now (hours 2)
+      instrumentId = registry.instrumentId
+      instrumentAdmin = registry.dso
+
+  proposalCid <- submit proposer $ createCmd CommitmentProposal with
+    proposer = proposer
+    accepter = accepter
+    thirdParty = accepter
+    amount = commitmentAmount
+    currency = "Amulet"
+    description = "Supply chain delivery — 500kg organic coffee"
+    workflow = "supply-chain-finance"
+    deadline = deadline
+    instrumentAdmin = instrumentAdmin
+
+  contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
+
+  -- Verify the commitment is active
+  Some _ <- queryContractId proposer contractCid
+
+  -----------------------------------------------------
+  -- 3. The proposer sees the requested allocation in their wallet
+  -----------------------------------------------------
+  -- The AllocationRequest view has sender=proposer, receiver=accepter,
+  -- so the proposer is the one who must allocate (pay) Canton Coins.
+  [proposerAlloc] <- WalletClient.listRequestedAllocations proposer instrumentId
+  proposerAlloc.transferLeg.amount === commitmentAmount
+  proposerAlloc.transferLeg.sender === proposer
+  proposerAlloc.transferLeg.receiver === accepter
+
+  proposerHoldingCids <- WalletClient.listHoldingCids proposer instrumentId
+
+  -----------------------------------------------------
+  -- 4. The proposer accepts (allocates) via the registry factory
+  -----------------------------------------------------
+  enrichedChoice <- RegistryApi.getAllocationFactory registry AllocationFactory_Allocate with
+    expectedAdmin = instrumentAdmin
+    allocation = proposerAlloc
+    requestedAt = now
+    inputHoldingCids = proposerHoldingCids
+    extraArgs = emptyExtraArgs
+
+  submitWithDisclosures' proposer enrichedChoice.disclosures $
+    exerciseCmd enrichedChoice.factoryCid enrichedChoice.arg
+
+  -----------------------------------------------------
+  -- 5. The accepter fetches the allocation and exercises Fulfill
+  -----------------------------------------------------
+  -- Query the commitment to get its settlement reference
+  Some commitment <- queryContractId proposer contractCid
+  let commitmentRef = (view $ toInterface @AllocationRequest commitment).settlement.settlementRef
+  -- The allocation is visible to both proposer (sender) and accepter (receiver)
+  (allocCid, _) <- fetchAllocationForCommitment proposer commitmentRef
+
+  context <- RegistryApi.getAllocation_TransferContext registry allocCid emptyMetadata
+  let extraArgs = ExtraArgs with
+        context = context.choiceContext
+        meta = emptyMetadata
+
+  -- Fulfill is controller accepter — they confirm delivery and the
+  -- settlement executes (CC transfer from proposer to accepter).
+  submitWithDisclosures' accepter context.disclosures $
+    exerciseCmd contractCid Fulfill with
+      fulfillmentNote = "Delivery confirmed — Canton Coin payment executed"
+      allocationCid = Some (allocCid, extraArgs)
+
+  -----------------------------------------------------
+  -- 6. Verify the Canton Coins moved and the receipt was created
+  -----------------------------------------------------
+  WalletClient.checkBalanceApprox proposer registry.instrumentId (initialAccepterBalance - commitmentAmount)
+  WalletClient.checkHoldingWithAmountExists accepter registry.instrumentId commitmentAmount
+
+  receipts <- query @SettlementReceipt proposer
+  assertMsg "SettlementReceipt must exist after real fulfillment" (not (null receipts))
+
+  mCommitment <- queryContractId proposer contractCid
+  assertMsg "CommitmentContract must be archived after Fulfill" (isNone mCommitment)
+
+  pure ()
+
+{- |
+  Baseline test: symbolic settlement still works (allocationCid = None).
+  Retained for backward compatibility and dev/test mode.
+-}
+test_symbolic_settlement_baseline : Script ()
+test_symbolic_settlement_baseline = script do
   proposer <- allocateParty "Supplier"
   accepter <- allocateParty "Financier"
-  thirdParty <- allocateParty "Buyer"
+  dso <- allocateParty "DSO"
   now <- getTime
   let deadline = addRelTime now (seconds 999999)
   proposalCid <- submit proposer $ createCmd CommitmentProposal with
     proposer = proposer
     accepter = accepter
-    thirdParty = thirdParty
+    thirdParty = accepter
     amount = 100.0
     currency = "CC"
-    description = "T3: placeholder — real settlement test pending Splice infra"
+    description = "Symbolic settlement baseline"
     workflow = "supply-chain-finance"
     deadline = deadline
+    instrumentAdmin = dso
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
-  -- Symbolic settlement as baseline (real settlement with allocationCid pending)
   receiptCid <- submit accepter $ exerciseCmd contractCid (Fulfill with
-    fulfillmentNote = "T3 placeholder — real CC settlement pending"
+    fulfillmentNote = "Symbolic fulfill (no real CC)"
     allocationCid = None)
   receipts <- query @SettlementReceipt proposer
-  assertMsg "Baseline symbolic settlement must still work" (not (null receipts))
+  assertMsg "Symbolic settlement must still work as dev fallback" (not (null receipts))
   return ()
