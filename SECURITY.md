@@ -1,5 +1,43 @@
 # Security Audit — CantonVault (2026-07-03)
 
+## Status: FASE 1 COMPLETADA ✅ — Settlement CC Real
+
+La Fase 1 (DAML settlement real sin mocks) está completa. El CommitmentContract ejecuta
+Canton Coin DvP real usando el token standard de Splice (mismo patrón que TestLicense).
+
+**Resultados:** 27/27 tests DAML pasando. `test_real_settlement_dvp` mueve CC reales.
+
+## PENDIENTE para próxima sesión
+
+| Fase | Descripción | Prioridad |
+|------|-------------|-----------|
+| **2** | LedgerApi multi-party + OAuth2 authority real + Tenant store Postgres | ALTA |
+| **3** | Wallet flow backend (endpoints allocation-request, allocation-status) | ALTA |
+| **4** | Frontend wallet integration (status polling, deep-link, balance display) | ALTA |
+| **5** | Infra deploy DevNet (Dockerfile non-root, Keycloak prod, TLS) | MEDIA |
+| **6** | Observabilidad + idempotency store + rate limiting | MEDIA |
+| **7** | Documentación contribución ecosistema Canton | MEDIA |
+
+## Último commit
+
+```
+106e7c5 feat(daml): real Canton Coin settlement (DvP) — no more mocks
+```
+
+## Para retomar
+
+```bash
+cd "/Users/munay/dev/Build on Canton Hackathon"
+# Verificar estado:
+git log --oneline -3
+# Correr tests:
+cd cn-quickstart/quickstart && daml test --package-root daml/licensing-tests
+# Compilar backend:
+./gradlew :backend:compileJava
+# TypeScript:
+cd frontend && npx tsc -b --noEmit
+```
+
 ## Overview
 
 Full-stack security audit of the CantonVault hackathon project covering:
