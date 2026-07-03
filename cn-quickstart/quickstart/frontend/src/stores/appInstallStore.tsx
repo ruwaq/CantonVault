@@ -17,7 +17,7 @@ import type {
     Metadata,
 } from '../openapi.d.ts';
 import { AppInstallUnified } from '../types';
-import { withErrorHandling } from "../utils/error";
+import { createErrorHandler } from "../utils/error";
 
 interface AppInstallState {
     unifiedInstalls: AppInstallUnified[];
@@ -38,7 +38,7 @@ export const AppInstallProvider = ({ children }: { children: React.ReactNode }) 
     const toast = useToast();
 
     const fetchAll = useCallback(
-        withErrorHandling(`Fetching AppInstall data`)(async () => {
+        createErrorHandler(`Fetching AppInstall data`, toast)(async () => {
             const client: Client = await api.getClient();
             const requestsResponse = await client.listAppInstallRequests();
             const requests: ApiAppInstallRequest[] = requestsResponse.data;
@@ -63,10 +63,10 @@ export const AppInstallProvider = ({ children }: { children: React.ReactNode }) 
             }));
 
             setUnifiedInstalls([...unifiedRequests, ...unifiedInstallRecords]);
-        }), [withErrorHandling, setUnifiedInstalls, toast]);
+        }), [setUnifiedInstalls, toast]);
 
     const accept = useCallback(
-        withErrorHandling(`Accepting AppInstallRequest`)(async (contractId: string, installMeta: Metadata, meta: Metadata) => {
+        createErrorHandler(`Accepting AppInstallRequest`, toast)(async (contractId: string, installMeta: Metadata, meta: Metadata) => {
             const client: Client = await api.getClient();
             const commandId = generateCommandId();
             await client.acceptAppInstallRequest(
@@ -76,11 +76,11 @@ export const AppInstallProvider = ({ children }: { children: React.ReactNode }) 
             await fetchAll();
             toast.displaySuccess(`Accepted AppInstallRequest ${contractId}`);
         }),
-        [withErrorHandling, toast, fetchAll]
+        [toast, fetchAll]
     );
 
     const reject = useCallback(
-        withErrorHandling(`Rejecting AppInstallRequest`)(async (contractId: string, meta: Metadata) => {
+        createErrorHandler(`Rejecting AppInstallRequest`, toast)(async (contractId: string, meta: Metadata) => {
             const client: Client = await api.getClient();
             const commandId = generateCommandId();
             await client.rejectAppInstallRequest(
@@ -90,11 +90,11 @@ export const AppInstallProvider = ({ children }: { children: React.ReactNode }) 
             await fetchAll();
             toast.displaySuccess(`Rejected AppInstallRequest ${contractId}`);
         }),
-        [withErrorHandling, toast, fetchAll]
+        [toast, fetchAll]
     );
 
     const cancelInstall = useCallback(
-        withErrorHandling(`Canceling AppInstall`)(async (contractId: string, meta: Metadata) => {
+        createErrorHandler(`Canceling AppInstall`, toast)(async (contractId: string, meta: Metadata) => {
             const client: Client = await api.getClient();
             const commandId = generateCommandId();
             await client.cancelAppInstall(
@@ -104,11 +104,11 @@ export const AppInstallProvider = ({ children }: { children: React.ReactNode }) 
             await fetchAll();
             toast.displaySuccess(`Canceled AppInstall ${contractId}`);
         }),
-        [withErrorHandling, toast, fetchAll]
+        [toast, fetchAll]
     );
 
     const createLicense = useCallback(
-        withErrorHandling(`Creating License from AppInstall`)(async (contractId: string, meta: Metadata) => {
+        createErrorHandler(`Creating License from AppInstall`, toast)(async (contractId: string, meta: Metadata) => {
             const client: Client = await api.getClient();
             const body: AppInstallCreateLicenseRequest = { params: { meta } };
             const commandId = generateCommandId();
@@ -117,7 +117,7 @@ export const AppInstallProvider = ({ children }: { children: React.ReactNode }) 
             toast.displaySuccess(`Created License: ${response.data?.licenseId}`);
             return response.data;
         }),
-        [withErrorHandling, toast, fetchAll]
+        [toast, fetchAll]
     );
 
     return (
