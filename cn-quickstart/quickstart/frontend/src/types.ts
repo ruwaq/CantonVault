@@ -16,9 +16,11 @@ export interface AppInstallUnified {
 // bindings returned by CommitmentController. The backend serializes Party fields
 // either as a string or as { party: "..." } depending on Jackson config, so we
 // normalize via `partyOf()` when reading from the API.
-
-/** Lifecycle of a CommitmentContract, matching the Daml `Status` enum. */
-export type CommitmentStatus = 'Active' | 'Fulfilled' | 'Disputed' | 'Refunded';
+//
+// Note: CommitmentContract no longer carries a `status` field. Its state 
+// (Active/Fulfilled/Refunded/Disputed) is determined by whether the contract 
+// still exists on the Active Contract Set (ACS). All terminal choices are 
+// consuming, so a contract present in /commitments is always Active.
 
 /** Workflows the commitment can belong to (drives the demo scenario). */
 export type Workflow = 'supply-chain-finance' | 'invoice-financing' | 'otc-block-trade';
@@ -61,7 +63,6 @@ export interface Commitment {
     description: string;
     workflow: Workflow;
     deadline: string; // ISO instant
-    status: CommitmentStatus;
 }
 
 export interface SettlementReceipt {

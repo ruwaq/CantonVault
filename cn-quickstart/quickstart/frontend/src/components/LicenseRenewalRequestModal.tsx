@@ -157,7 +157,7 @@ export default function LicenseRenewalRequestModal({
                       </button>
                     )}
                     {!isAdmin && !renewal.settleDeadlinePassed && !renewal.allocationCid && (
-                      <>Please accept the allocation request in your <a href={`${userWallet}/allocations`} target='_blank'>wallet</a>.</>
+                      <>Please accept the allocation request in your <a href={`${userWallet}/allocations`} target='_blank' rel='noopener noreferrer'>wallet</a>.</>
                     )}
                   </td>
                 </tr>

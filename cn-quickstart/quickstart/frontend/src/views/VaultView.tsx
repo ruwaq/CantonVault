@@ -21,13 +21,6 @@ const WORKFLOWS: { value: Workflow; label: string; hint: string }[] = [
     { value: 'otc-block-trade', label: 'OTC Block Trade', hint: 'Dealer A → Dealer B, Clearing on demand' },
 ];
 
-const STATUS_BADGE: Record<string, string> = {
-    Active: 'bg-success',
-    Fulfilled: 'bg-primary',
-    Disputed: 'bg-warning text-dark',
-    Refunded: 'bg-secondary',
-};
-
 const VaultView: React.FC = () => {
     const { user, fetchUser } = useUserStore();
     const vault = useVaultStore();
@@ -63,12 +56,28 @@ const VaultView: React.FC = () => {
     const myParty = user?.party ?? '';
 
     const submitProposal = async () => {
+        // Client-side validation: catch issues before the backend rejects them
+        const amt = parseFloat(form.amount) || 0;
+        if (!form.accepter.trim() || form.accepter === '__custom') {
+            return; // silently — the custom input is shown inline
+        }
+        if (!form.thirdParty.trim() || form.thirdParty === '__custom') {
+            return;
+        }
+        if (amt <= 0) {
+            alert('Amount must be greater than 0');
+            return;
+        }
+        if (!form.description.trim()) {
+            alert('Description is required');
+            return;
+        }
         setCreating(true);
         try {
             await vault.createProposal({
                 accepter: form.accepter.trim(),
                 thirdParty: form.thirdParty.trim(),
-                amount: parseFloat(form.amount) || 0,
+                amount: amt,
                 currency: form.currency.trim() || 'CC',
                 description: form.description.trim(),
                 workflow: form.workflow,
@@ -114,6 +123,7 @@ const VaultView: React.FC = () => {
                     parties={vault.parties}
                     onAccept={vault.acceptProposal}
                     onReject={vault.rejectProposal}
+                    pendingAction={vault.pendingAction}
                 />
             )}
 
@@ -125,6 +135,7 @@ const VaultView: React.FC = () => {
                     onRefund={vault.refundCommitment}
                     disputes={vault.disputes}
                     onResolve={(cid) => setResolveTarget(cid)}
+                    pendingAction={vault.pendingAction}
                 />
             )}
 
@@ -207,6 +218,7 @@ interface ProposeStepProps {
     parties: PartyDescriptor[];
     onAccept: (id: string) => Promise<void>;
     onReject: (id: string) => Promise<void>;
+    pendingAction: { cid: string; action: string } | null;
 }
 
 /** Render a party selector: a dropdown of known parties plus a free-text fallback. */
@@ -228,7 +240,7 @@ function PartySelect({
     return <input className="form-control form-control-sm" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Party id, e.g. 7fd80745…bd9c" />;
 }
 
-const ProposeStep: React.FC<ProposeStepProps> = ({ form, setForm, onSubmit, disabled, proposals, myParty, parties, onAccept, onReject }) => (
+const ProposeStep: React.FC<ProposeStepProps> = ({ form, setForm, onSubmit, disabled, proposals, myParty, parties, onAccept, onReject, pendingAction }) => (
     <div className="row">
         <div className="col-lg-5">
             <div className="card">
@@ -291,8 +303,8 @@ const ProposeStep: React.FC<ProposeStepProps> = ({ form, setForm, onSubmit, disa
                                 <span className="badge bg-info">{WORKFLOWS.find((w) => w.value === p.payload.workflow)?.label ?? p.payload.workflow}</span>
                             </div>
                             <div className="d-flex gap-1">
-                                <button className="btn btn-success btn-sm" onClick={() => onAccept(p.contractId)}>Accept</button>
-                                <button className="btn btn-outline-danger btn-sm" onClick={() => onReject(p.contractId)}>Reject</button>
+                                <button className="btn btn-success btn-sm" onClick={() => onAccept(p.contractId)} disabled={pendingAction?.cid === p.contractId && pendingAction?.action === 'accept'}>Accept</button>
+                                <button className="btn btn-outline-danger btn-sm" onClick={() => onReject(p.contractId)} disabled={pendingAction?.cid === p.contractId && pendingAction?.action === 'reject'}>Reject</button>
                             </div>
                         </div>
                     </div>
@@ -317,9 +329,10 @@ interface ActStepProps {
     onRefund: (id: string) => Promise<void>;
     disputes: VaultContract<{ commitmentRef: string }>[];
     onResolve: (contractId: string) => void;
+    pendingAction: { cid: string; action: string } | null;
 }
 
-const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, onRefund, disputes, onResolve }) => {
+const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, onRefund, disputes, onResolve, pendingAction }) => {
     const disputedRefs = new Set(disputes.map((d) => d.payload.commitmentRef));
     return (
         <div>
@@ -335,7 +348,7 @@ const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, on
                                     <strong>{c.payload.description}</strong>
                                     <br />
                                     <small className="text-muted">{c.payload.amount} {c.payload.currency}</small>{' '}
-                                    <span className={`badge ${STATUS_BADGE[c.payload.status] ?? 'bg-secondary'}`}>{c.payload.status}</span>
+                                    <span className="badge bg-success">Active</span>
                                     {disputed && <span className="badge bg-danger ms-1">in dispute</span>}
                                     <br />
                                     <small className="text-muted">
@@ -343,9 +356,9 @@ const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, on
                                     </small>
                                 </div>
                                 <div className="d-flex gap-1 flex-wrap">
-                                    <button className="btn btn-outline-primary btn-sm" onClick={() => onFulfill(c)} disabled={disputed}>Fulfill</button>
-                                    <button className="btn btn-warning btn-sm" onClick={() => onDispute(c)} disabled={disputed}>Dispute</button>
-                                    <button className="btn btn-outline-secondary btn-sm" onClick={() => onRefund(c.contractId)}>Refund</button>
+                                    <button className="btn btn-outline-primary btn-sm" onClick={() => onFulfill(c)} disabled={disputed || pendingAction?.cid === c.contractId}>Fulfill</button>
+                                    <button className="btn btn-warning btn-sm" onClick={() => onDispute(c)} disabled={disputed || pendingAction?.cid === c.contractId}>Dispute</button>
+                                    <button className="btn btn-outline-secondary btn-sm" onClick={() => onRefund(c.contractId)} disabled={pendingAction?.cid === c.contractId}>Refund</button>
                                 </div>
                             </div>
                         </div>
@@ -363,7 +376,7 @@ const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, on
                             <br />
                             <small className="text-muted">Third party has been disclosed the amount and description only.</small>
                         </div>
-                        <button className="btn btn-primary btn-sm" onClick={() => onResolve(d.payload.commitmentRef)}>Resolve</button>
+                        <button className="btn btn-primary btn-sm" onClick={() => onResolve(d.payload.commitmentRef)} disabled={pendingAction?.cid === d.payload.commitmentRef}>Resolve</button>
                     </div>
                 </div>
             ))}
@@ -386,9 +399,24 @@ interface PrivacyLabProps {
 }
 
 const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitments }) => {
-    const sample = commitments[0];
+    const [viewIndex, setViewIndex] = useState(0);
+    const sample = commitments[viewIndex] ?? commitments[0];
     return (
         <div>
+            {/* Viewpoint selector */}
+            {commitments.length > 1 && (
+                <div className="mb-3">
+                    <label className="form-label small">Viewing commitment:</label>
+                    <select className="form-select form-select-sm" value={viewIndex} onChange={(e) => setViewIndex(Number(e.target.value))}>
+                        {commitments.map((c, i) => (
+                            <option key={c.contractId} value={i}>
+                                {c.payload.description} ({c.payload.amount} {c.payload.currency})
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            )}
+
             <div className="row g-3 mb-4">
                 <div className="col-md-4">
                     <div className="card h-100 border-success">
@@ -399,6 +427,10 @@ const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitme
                                     <strong>{sample.payload.description}</strong><br />
                                     {sample.payload.amount} {sample.payload.currency}<br />
                                     <span className="badge bg-info">{sample.payload.workflow}</span>
+                                    <div className="mt-1 text-muted">
+                                        <small>proposer: {shortParty(sample.payload.proposer)}</small><br />
+                                        <small>accepter: {shortParty(sample.payload.accepter)}</small>
+                                    </div>
                                 </>
                             ) : (
                                 <span className="text-muted">No commitment yet.</span>

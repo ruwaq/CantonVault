@@ -4,10 +4,9 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { useToast } from './toastStore';
 import vaultApi from './vaultApi';
-import { withErrorHandling } from '../utils/error';
+import { handleActionError } from '../utils/error';
 import {
     type Commitment,
-    type CommitmentStatus,
     type DisclosedRecord,
     type DisputeCase,
     type PartyField,
@@ -56,6 +55,8 @@ interface VaultState {
     disputes: VaultContract<DisputeCase>[];
     parties: PartyDescriptor[];
     loading: boolean;
+    /** Tracks the currently in-flight action so buttons can disable individually. */
+    pendingAction: { cid: string; action: string } | null;
 }
 
 interface VaultContextType extends VaultState {
@@ -87,9 +88,7 @@ interface RawProposal {
     deadline?: string;
 }
 
-interface RawCommitment extends RawProposal {
-    status?: string;
-}
+interface RawCommitment extends RawProposal {}
 
 interface RawReceipt {
     proposer?: PartyField;
@@ -131,18 +130,6 @@ const toWorkflow = (raw: string | undefined): Workflow => {
     }
 };
 
-const toStatus = (raw: string | undefined): CommitmentStatus => {
-    switch (raw) {
-        case 'Active':
-        case 'Fulfilled':
-        case 'Disputed':
-        case 'Refunded':
-            return raw;
-        default:
-            return 'Active';
-    }
-};
-
 const normalizeProposal = (raw: RawProposal): Proposal => ({
     proposer: partyOf(raw.proposer),
     accepter: partyOf(raw.accepter),
@@ -156,7 +143,6 @@ const normalizeProposal = (raw: RawProposal): Proposal => ({
 
 const normalizeCommitment = (raw: RawCommitment): Commitment => ({
     ...normalizeProposal(raw),
-    status: toStatus(raw.status),
 });
 
 const normalizeReceipt = (raw: RawReceipt): SettlementReceipt => ({
@@ -200,8 +186,8 @@ interface RawContractEnvelope {
 
 /** Pull a contractId from a raw backend item (top-level or nested). */
 const cidOf = (item: RawContractEnvelope): string =>
-    item?.contractId ??
-    item?.payload?.contractId ??
+    (item?.contractId as string) ??
+    (item?.payload?.contractId as string | undefined) ??
     item?.getCid ??
     '';
 
@@ -209,7 +195,7 @@ const cidOf = (item: RawContractEnvelope): string =>
 function toContracts<T>(rawList: RawContractEnvelope[], normalize: (raw: Record<string, unknown>) => T): VaultContract<T>[] {
     return (rawList ?? [])
         .map((item) => {
-            const payload = item?.payload ?? item;
+            const payload = (item?.payload ?? item) as Record<string, unknown>;
             return { contractId: cidOf(item), payload: normalize(payload) };
         })
         .filter((c) => c.contractId);
@@ -225,6 +211,7 @@ export const VaultProvider = ({ children }: { children: React.ReactNode }) => {
         disputes: [],
         parties: [],
         loading: false,
+        pendingAction: null,
     });
 
     const setPartial = useCallback(
@@ -240,8 +227,10 @@ export const VaultProvider = ({ children }: { children: React.ReactNode }) => {
         try {
             const response = await vaultApi.get('/parties');
             setPartial({ parties: (response.data ?? []) as PartyDescriptor[] });
-        } catch {
-            // Not fatal: parties are an convenience, not required for the flow.
+        } catch (err) {
+            // Parties are a convenience, not a hard requirement.
+            // Log for debugging but don't block the flow.
+            console.warn('Could not fetch CantonVault parties — custom party ids still work.', err);
         }
     }, [setPartial]);
 
@@ -250,8 +239,8 @@ export const VaultProvider = ({ children }: { children: React.ReactNode }) => {
      * 404/empty on one endpoint never blocks the others — e.g. before any dispute
      * is raised, /disclosures legitimately returns an empty list.
      */
-    const refreshAll = useCallback(
-        withErrorHandling(`Refreshing CantonVault`)(async () => {
+    const refreshAll = useCallback(async () => {
+        try {
             setState((s) => ({ ...s, loading: true }));
             const [proposals, commitments, receipts, disclosures, disputes] =
                 await Promise.allSettled([
@@ -270,39 +259,43 @@ export const VaultProvider = ({ children }: { children: React.ReactNode }) => {
                 disputes: disputes.status === 'fulfilled' ? toContracts(disputes.value.data, normalizeDispute) : [],
                 loading: false,
             });
-        }),
-        [setPartial, toast],
-    );
+        } catch (err) {
+            handleActionError(err, 'Refreshing CantonVault', toast);
+            setPartial({ loading: false });
+        }
+    }, [setPartial, toast]);
 
-    const createProposal = useCallback(
-        withErrorHandling(`Creating proposal`)(async (input: CreateProposalInput) => {
+    const createProposal = useCallback(async (input: CreateProposalInput) => {
+        try {
             await vaultApi.post('/proposals', input);
             await refreshAll();
             toast.displaySuccess('Proposal created');
-        }),
-        [refreshAll, toast],
-    );
+        } catch (err) { handleActionError(err, 'Creating proposal', toast); }
+    }, [refreshAll, toast]);
 
-    const acceptProposal = useCallback(
-        withErrorHandling(`Accepting proposal`)(async (contractId: string) => {
+    const acceptProposal = useCallback(async (contractId: string) => {
+        setPartial({ pendingAction: { cid: contractId, action: 'accept' } });
+        try {
             await vaultApi.post(`/proposals/${contractId}/accept`);
             await refreshAll();
             toast.displaySuccess('Proposal accepted — commitment active');
-        }),
-        [refreshAll, toast],
-    );
+        } catch (err) { handleActionError(err, 'Accepting proposal', toast); }
+        finally { setPartial({ pendingAction: null }); }
+    }, [refreshAll, toast, setPartial]);
 
-    const rejectProposal = useCallback(
-        withErrorHandling(`Rejecting proposal`)(async (contractId: string) => {
+    const rejectProposal = useCallback(async (contractId: string) => {
+        setPartial({ pendingAction: { cid: contractId, action: 'reject' } });
+        try {
             await vaultApi.post(`/proposals/${contractId}/reject`);
             await refreshAll();
             toast.displaySuccess('Proposal rejected');
-        }),
-        [refreshAll, toast],
-    );
+        } catch (err) { handleActionError(err, 'Rejecting proposal', toast); }
+        finally { setPartial({ pendingAction: null }); }
+    }, [refreshAll, toast, setPartial]);
 
-    const fulfillCommitment = useCallback(
-        withErrorHandling(`Fulfilling commitment`)(async (contractId: string, input: FulfillInput) => {
+    const fulfillCommitment = useCallback(async (contractId: string, input: FulfillInput) => {
+        setPartial({ pendingAction: { cid: contractId, action: 'fulfill' } });
+        try {
             await vaultApi.post(`/commitments/${contractId}/fulfill`, input);
             await refreshAll();
             toast.displaySuccess(
@@ -310,36 +303,39 @@ export const VaultProvider = ({ children }: { children: React.ReactNode }) => {
                     ? 'Fulfilled with real Canton Coin settlement'
                     : 'Fulfilled (symbolic)',
             );
-        }),
-        [refreshAll, toast],
-    );
+        } catch (err) { handleActionError(err, 'Fulfilling commitment', toast); }
+        finally { setPartial({ pendingAction: null }); }
+    }, [refreshAll, toast, setPartial]);
 
-    const raiseDispute = useCallback(
-        withErrorHandling(`Raising dispute`)(async (contractId: string, reason: string) => {
+    const raiseDispute = useCallback(async (contractId: string, reason: string) => {
+        setPartial({ pendingAction: { cid: contractId, action: 'dispute' } });
+        try {
             await vaultApi.post(`/commitments/${contractId}/raise-dispute`, { reason });
             await refreshAll();
             toast.displaySuccess('Dispute raised — third party disclosed');
-        }),
-        [refreshAll, toast],
-    );
+        } catch (err) { handleActionError(err, 'Raising dispute', toast); }
+        finally { setPartial({ pendingAction: null }); }
+    }, [refreshAll, toast, setPartial]);
 
-    const resolveDispute = useCallback(
-        withErrorHandling(`Resolving dispute`)(async (contractId: string, ruling: string) => {
+    const resolveDispute = useCallback(async (contractId: string, ruling: string) => {
+        setPartial({ pendingAction: { cid: contractId, action: 'resolve' } });
+        try {
             await vaultApi.post(`/commitments/${contractId}/resolve`, { ruling });
             await refreshAll();
             toast.displaySuccess(`Dispute resolved: ${ruling}`);
-        }),
-        [refreshAll, toast],
-    );
+        } catch (err) { handleActionError(err, 'Resolving dispute', toast); }
+        finally { setPartial({ pendingAction: null }); }
+    }, [refreshAll, toast, setPartial]);
 
-    const refundCommitment = useCallback(
-        withErrorHandling(`Refunding commitment`)(async (contractId: string) => {
+    const refundCommitment = useCallback(async (contractId: string) => {
+        setPartial({ pendingAction: { cid: contractId, action: 'refund' } });
+        try {
             await vaultApi.post(`/commitments/${contractId}/refund`);
             await refreshAll();
             toast.displaySuccess('Commitment refunded');
-        }),
-        [refreshAll, toast],
-    );
+        } catch (err) { handleActionError(err, 'Refunding commitment', toast); }
+        finally { setPartial({ pendingAction: null }); }
+    }, [refreshAll, toast, setPartial]);
 
     return (
         <VaultContext.Provider

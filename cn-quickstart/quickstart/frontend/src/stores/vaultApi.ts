@@ -19,4 +19,19 @@ const vaultClient: AxiosInstance = axios.create({
     xsrfHeaderName: 'X-XSRF-TOKEN',
 });
 
+/**
+ * Global 401 handler: redirect to landing page on expired session.
+ * Mirrors the interceptor in src/api.ts so both HTTP clients behave consistently.
+ */
+vaultClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401 && window.location.pathname !== '/') {
+            window.dispatchEvent(new CustomEvent('auth:session-expired'));
+            window.location.href = '/';
+        }
+        return Promise.reject(error);
+    },
+);
+
 export default vaultClient;

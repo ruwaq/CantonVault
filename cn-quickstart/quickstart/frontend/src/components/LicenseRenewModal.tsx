@@ -98,7 +98,7 @@ export default function LicenseRenewModal({
               min={0}
               className="form-control"
               value={renewData.feeAmount}
-              onChange={(e) => updateField('feeAmount')(Number(e.target.value) || 0)}
+              onChange={(e) => updateField('feeAmount')(Math.max(0, Number(e.target.value) || 0))}
               style={{ width: '120px' }}
             />
           </div>
