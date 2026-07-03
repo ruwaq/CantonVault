@@ -6,24 +6,35 @@ on:
   pull_request:
     branches: [main, master]
 
+# Least-privilege permissions: read-only for the repo, none for everything else.
+permissions:
+  contents: read
+  actions: read
+  checks: write
+  pull-requests: read
+
 jobs:
   daml-build-and-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: cn-quickstart/quickstart
 
     steps:
-      - uses: actions/checkout@v4
+      # Pinned to commit SHA for supply-chain integrity.
+      # Dependabot auto-bumps these via package-ecosystem: github-actions.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Setup Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6a12 # v4.7.1
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Cache Daml SDK
-        uses: actions/cache@v4
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: ~/.daml
           key: daml-sdk-3.4.11
@@ -43,36 +54,40 @@ jobs:
   backend-build:
     needs: daml-build-and-test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: cn-quickstart/quickstart
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Setup Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6a12 # v4.7.1
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@db31548e1066deb3cf1efeb5fe17f2800c7e3bed # v3.4.2
 
       - name: Generate Daml Java bindings + compile backend
         run: ./gradlew :daml:codeGen :backend:compileJava
 
   frontend-build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: cn-quickstart/quickstart/frontend
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.4.0
         with:
           node-version: '20'
           cache: 'npm'
@@ -92,21 +107,23 @@ jobs:
   backend-test:
     needs: daml-build-and-test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: cn-quickstart/quickstart
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Setup Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6a12 # v4.7.1
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@db31548e1066deb3cf1efeb5fe17f2800c7e3bed # v3.4.2
 
       - name: Compile + test backend
         run: ./gradlew :backend:test

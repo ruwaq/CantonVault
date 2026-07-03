@@ -110,10 +110,32 @@ cn-quickstart/**
 # T3 (real settlement) — placeholder until Splice testing infra is wired in:
 !cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestRealSettlement.daml
 
-# Secrets
+# === Fase 2 hardening: backend Dockerfile + RequireAuth ===
+!cn-quickstart/quickstart/docker/backend-service/Dockerfile
+
+# === Fase 3 security audit fixes (2026-07-03) ===
+!cn-quickstart/quickstart/compose.yaml
+!cn-quickstart/quickstart/.gitignore
+# Docker modules — only track Dockerfiles, not env files
+!cn-quickstart/quickstart/docker/modules/
+!cn-quickstart/quickstart/docker/modules/localnet/docker/console/
+!cn-quickstart/quickstart/docker/modules/localnet/docker/console/Dockerfile
+!cn-quickstart/quickstart/docker/modules/splice-onboarding/docker/
+!cn-quickstart/quickstart/docker/modules/splice-onboarding/docker/Dockerfile
+!cn-quickstart/quickstart/docker/modules/devnet/onboarding/
+!cn-quickstart/quickstart/docker/modules/devnet/onboarding/Dockerfile
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/config/PostgresConfig.java
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/service/CommitmentController.java
+
+# Secrets — NEVER commit files containing credentials, tokens, or keys.
+# Docker env files (oauth2.env, keycloak.env, etc.) are protected by the
+# cn-quickstart/** blanket rule above. Only explicitly whitelisted env files
+# (e.g. app.env with variable references, not literals) are tracked.
 *.pem
 *.key
 .env
+.env.*
+*.env
 !docs/**/.env.example
 
 # Local notes

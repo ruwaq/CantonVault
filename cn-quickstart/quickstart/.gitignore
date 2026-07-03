@@ -1,0 +1,13 @@
+# Canton Dashboards (tracked via Artifactory in production)
+# TODO: ignore entire dashboards dir once Canton dashboards are also coming from Artifactory
+/docker/modules/observability/conf/grafana/dashboards/Participant/pqs.json
+
+# Docker env files — contain secrets (OAuth2 client secrets, DB passwords, etc.).
+# Only app.env is whitelisted in the root .gitignore because it uses variable
+# references (${DB_PASSWORD}), not literal credentials.
+/docker/**/*.env
+!/docker/backend-service/env/app.env
+
+# Local environment overrides — never commit these.
+.env.local
+.env.*.local
