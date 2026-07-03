@@ -54,6 +54,7 @@ application:
 # the 5N Sandbox DevNet (or LocalNet). They populate the party selectors in the
 # UI so operators never paste raw hashes by hand. Override via environment.
 canton-vault:
+  # Demo parties (populated by backend config, fetched by GET /vault/parties)
   parties:
     - label: Proposer (Supplier)
       party-id: ${VAULT_PROPOSER_PARTY:}
@@ -64,13 +65,10 @@ canton-vault:
     - label: Third party (Arbitrator)
       party-id: ${VAULT_THIRDPARTY_PARTY:}
       role: thirdParty
+  # Production guard: set to false to reject Fulfill/Refund with null allocationCid
+  # (symbolic settlement). true for dev/demo; false in production.
+  symbolic-settlement-enabled: ${SYMBOLIC_SETTLEMENT_ENABLED:true}
 
 # CORS: comma-separated origins allowed to call the backend with credentials.
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://app-provider.localhost,http://app-provider.localhost:5173}
-
-# Production guard: set to false to reject Fulfill/Refund with null allocationCid
-# (symbolic settlement). Must be true for development/demo. Default is true for
-# backward compatibility; override to false in production.
-canton-vault:
-  symbolic-settlement-enabled: ${SYMBOLIC_SETTLEMENT_ENABLED:true}

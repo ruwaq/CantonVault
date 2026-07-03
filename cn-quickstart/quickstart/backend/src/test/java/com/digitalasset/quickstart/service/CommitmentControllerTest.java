@@ -35,6 +35,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(CommitmentController.class)
 @TestPropertySource(properties = {
     "BACKEND_PORT=8080",
+    "LEDGER_HOST=localhost",
+    "LEDGER_APPLICATION_ID=test-app",
     "REGISTRY_BASE_URI=http://localhost:9090",
     "APP_PROVIDER_PARTY=app-provider::default",
     "AUTH_APP_PROVIDER_BACKEND_USER_ID=AppId",

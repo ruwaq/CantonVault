@@ -129,6 +129,12 @@ cn-quickstart/**
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/service/CommitmentController.java
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/service/AdminApiImpl.java
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/App.java
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/ledger/
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/ledger/LedgerApi.java
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/service/AppInstallRequestsApiImpl.java
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/service/LicenseApiImpl.java
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/service/LicenseRenewalRequestsApiImpl.java
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/service/AppInstallsApiImpl.java
 
 # Secrets — NEVER commit files containing credentials, tokens, or keys.
 # Docker env files (oauth2.env, keycloak.env, etc.) are protected by the

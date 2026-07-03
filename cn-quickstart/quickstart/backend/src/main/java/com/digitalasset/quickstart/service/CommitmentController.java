@@ -137,8 +137,9 @@ public class CommitmentController {
                     request.currency,
                     request.description,
                     request.workflow,
-                    deadline);
-            return ledger.create(proposal, commandId)
+                    deadline,
+                    new com.digitalasset.transcode.java.Party(party));
+            return ledger.create(proposal, commandId, party)
                     .thenApply(v -> {
                         logger.info("Proposal created by {}", party);
                         return ResponseEntity.status(HttpStatus.CREATED)
@@ -157,7 +158,7 @@ public class CommitmentController {
                 damlRepository.findCommitmentProposalById(contractId).thenCompose(optContract -> {
                     var contract = ensurePresent(optContract, "Proposal not found: %s", contractId);
                     var choice = new CommitmentProposal.AcceptProposal();
-                    return ledger.exerciseAndGetResult(contract.contractId, choice, commandId)
+                    return ledger.exerciseAndGetResult(contract.contractId, choice, commandId, party)
                             .thenApply(result -> {
                                 logger.info("Proposal {} accepted, new contract: {}",
                                         contractId, ((com.digitalasset.transcode.java.ContractId<?>) result).getContractId);
@@ -179,7 +180,7 @@ public class CommitmentController {
                 damlRepository.findCommitmentProposalById(contractId).thenCompose(optContract -> {
                     var contract = ensurePresent(optContract, "Proposal not found: %s", contractId);
                     var choice = new CommitmentProposal.RejectProposal();
-                    return ledger.exerciseAndGetResult(contract.contractId, choice, commandId)
+                    return ledger.exerciseAndGetResult(contract.contractId, choice, commandId, party)
                             .thenApply(v -> ResponseEntity.ok(Map.of("status", "rejected")));
                 })
         ));
@@ -217,14 +218,14 @@ public class CommitmentController {
                     var contract = ensurePresent(optContract, "Commitment not found: %s", contractId);
 
                     if (allocationContractId != null && !allocationContractId.isBlank()) {
-                        return fulfillRealSettlement(contract, note, allocationContractId, commandId);
+                        return fulfillRealSettlement(contract, note, allocationContractId, commandId, party);
                     }
                     if (!symbolicSettlementEnabled) {
                         return CompletableFuture.completedFuture(
                                 ResponseEntity.badRequest().body(Map.of(
                                         "error", "Symbolic settlement is disabled. Provide an allocationContractId for real Canton Coin settlement.")));
                     }
-                    return fulfillSymbolic(contract, note, commandId);
+                    return fulfillSymbolic(contract, note, commandId, party);
                 })
         ));
     }
@@ -233,7 +234,8 @@ public class CommitmentController {
             Contract<CommitmentContract> contract,
             String note,
             String allocationContractId,
-            String commandId) {
+            String commandId,
+            String party) {
         var choiceContextFut = tokenStandardProxy.getAllocationTransferContext(allocationContractId);
         return choiceContextFut.thenCompose(choiceContext -> {
             var cc = ensurePresent(choiceContext, "Transfer context not found for allocation %s", allocationContractId);
@@ -249,7 +251,7 @@ public class CommitmentController {
                     contract.contractId.getContractId, allocationContractId);
 
             return ledger.exerciseAndGetResult(
-                    contract.contractId, choice, commandId, transferContext.disclosedContracts())
+                    contract.contractId, choice, commandId, transferContext.disclosedContracts(), party)
                     .thenApply(result -> {
                         logger.info("Commitment {} fulfilled with real CC settlement", contract.contractId.getContractId);
                         return ResponseEntity.ok(Map.of(
@@ -264,9 +266,10 @@ public class CommitmentController {
     private CompletableFuture<ResponseEntity<Map<String, String>>> fulfillSymbolic(
             Contract<CommitmentContract> contract,
             String note,
-            String commandId) {
+            String commandId,
+            String party) {
         var choice = new CommitmentContract.Fulfill(note, Optional.empty());
-        return ledger.exerciseAndGetResult(contract.contractId, choice, commandId)
+        return ledger.exerciseAndGetResult(contract.contractId, choice, commandId, party)
                 .thenApply(result -> {
                     logger.info("Commitment {} fulfilled (symbolic)", contract.contractId.getContractId);
                     return ResponseEntity.ok(Map.of(
@@ -288,7 +291,7 @@ public class CommitmentController {
                     var contract = ensurePresent(optContract, "Commitment not found: %s", contractId);
                     var choice = new CommitmentContract.RaiseDispute(
                             request.reason, new com.digitalasset.transcode.java.Party(party));
-                    return ledger.exerciseAndGetResult(contract.contractId, choice, commandId)
+                    return ledger.exerciseAndGetResult(contract.contractId, choice, commandId, party)
                             .thenApply(result -> {
                                 logger.info("Dispute raised on commitment {} by {}", contractId, party);
                                 return ResponseEntity.ok(Map.of(
@@ -314,7 +317,7 @@ public class CommitmentController {
                     var contract = ensurePresent(optContract, "Commitment not found: %s", contractId);
 
                     if (allocationContractId != null && !allocationContractId.isBlank()) {
-                        return refundRealSettlement(contract, allocationContractId, commandId);
+                        return refundRealSettlement(contract, allocationContractId, commandId, party);
                     }
                     if (!symbolicSettlementEnabled) {
                         return CompletableFuture.completedFuture(
@@ -323,7 +326,7 @@ public class CommitmentController {
                     }
                     var choice = new CommitmentContract.Refund(
                             new com.digitalasset.transcode.java.Party(party), Optional.empty());
-                    return ledger.exerciseAndGetResult(contract.contractId, choice, commandId)
+                    return ledger.exerciseAndGetResult(contract.contractId, choice, commandId, party)
                             .thenApply(result -> {
                                 logger.info("Commitment {} refunded (symbolic)", contractId);
                                 return ResponseEntity.ok(Map.of(
@@ -342,7 +345,8 @@ public class CommitmentController {
     private CompletableFuture<ResponseEntity<Map<String, String>>> refundRealSettlement(
             Contract<CommitmentContract> contract,
             String allocationContractId,
-            String commandId) {
+            String commandId,
+            String party) {
         return tokenStandardProxy.getAllocationTransferContext(allocationContractId)
                 .thenCompose(choiceContext -> {
                     var cc = ensurePresent(choiceContext, "Transfer context not found for allocation %s", allocationContractId);
@@ -357,7 +361,7 @@ public class CommitmentController {
                     logger.info("Refunding commitment {} with real CC settlement (reverse allocation {})",
                             contract.contractId.getContractId, allocationContractId);
                     return ledger.exerciseAndGetResult(
-                            contract.contractId, choice, commandId, transferContext.disclosedContracts())
+                            contract.contractId, choice, commandId, transferContext.disclosedContracts(), party)
                             .thenApply(result -> {
                                 logger.info("Commitment {} refunded with real CC settlement", contract.contractId.getContractId);
                                 return ResponseEntity.ok(Map.of(
@@ -438,7 +442,7 @@ public class CommitmentController {
                             .orElseThrow(() -> new IllegalArgumentException(
                                     "No open DisputeCase found for commitment: " + contractId));
                     var choice = new DisputeCase.ResolveDispute(request.ruling);
-                    return ledger.exerciseAndGetResult(dispute.contractId, choice, commandId)
+                    return ledger.exerciseAndGetResult(dispute.contractId, choice, commandId, party)
                             .thenApply(v -> {
                                 logger.info("Dispute on commitment {} resolved: {}", contractId, request.ruling);
                                 return ResponseEntity.ok(Map.of(
