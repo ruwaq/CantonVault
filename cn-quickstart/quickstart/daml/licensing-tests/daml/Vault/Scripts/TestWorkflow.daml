@@ -5,7 +5,7 @@ module Vault.Scripts.TestWorkflow where
 import Daml.Script
 import DA.Time
 import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
-import Vault.CommitmentContract (CommitmentContract(..), Fulfill(..), Status(..))
+import Vault.CommitmentContract (CommitmentContract(..), Fulfill(..))
 import Vault.SettlementReceipt (SettlementReceipt(..))
 
 test_supply_chain_finance_happy_path : Script ()

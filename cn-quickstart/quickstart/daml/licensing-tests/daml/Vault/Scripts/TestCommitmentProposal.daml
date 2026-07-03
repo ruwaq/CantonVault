@@ -4,7 +4,7 @@ module Vault.Scripts.TestCommitmentProposal where
 import Daml.Script
 import DA.Time
 import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
-import Vault.CommitmentContract (CommitmentContract(..), Status(..))
+import Vault.CommitmentContract (CommitmentContract(..))
 
 test_propose_accept : Script ()
 test_propose_accept = do

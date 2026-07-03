@@ -3,7 +3,7 @@
 -- for uniqueness guarantees and efficient lookup via fetchByKey.
 module Vault.CommitmentProposal where
 
-import Vault.CommitmentContract (CommitmentContract(..), Status(..))
+import Vault.CommitmentContract (CommitmentContract(..))
 
 template CommitmentProposal with
     proposer      : Party
@@ -19,18 +19,23 @@ template CommitmentProposal with
     observer  accepter
     ensure amount > 0.0
 
+    -- AcceptProposal: accepter creates the CommitmentContract on-ledger.
+    -- Validates that the deadline is in the future to prevent instantly-
+    -- refundable commitments (griefing vector).
     choice AcceptProposal : ContractId CommitmentContract
       controller accepter
-      do create CommitmentContract with
-           proposer = proposer
-           accepter = accepter
-           thirdParty = thirdParty
-           amount = amount
-           currency = currency
-           description = description
-           workflow = workflow
-           deadline = deadline
-           status = Active
+      do
+        now <- getTime
+        assertMsg "Deadline must be in the future — proposal has expired" (deadline > now)
+        create CommitmentContract with
+          proposer = proposer
+          accepter = accepter
+          thirdParty = thirdParty
+          amount = amount
+          currency = currency
+          description = description
+          workflow = workflow
+          deadline = deadline
 
     choice RejectProposal : ()
       controller accepter

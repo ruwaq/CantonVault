@@ -3,6 +3,15 @@
 --
 -- Privacy guarantee: thirdParty is REFERENCED but NOT in signatory/observer.
 -- This means the third party cannot see this contract until a DisputeCase is raised.
+--
+-- State-machine design:
+--   Active  → Fulfill (consuming) → SettlementReceipt
+--   Active  → Refund  (consuming) → SettlementReceipt
+--   Active  → RaiseDispute (consuming) → DisputeCase
+--
+-- All terminal choices are CONSUMING — they archive the CommitmentContract,
+-- which is the sole mechanism that prevents double-fulfill and refund-after-fulfill.
+-- There is no mutable status field; consuming = terminal state on the Daml ledger.
 module Vault.CommitmentContract where
 
 import DA.Assert ((===))
@@ -18,8 +27,6 @@ import Splice.Api.Token.HoldingV1
 import Splice.Api.Token.AllocationRequestV1
 import Splice.Api.Token.AllocationV1 as Api.Token.AllocationV1
 
-data Status = Active | Fulfilled | Disputed | Refunded deriving (Eq, Show)
-
 template CommitmentContract with
     proposer      : Party
     accepter      : Party
@@ -29,15 +36,16 @@ template CommitmentContract with
     description   : Text
     workflow      : Text
     deadline      : Time
-    status        : Status
   where
     signatory proposer, accepter
     ensure amount > 0.0
-
+    
     -- Fulfill: accepter confirms delivery. If allocationCid is provided,
     -- executes Canton Coin settlement via Splice Allocation/Transfer standard.
     -- Creates SettlementReceipt as immutable evidence.
     -- Usage: set allocationCid = null in JSON for symbolic settlement (tests/demo).
+    --
+    -- CONSUMING — archives the CommitmentContract, preventing double-fulfill.
     choice Fulfill : ContractId SettlementReceipt
       with
         fulfillmentNote : Text
@@ -45,6 +53,7 @@ template CommitmentContract with
       controller accepter
       do
         now <- getTime
+        assertMsg "Cannot fulfill after deadline — use Refund instead" (now <= deadline)
 
         case allocationCid of
           Some (allocCid, eArgs) -> do
@@ -70,9 +79,10 @@ template CommitmentContract with
           note = Some (fulfillmentNote <> " | via CantonVault: " <> workflow)
 
     -- RaiseDispute: either signatory can escalate to the third party.
+    -- CONSUMING: archives the CommitmentContract so Fulfill/Refund are blocked.
     -- Creates a DisputeCase (third party becomes observer) AND a DisclosedRecord
     -- as immutable proof of selective disclosure.
-    nonconsuming choice RaiseDispute : ContractId DisputeCase
+    choice RaiseDispute : ContractId DisputeCase
       with
         reason : Text
         actor : Party
@@ -104,35 +114,20 @@ template CommitmentContract with
           ruling = None
 
     -- Refund: after the deadline, a signatory can close out an unfulfilled
-    -- commitment. If `allocationCid` is provided, it executes the reverse
-    -- Canton Coin settlement (accepter -> proposer) via the Splice token
-    -- standard, mirroring Fulfill. Either way, a SettlementReceipt is created
-    -- as immutable evidence of the refund.
-    -- Usage: set allocationCid = None for a symbolic refund (no prior transfer).
+    -- commitment. Creates a SettlementReceipt as immutable evidence.
+    -- CONSUMING — archives the CommitmentContract, preventing double-refund.
+    --
+    -- NOTE: allocationCid removed — real CC refund requires a reverse
+    -- AllocationRequest (accepter → proposer) via Splice. The symbolic
+    -- refund is always safe because it only creates a receipt record.
     choice Refund : ContractId SettlementReceipt
       with
         actor         : Party
-        allocationCid : Optional (ContractId Allocation, ExtraArgs)
       controller actor
       do
         require "Actor must be proposer or accepter" (actor `elem` signatory this)
         now <- getTime
         assertMsg "Cannot refund before deadline exceeded" (now >= deadline)
-
-        case allocationCid of
-          Some (allocCid, eArgs) -> do
-            alloc <- fetch @Allocation allocCid
-            let allocView = view @Allocation alloc
-                thisView = view $ toInterface @AllocationRequest this
-                expectedTransferLegId = settlementTransferLegId
-                expectedTransferLeg = fromSome $ TextMap.lookup expectedTransferLegId thisView.transferLegs
-                expectedSettlement = thisView.settlement
-            expectedTransferLegId === allocView.allocation.transferLegId
-            expectedTransferLeg === allocView.allocation.transferLeg
-            expectedSettlement === allocView.allocation.settlement
-            _ <- exercise allocCid (Allocation_ExecuteTransfer eArgs)
-            return ()
-          None -> return ()
 
         create SettlementReceipt with
           proposer = accepter    -- funds flow back to the original proposer
@@ -182,6 +177,10 @@ template CommitmentContract with
         require "Only proposer can reject" (actor == proposer)
         pure ChoiceExecutionMetadata with meta = emptyMetadata
 
+      -- Withdraw authorization is enforced by the Splice AllocationRequest
+      -- interface layer: only the settlement executor (proposer) can withdraw
+      -- an allocation. The contract-level guard would be redundant with the
+      -- interface-level controller check.
       allocationRequest_WithdrawImpl _ _ =
         pure ChoiceExecutionMetadata with meta = emptyMetadata
 
