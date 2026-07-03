@@ -46,7 +46,11 @@ const AuthenticatedLinks: React.FC = () => {
     }, [fetchUser]);
 
     if (loading || user === null) {
-        return null;
+        return (
+            <ul className="navbar-nav me-auto mb-2 mb-lg-0">
+                <li className="nav-item"><span className="nav-link text-muted">Loading…</span></li>
+            </ul>
+        );
     }
 
     return (

@@ -21,7 +21,7 @@ const LoginView: React.FC = () => {
     /** Call the server-side demo-session endpoint — no credentials in the browser. */
     const enterDemo = async () => {
         try {
-            await fetch('/api/demo-session', { method: 'POST' });
+            await fetch('/api/demo-session', { method: 'POST', credentials: 'include' });
             await fetchUser();
         } catch {
             // On failure, fetchUser will still run and may recover via autoConnect

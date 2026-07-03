@@ -11,6 +11,7 @@ import LoginView from './views/LoginView';
 import { UserProvider } from './stores/userStore';
 import Header from './components/Header';
 import ToastNotification from './components/ToastNotification';
+import RequireAuth from './components/RequireAuth';
 import AppInstallsView from "./views/AppInstallsView.tsx";
 import LicensesView from './views/LicensesView';
 import VaultView from './views/VaultView';
@@ -38,18 +39,26 @@ const App: React.FC = () => {
                 <Route path="/login" element={<LoginView />} />
                 {/* Authenticated app — with header nav */}
                 <Route path="/*" element={
-                    <>
-                        <Header />
-                        <main className="container mt-4">
-                            <Routes>
-                                <Route path="/home" element={<HomeView />} />
-                                <Route path="/tenants" element={<TenantRegistrationView />} />
-                                <Route path="/app-installs" element={<AppInstallsView />} />
-                                <Route path="/licenses" element={<LicensesView />} />
-                                <Route path="/vault" element={<VaultView />} />
-                            </Routes>
-                        </main>
-                    </>
+                    <RequireAuth>
+                        <>
+                            <Header />
+                            <main className="container mt-4">
+                                <Routes>
+                                    <Route path="/home" element={<HomeView />} />
+                                    <Route path="/tenants" element={<TenantRegistrationView />} />
+                                    <Route path="/app-installs" element={<AppInstallsView />} />
+                                    <Route path="/licenses" element={<LicensesView />} />
+                                    <Route path="/vault" element={<VaultView />} />
+                                    <Route path="*" element={
+                                        <div className="text-center mt-5">
+                                            <h3>Page not found</h3>
+                                            <p className="text-muted">The page you requested does not exist.</p>
+                                        </div>
+                                    } />
+                                </Routes>
+                            </main>
+                        </>
+                    </RequireAuth>
                 } />
             </Routes>
             <ToastNotification />

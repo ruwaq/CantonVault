@@ -15,11 +15,9 @@ const LandingView: React.FC = () => {
     // straight into CantonVault ready to transact. No login screen shown.
     const launch = async () => {
         setConnecting(true);
-        if (user === null) {
-            await autoConnect();
-        }
+        const ok = user !== null || await autoConnect();
         setConnecting(false);
-        navigate('/vault');
+        if (ok) navigate('/vault');
     };
 
     const launchLabel = connecting ? 'Connecting…' : (user ? 'Open CantonVault →' : 'Launch the demo →');
