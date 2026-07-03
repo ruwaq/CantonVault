@@ -23,8 +23,9 @@ test_resolve_invalid_ruling_fails = do
     workflow = "supply-chain-finance"
     deadline = deadline
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
-  -- Raise dispute as proposer
-  disputeCid <- submit proposer $ exerciseCmd contractCid (RaiseDispute with
+  -- Raise dispute as proposer (consuming now — requires thirdParty consent
+  -- for divulgence since DisputeCase has observer thirdParty)
+  disputeCid <- submitMulti [proposer, thirdParty] [] $ exerciseCmd contractCid (RaiseDispute with
     reason = "test dispute"
     actor = proposer)
   -- Resolve with invalid ruling: must fail (only "proposer" or "accepter" allowed)

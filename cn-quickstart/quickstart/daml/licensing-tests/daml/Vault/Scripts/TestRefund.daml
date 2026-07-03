@@ -26,7 +26,7 @@ test_refund_blocked_before_deadline = do
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- Refund before deadline must fail (symbolic path: allocationCid = None).
   submitMustFail proposer $ exerciseCmd contractCid
-    (Refund with actor = proposer, allocationCid = None)
+    (Refund with actor = proposer)
   Some _ <- queryContractId proposer contractCid
   assertMsg "Contract should still be active after failed refund" True
   return ()
@@ -50,7 +50,7 @@ test_refund_allowed_after_deadline = do
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   passTime (seconds 2)
   receiptCid <- submit proposer $ exerciseCmd contractCid
-    (Refund with actor = proposer, allocationCid = None)
+    (Refund with actor = proposer)
   -- Refund archives the commitment (consuming) and creates a SettlementReceipt.
   result <- queryContractId proposer contractCid
   case result of

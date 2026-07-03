@@ -37,11 +37,11 @@ test_fulfill_before_deadline = do
   assertMsg "Proposer must see receipt after timely Fulfill" (not (null receipts))
   return ()
 
--- | Document current behavior: Fulfill succeeds even after the deadline.
--- If this behavior is deemed incorrect, add `assertMsg "deadline exceeded" (now <= deadline)`
--- to CommitmentContract.Fulfill.
-test_fulfill_after_deadline : Script ()
-test_fulfill_after_deadline = do
+-- | T1 RESOLVED: Fulfill now has a deadline guard (assertMsg "Cannot fulfill
+-- after deadline"). This test verifies that Fulfill is correctly BLOCKED
+-- after the deadline passes, matching the Refund guard symmetry.
+test_fulfill_after_deadline_fails : Script ()
+test_fulfill_after_deadline_fails = do
   proposer <- allocateParty "Supplier"
   accepter <- allocateParty "Financier"
   thirdParty <- allocateParty "Buyer"
@@ -53,16 +53,14 @@ test_fulfill_after_deadline = do
     thirdParty = thirdParty
     amount = 200.0
     currency = "CC"
-    description = "T1: fulfill after deadline"
+    description = "T1: fulfill after deadline (now blocked)"
     workflow = "supply-chain-finance"
     deadline = deadline
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- Wait past the deadline
   passTime (seconds 2)
-  -- Fulfill still works (no deadline guard on Fulfill choice)
-  receiptCid <- submit accepter $ exerciseCmd contractCid (Fulfill with
-    fulfillmentNote = "fulfilled after deadline (no guard)"
+  -- Fulfill after deadline MUST fail (guard added in hardening)
+  submitMustFail accepter $ exerciseCmd contractCid (Fulfill with
+    fulfillmentNote = "should fail after deadline"
     allocationCid = None)
-  receipts <- query @SettlementReceipt proposer
-  assertMsg "Proposer should still see receipt even after deadline" (not (null receipts))
   return ()
