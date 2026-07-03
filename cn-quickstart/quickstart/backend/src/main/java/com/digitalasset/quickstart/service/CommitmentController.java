@@ -307,7 +307,7 @@ public class CommitmentController {
                         return refundRealSettlement(contract, allocationContractId, commandId);
                     }
                     var choice = new CommitmentContract.Refund(
-                            new com.digitalasset.transcode.java.Party(party));
+                            new com.digitalasset.transcode.java.Party(party), Optional.empty());
                     return ledger.exerciseAndGetResult(contract.contractId, choice, commandId)
                             .thenApply(result -> {
                                 logger.info("Commitment {} refunded (symbolic)", contractId);
@@ -337,9 +337,10 @@ public class CommitmentController {
                     Tuple2<ContractId<Allocation>, ExtraArgs> allocationBundle =
                             new Tuple2<>(new ContractId<>(allocationContractId), transferContext.extraArgs());
                     var choice = new CommitmentContract.Refund(
-                            new com.digitalasset.transcode.java.Party(contract.payload.getProposer.getParty));
-                    logger.info("Refunding commitment {} (symbolic — real CC refund not yet implemented)",
-                            contract.contractId.getContractId);
+                            new com.digitalasset.transcode.java.Party(contract.payload.getProposer.getParty),
+                            Optional.of(allocationBundle));
+                    logger.info("Refunding commitment {} with real CC settlement (reverse allocation {})",
+                            contract.contractId.getContractId, allocationContractId);
                     return ledger.exerciseAndGetResult(
                             contract.contractId, choice, commandId, transferContext.disclosedContracts())
                             .thenApply(result -> {

@@ -117,17 +117,34 @@ template CommitmentContract with
     -- commitment. Creates a SettlementReceipt as immutable evidence.
     -- CONSUMING — archives the CommitmentContract, preventing double-refund.
     --
-    -- NOTE: allocationCid removed — real CC refund requires a reverse
-    -- AllocationRequest (accepter → proposer) via Splice. The symbolic
-    -- refund is always safe because it only creates a receipt record.
+    -- If allocationCid is provided, executes a REVERSE Canton Coin transfer
+    -- (accepter → proposer) via Splice Allocation/Transfer standard, atomically
+    -- returning the funds that were locked. Use allocationCid = null in JSON
+    -- for symbolic refund (tests/demo).
     choice Refund : ContractId SettlementReceipt
       with
         actor         : Party
+        allocationCid : Optional (ContractId Allocation, ExtraArgs)
       controller actor
       do
         require "Actor must be proposer or accepter" (actor `elem` signatory this)
         now <- getTime
         assertMsg "Cannot refund before deadline exceeded" (now >= deadline)
+
+        -- Reverse settlement: if a real allocation is provided, execute the
+        -- reverse transfer (accepter → proposer) atomically. The allocation
+        -- must be prepared externally by the accepter with sender=accepter
+        -- and receiver=proposer.
+        case allocationCid of
+          Some (allocCid, eArgs) -> do
+            alloc <- fetch @Allocation allocCid
+            let allocLeg = (view @Allocation alloc).allocation.transferLeg
+            -- Verify the allocation sends funds back to the proposer
+            assertMsg "Reverse allocation: sender must be accepter" (allocLeg.sender == accepter)
+            assertMsg "Reverse allocation: receiver must be proposer" (allocLeg.receiver == proposer)
+            _ <- exercise allocCid (Allocation_ExecuteTransfer eArgs)
+            return ()
+          None -> return ()
 
         create SettlementReceipt with
           proposer = accepter    -- funds flow back to the original proposer
