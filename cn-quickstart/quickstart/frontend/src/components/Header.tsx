@@ -40,11 +40,7 @@ const Header: React.FC = () => {
 };
 
 const AuthenticatedLinks: React.FC = () => {
-    const { user, loading, fetchUser } = useUserStore();
-
-    React.useEffect(() => {
-        fetchUser();
-    }, [fetchUser]);
+    const { user, loading } = useUserStore();
 
     if (loading || user === null) {
         return (
@@ -78,11 +74,7 @@ const AuthenticatedLinks: React.FC = () => {
 };
 
 const UserSection: React.FC = () => {
-    const { user, loading, fetchUser, logout } = useUserStore();
-
-    React.useEffect(() => {
-        fetchUser();
-    }, [fetchUser]);
+    const { user, loading, logout } = useUserStore();
 
     if (loading) return <div className="ms-auto">Loading...</div>;
 

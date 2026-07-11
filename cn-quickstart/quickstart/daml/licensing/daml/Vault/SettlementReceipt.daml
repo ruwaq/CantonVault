@@ -7,8 +7,14 @@ template SettlementReceipt with
     amount        : Decimal
     currency      : Text
     timestamp     : Time
+    outcome       : Text
+    settlementExecuted : Bool
     note          : Optional Text
   where
     signatory proposer, accepter
     ensure amount > 0.0
+      && (outcome == "fulfilled"
+        || outcome == "refunded"
+        || outcome == "dispute-proposer"
+        || outcome == "dispute-accepter")
     -- No choices: this is immutable evidence of settlement.

@@ -3,11 +3,13 @@
 
 server:
   forward-headers-strategy: NATIVE
-  # Review Error settings here and set acceptable values for production use.
-  # This configuration is for development purposes.
+  # SECURITY (audit M9): never expose internal exception messages, binding errors,
+  # stack traces, or paths to the client. The GlobalExceptionHandler maps known
+  # errors to safe messages; everything else returns a generic "Internal server
+  # error". For local debugging override via a dev profile or system property.
   error:
-    include-message: on_param
-    include-binding-errors: on_param
+    include-message: never
+    include-binding-errors: never
     include-stacktrace: never
     include-path: never
     include-exception: false
@@ -21,11 +23,6 @@ logging:
     org.springframework.security: INFO
 #    org.springframework.security.web.FilterChainProxy: TRACE
 
-# Demo mode authentication token. When set, /api/demo-session requires
-# a matching demoToken in the request body. Leave blank to disable demo auth.
-demo:
-  token: ${DEMO_TOKEN:}
-
 management:
   endpoints:
     web:
@@ -34,6 +31,11 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+  # SECURITY (audit M14): prometheus/info expose operational metrics. They are
+  # gated by the security filter chains (.anyRequest().authenticated()), but for
+  # production prefer a dedicated management port so only the scrape target and
+  # ops can reach them:
+  #   management.server.port: ${MANAGEMENT_PORT:9090}
 
 ledger:
   application-id: ${AUTH_APP_PROVIDER_BACKEND_USER_ID:AppId}
@@ -65,9 +67,8 @@ canton-vault:
     - label: Third party (Arbitrator)
       party-id: ${VAULT_THIRDPARTY_PARTY:}
       role: thirdParty
-  # Production guard: set to false to reject Fulfill/Refund with null allocationCid
-  # (symbolic settlement). true for dev/demo; false in production.
-  symbolic-settlement-enabled: ${SYMBOLIC_SETTLEMENT_ENABLED:true}
+  # Production guard: reject Fulfill/Refund without a real allocation by default.
+  symbolic-settlement-enabled: ${SYMBOLIC_SETTLEMENT_ENABLED:false}
 
 # CORS: comma-separated origins allowed to call the backend with credentials.
 cors:

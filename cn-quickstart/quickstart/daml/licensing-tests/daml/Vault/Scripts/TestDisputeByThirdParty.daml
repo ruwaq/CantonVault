@@ -5,7 +5,7 @@ module Vault.Scripts.TestDisputeByThirdParty where
 import Daml.Script
 import DA.Time
 import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
-import Vault.CommitmentContract (CommitmentContract(..), RaiseDispute(..))
+import Vault.CommitmentContract (RaiseDispute(..))
 
 test_dispute_by_thirdparty_fails : Script ()
 test_dispute_by_thirdparty_fails = do
@@ -25,6 +25,7 @@ test_dispute_by_thirdparty_fails = do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- Third party tries to raise a dispute — must fail
   submitMustFail thirdParty $ exerciseCmd contractCid (RaiseDispute with

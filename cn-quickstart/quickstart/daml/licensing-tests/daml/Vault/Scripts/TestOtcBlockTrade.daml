@@ -32,6 +32,7 @@ test_otc_block_trade_happy_path = do
     workflow = "otc-block-trade"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
 
   -- 2. PRIVACY: Clearing must NOT see the proposal
   clearingProposals <- query @CommitmentProposal clearing
@@ -56,7 +57,7 @@ test_otc_block_trade_happy_path = do
     (null competitorContracts)
 
   -- 7. Fulfill: Dealer B confirms, settlement executes
-  receiptCid <- submit dealerB $ exerciseCmd contractCid (Fulfill with
+  _ <- submit dealerB $ exerciseCmd contractCid (Fulfill with
     fulfillmentNote = "OTC block trade settled: US0378331005 @ 98.50"
     allocationCid = None)
 
@@ -100,7 +101,8 @@ test_otc_competing_dealers = do
     workflow = "otc-block-trade"
     deadline = deadline
     instrumentAdmin = dso
-  contractAB <- submit dealerB $ exerciseCmd proposalAB AcceptProposal
+    realSettlementRequired = False
+  _ <- submit dealerB $ exerciseCmd proposalAB AcceptProposal
 
   -- Meanwhile, Dealer A and Dealer C negotiate separately
   proposalAC <- submit dealerA $ createCmd CommitmentProposal with
@@ -113,7 +115,8 @@ test_otc_competing_dealers = do
     workflow = "otc-block-trade"
     deadline = deadline
     instrumentAdmin = dso
-  contractAC <- submit dealerC $ exerciseCmd proposalAC AcceptProposal
+    realSettlementRequired = False
+  _ <- submit dealerC $ exerciseCmd proposalAC AcceptProposal
 
   -- PRIVACY: Dealer C cannot see Dealer A's trade with Dealer B
   dealerCContracts <- query @CommitmentContract dealerC

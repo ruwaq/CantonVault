@@ -51,7 +51,10 @@ import quickstart_licensing.vault.commitmentcontract.DisputeCase;
 import quickstart_licensing.vault.commitmentproposal.CommitmentProposal;
 import quickstart_licensing.vault.disclosable.DisclosedRecord;
 import quickstart_licensing.vault.settlementreceipt.SettlementReceipt;
+import splice_api_token_allocation_request_v1.splice.api.token.allocationrequestv1.AllocationRequest;
 import splice_api_token_allocation_v1.splice.api.token.allocationv1.Allocation;
+import splice_api_token_allocation_v1.splice.api.token.allocationv1.TransferLeg;
+import splice_api_token_holding_v1.splice.api.token.holdingv1.Holding;
 import splice_api_token_metadata_v1.splice.api.token.metadatav1.AnyValue;
 import splice_api_token_metadata_v1.splice.api.token.metadatav1.ChoiceContext;
 import splice_api_token_metadata_v1.splice.api.token.metadatav1.ExtraArgs;
@@ -138,7 +141,11 @@ public class CommitmentController {
                     request.description,
                     request.workflow,
                     deadline,
-                    new com.digitalasset.transcode.java.Party(party));
+                    new com.digitalasset.transcode.java.Party(party),
+                    // SECURITY (audit H3): proposals created when symbolic settlement
+                    // is disabled require real CC settlement. Mirrors the DAML-level
+                    // guard. In dev/demo mode (symbolic enabled), symbolic is allowed.
+                    !symbolicSettlementEnabled);
             return ledger.create(proposal, commandId, party)
                     .thenApply(v -> {
                         logger.info("Proposal created by {}", party);
@@ -155,7 +162,8 @@ public class CommitmentController {
         var ctx = tracingCtx(logger, "acceptProposal", "contractId", contractId);
         String commandId = UUID.randomUUID().toString();
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
-                damlRepository.findCommitmentProposalById(contractId).thenCompose(optContract -> {
+                damlRepository.findCommitmentProposalByIdForParty(contractId, party).thenCompose(optContract -> {
+                    // Scoped lookup above ensures only the proposer or accepter can act on the proposal.
                     var contract = ensurePresent(optContract, "Proposal not found: %s", contractId);
                     var choice = new CommitmentProposal.AcceptProposal();
                     return ledger.exerciseAndGetResult(contract.contractId, choice, commandId, party)
@@ -177,7 +185,8 @@ public class CommitmentController {
         var ctx = tracingCtx(logger, "rejectProposal", "contractId", contractId);
         String commandId = UUID.randomUUID().toString();
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
-                damlRepository.findCommitmentProposalById(contractId).thenCompose(optContract -> {
+                damlRepository.findCommitmentProposalByIdForParty(contractId, party).thenCompose(optContract -> {
+                    // Scoped lookup: only the proposer or accepter can reject the proposal.
                     var contract = ensurePresent(optContract, "Proposal not found: %s", contractId);
                     var choice = new CommitmentProposal.RejectProposal();
                     return ledger.exerciseAndGetResult(contract.contractId, choice, commandId, party)
@@ -214,7 +223,8 @@ public class CommitmentController {
         String allocationContractId = request != null ? request.allocationContractId : null;
 
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
-                damlRepository.findCommitmentById(contractId).thenCompose(optContract -> {
+                damlRepository.findCommitmentByIdForParty(contractId, party).thenCompose(optContract -> {
+                    // Scoped lookup: only a party to the commitment (proposer/accepter) can fulfill it.
                     var contract = ensurePresent(optContract, "Commitment not found: %s", contractId);
 
                     if (allocationContractId != null && !allocationContractId.isBlank()) {
@@ -287,7 +297,8 @@ public class CommitmentController {
         var ctx = tracingCtx(logger, "raiseDispute", "contractId", contractId);
         String commandId = UUID.randomUUID().toString();
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
-                damlRepository.findCommitmentById(contractId).thenCompose(optContract -> {
+                damlRepository.findCommitmentByIdForParty(contractId, party).thenCompose(optContract -> {
+                    // Scoped lookup: only a party to the commitment can raise a dispute on it.
                     var contract = ensurePresent(optContract, "Commitment not found: %s", contractId);
                     var choice = new CommitmentContract.RaiseDispute(
                             request.reason, new com.digitalasset.transcode.java.Party(party));
@@ -313,7 +324,8 @@ public class CommitmentController {
         String allocationContractId = request != null ? request.allocationContractId : null;
 
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
-                damlRepository.findCommitmentById(contractId).thenCompose(optContract -> {
+                damlRepository.findCommitmentByIdForParty(contractId, party).thenCompose(optContract -> {
+                    // Scoped lookup: only a party to the commitment can refund it.
                     var contract = ensurePresent(optContract, "Commitment not found: %s", contractId);
 
                     if (allocationContractId != null && !allocationContractId.isBlank()) {
@@ -433,6 +445,7 @@ public class CommitmentController {
             @Valid @RequestBody ResolveDisputeRequest request) {
         var ctx = tracingCtx(logger, "resolveDispute", "contractId", contractId);
         String commandId = UUID.randomUUID().toString();
+        String allocationContractId = request.allocationContractId();
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
                 damlRepository.findDisputeCasesForParty(party).thenCompose(disputes -> {
                     // The DisputeCase references the commitment; resolve the matching case.
@@ -441,14 +454,48 @@ public class CommitmentController {
                             .findFirst()
                             .orElseThrow(() -> new IllegalArgumentException(
                                     "No open DisputeCase found for commitment: " + contractId));
-                    var choice = new DisputeCase.ResolveDispute(request.ruling);
+
+                    if ("proposer".equals(request.ruling())
+                            && Boolean.TRUE.equals(dispute.payload.isRealSettlementRequired)
+                            && (allocationContractId == null || allocationContractId.isBlank())) {
+                        return CompletableFuture.completedFuture(
+                                ResponseEntity.badRequest().body(Map.of(
+                                        "error", "Provide an allocationContractId when resolving a dispute in favor of the proposer.")));
+                    }
+
+                    if (allocationContractId != null && !allocationContractId.isBlank()) {
+                        return tokenStandardProxy.getAllocationTransferContext(allocationContractId)
+                                .thenCompose(choiceContext -> {
+                                    var cc = ensurePresent(choiceContext, "Transfer context not found for allocation %s", allocationContractId);
+                                    TransferContextBuilder.TransferContext transferContext = TransferContextBuilder.prepare(
+                                            cc.getDisclosedContracts(),
+                                            Map.of("AmuletRules", "amulet-rules", "OpenMiningRound", "open-round"));
+                                    Tuple2<ContractId<Allocation>, ExtraArgs> allocationBundle =
+                                            new Tuple2<>(new ContractId<>(allocationContractId), transferContext.extraArgs());
+                                    var choice = new DisputeCase.ResolveDispute(request.ruling(), Optional.of(allocationBundle));
+                                    return ledger.exerciseAndGetResult(
+                                                    dispute.contractId, choice, commandId, transferContext.disclosedContracts(), party)
+                                            .thenApply(result -> {
+                                                logger.info("Dispute on commitment {} resolved: {}", contractId, request.ruling());
+                                                return ResponseEntity.ok(Map.of(
+                                                        "status", "resolved",
+                                                        "ruling", request.ruling(),
+                                                        "resolvedBy", party,
+                                                        "receiptContractId", ((ContractId<?>) result).getContractId,
+                                                        "allocationContractId", allocationContractId));
+                                            });
+                                });
+                    }
+
+                    var choice = new DisputeCase.ResolveDispute(request.ruling(), Optional.empty());
                     return ledger.exerciseAndGetResult(dispute.contractId, choice, commandId, party)
-                            .thenApply(v -> {
-                                logger.info("Dispute on commitment {} resolved: {}", contractId, request.ruling);
+                            .thenApply(result -> {
+                                logger.info("Dispute on commitment {} resolved: {}", contractId, request.ruling());
                                 return ResponseEntity.ok(Map.of(
                                         "status", "resolved",
-                                        "ruling", request.ruling,
-                                        "resolvedBy", party));
+                                        "ruling", request.ruling(),
+                                        "resolvedBy", party,
+                                        "receiptContractId", ((ContractId<?>) result).getContractId));
                             });
                 })
         ));
@@ -483,14 +530,32 @@ public class CommitmentController {
         var ctx = tracingCtx(logger, "getBalance");
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
                 tokenStandardProxy.getRegistryAdminId().thenCompose(adminId -> {
-                    // Query holdings via TokenStandardProxy for the party's CC balance
-                    // In production, this would call a wallet API or query the PQS
-                    // for Holding contracts where owner = party.
-                    return CompletableFuture.completedFuture(
-                            ResponseEntity.ok(Map.of(
-                                    "party", party,
-                                    "note", "Balance query requires Splice wallet API integration"
-                            )));
+                    return damlRepository.findHoldingsForOwnerAndAdmin(party, adminId)
+                            .thenApply(holdings -> {
+                                java.math.BigDecimal totalBalance = holdings.stream()
+                                        .map(contract -> contract.payload.getAmount)
+                                        .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+                                java.math.BigDecimal lockedBalance = holdings.stream()
+                                        .filter(contract -> contract.payload.getLock.isPresent())
+                                        .map(contract -> contract.payload.getAmount)
+                                        .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+                                java.math.BigDecimal availableBalance = totalBalance.subtract(lockedBalance);
+                                String instrumentId = holdings.stream()
+                                        .map(contract -> contract.payload.getInstrumentId.getId)
+                                        .filter(id -> id != null && !id.isBlank())
+                                        .findFirst()
+                                        .orElse("CC");
+
+                                return ResponseEntity.ok(Map.of(
+                                        "party", party,
+                                        "instrumentAdmin", adminId,
+                                        "instrumentId", instrumentId,
+                                        "balance", availableBalance,
+                                        "lockedBalance", lockedBalance,
+                                        "totalBalance", totalBalance,
+                                        "holdingCount", holdings.size()
+                                ));
+                            });
                 })
         ));
     }
@@ -505,21 +570,70 @@ public class CommitmentController {
             @PathVariable String contractId) {
         var ctx = tracingCtx(logger, "getAllocationRequest", "contractId", contractId);
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
-                damlRepository.findCommitmentById(contractId).thenCompose(optContract -> {
+                damlRepository.findCommitmentByIdForParty(contractId, party).thenCompose(optContract -> {
+                    // Scoped lookup: financial details (amount, parties) only revealed to a party of the commitment.
                     var contract = ensurePresent(optContract, "Commitment not found: %s", contractId);
-                    return CompletableFuture.completedFuture(
-                            ResponseEntity.ok(Map.of(
-                                    "contractId", contractId,
-                                    "amount", contract.payload.getAmount,
-                                    "currency", contract.payload.getCurrency,
-                                    "proposer", contract.payload.getProposer.getParty,
-                                    "accepter", contract.payload.getAccepter.getParty,
-                                    "instrumentAdmin", contract.payload.getInstrumentAdmin.getParty,
-                                    "settlementMode", "real",
-                                    "walletAction", "Open your Splice wallet to accept the pending allocation request for this commitment."
-                            )));
+                    String transferLegId = settlementTransferLegIdFor(
+                            contract.payload.getDescription,
+                            contract.payload.getCreatedAt
+                    );
+
+                    return damlRepository.findActiveAllocationRequests().thenApply(allocationRequests -> {
+                        Optional<Contract<AllocationRequest>> matchingRequest = allocationRequests.stream()
+                                .filter(request -> request.payload.getTransferLegs.containsKey(transferLegId))
+                                .filter(request -> matchesCommitmentSettlement(request.payload, contract.payload, transferLegId))
+                                .findFirst();
+
+                        if (matchingRequest.isEmpty()) {
+                            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                                    "error", "No active allocation request found for commitment %s".formatted(contractId)
+                            ));
+                        }
+
+                        Contract<AllocationRequest> request = matchingRequest.get();
+                        TransferLeg transferLeg = request.payload.getTransferLegs.get(transferLegId);
+
+                        return ResponseEntity.ok(Map.ofEntries(
+                                Map.entry("contractId", contractId),
+                                Map.entry("allocationRequestContractId", request.contractId.getContractId),
+                                Map.entry("transferLegId", transferLegId),
+                                Map.entry("amount", transferLeg.getAmount),
+                                Map.entry("currency", transferLeg.getInstrumentId.getId),
+                                Map.entry("sender", transferLeg.getSender.getParty),
+                                Map.entry("receiver", transferLeg.getReceiver.getParty),
+                                Map.entry("executor", request.payload.getSettlement.getExecutor.getParty),
+                                Map.entry("requestedAt", request.payload.getSettlement.getRequestedAt),
+                                Map.entry("allocateBefore", request.payload.getSettlement.getAllocateBefore),
+                                Map.entry("settleBefore", request.payload.getSettlement.getSettleBefore),
+                                Map.entry("settlementRef", request.payload.getSettlement.getSettlementRef.getId),
+                                Map.entry("instrumentAdmin", transferLeg.getInstrumentId.getAdmin.getParty),
+                                Map.entry("walletAction", "Approve the active allocation request in the payer wallet before exercising fulfill.")
+                        ));
+                    });
                 })
         ));
+    }
+
+    private static boolean matchesCommitmentSettlement(
+            AllocationRequest request,
+            CommitmentContract contract,
+            String transferLegId
+    ) {
+        TransferLeg transferLeg = request.getTransferLegs.get(transferLegId);
+        if (transferLeg == null) {
+            return false;
+        }
+
+        return request.getSettlement.getSettlementRef.getId.equals(transferLegId)
+                && transferLeg.getAmount.compareTo(contract.getAmount) == 0
+                && transferLeg.getSender.getParty.equals(contract.getAccepter.getParty)
+                && transferLeg.getReceiver.getParty.equals(contract.getProposer.getParty)
+                && transferLeg.getInstrumentId.getAdmin.getParty.equals(contract.getInstrumentAdmin.getParty)
+                && transferLeg.getInstrumentId.getId.equals(contract.getCurrency);
+    }
+
+    private static String settlementTransferLegIdFor(String description, Instant createdAt) {
+        return "commitmentSettlement:" + description + ":" + createdAt;
     }
 
     public record RefundRequest(
@@ -535,7 +649,8 @@ public class CommitmentController {
     }
 
     public record ResolveDisputeRequest(
-            @NotBlank String ruling) {
+            @NotBlank String ruling,
+            String allocationContractId) {
     }
 
     // ── Transfer context helpers (Canton Coin settlement) ──────────────────────

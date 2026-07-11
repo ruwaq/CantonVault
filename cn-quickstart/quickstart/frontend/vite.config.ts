@@ -1,6 +1,7 @@
-import {ConfigEnv, defineConfig, Plugin, loadEnv} from 'vite'
+import { ConfigEnv, defineConfig, loadEnv, type Plugin, type ProxyOptions } from 'vite'
 import react from '@vitejs/plugin-react'
 import ViteYaml from '@modyfi/vite-plugin-yaml'
+import type { ClientRequest } from 'node:http'
 
 
 function printWelcomeMessage(): Plugin {
@@ -11,34 +12,48 @@ function printWelcomeMessage(): Plugin {
         `  \x1b[97mVisit \x1b[96mhttp://app-provider.localhost\x1b[1;96m:${server.config.server.port}\x1b[0m\x1b[97m to start\x1b[0m`
       );
       const http = server.httpServer;
-      if (http && (http.listening || (http as any)._handle)) {
+      if (http?.listening) {
         print();
       } else if (http) {
         http.once('listening', print);
-      } else {
-        // fallback for older vite/node combos
-        setTimeout(print, 100);
       }
     },
   };
 }
 
-function setProxyCustomHeaders(proxy: any) {
-    proxy.on('proxyReq', (proxyReq: any, req: any) => {
+function setProxyCustomHeaders(proxyOptions: ProxyOptions, forwardedPort: number) {
+    proxyOptions.configure = (proxy) => {
+        proxy.on('proxyReq', (proxyReq: ClientRequest, req) => {
         // Set custom headers similar to nginx's proxy_set_header
-        proxyReq.setHeader('Content-Type', req.headers['content-type'] || '')
-        proxyReq.setHeader('X-Real-IP', req.socket.remoteAddress || '')
-        proxyReq.setHeader('X-Forwarded-Host', req.headers['host'] || '')
-        proxyReq.setHeader('X-Forwarded-For', req.headers['x-forwarded-for'] || req.socket.remoteAddress || '')
+        proxyReq.setHeader('Content-Type', req.headers['content-type'] ?? '')
+        proxyReq.setHeader('X-Real-IP', req.socket.remoteAddress ?? '')
+        proxyReq.setHeader('X-Forwarded-Host', req.headers['host'] ?? '')
+        proxyReq.setHeader('X-Forwarded-For', req.headers['x-forwarded-for'] ?? req.socket.remoteAddress ?? '')
         proxyReq.setHeader('X-Forwarded-Proto', 'http')
-        proxyReq.setHeader('X-Forwarded-Port', 5173)
+        proxyReq.setHeader('X-Forwarded-Port', String(forwardedPort))
         proxyReq.setHeader('host', 'app-provider.localhost')
     });
+    };
 }
 
 export default defineConfig(({ mode }: ConfigEnv) => {
     const env = loadEnv(mode, '../');
     const backendPort = env.VITE_BACKEND_PORT || 8080;
+    const forwardedPort = Number(env.VITE_FRONTEND_PORT || 5173);
+
+    const apiProxy: ProxyOptions = {
+        target: `http://localhost:${backendPort}/`,
+        changeOrigin: false,
+        rewrite: path => path.replace(/^\/api/, ''),
+    };
+    setProxyCustomHeaders(apiProxy, forwardedPort);
+
+    const authProxy: ProxyOptions = {
+        target: `http://localhost:${backendPort}/`,
+        changeOrigin: false,
+    };
+    setProxyCustomHeaders(authProxy, forwardedPort);
+
     return {
         plugins: [
             react(),
@@ -50,27 +65,10 @@ export default defineConfig(({ mode }: ConfigEnv) => {
             strictPort: true,
             allowedHosts: ['app-provider.localhost'],
             proxy: {
-                '/api': {
-                    target: `http://localhost:${backendPort}/`,
-                    changeOrigin: false,
-                    rewrite: path => path.replace(/^\/api/, ''),
-                    configure: setProxyCustomHeaders
-                },
-                '/login': {
-                    target: `http://localhost:${backendPort}/`,
-                    changeOrigin: false,
-                    configure: setProxyCustomHeaders
-                },
-                '/login/oauth2': {
-                    target: `http://localhost:${backendPort}/`,
-                    changeOrigin: false,
-                    configure: setProxyCustomHeaders
-                },
-                '/oauth2': {
-                    target: `http://localhost:${backendPort}/`,
-                    changeOrigin: false,
-                    configure: setProxyCustomHeaders
-                },
+                '/api': apiProxy,
+                '/login': authProxy,
+                '/login/oauth2': authProxy,
+                '/oauth2': authProxy,
             },
         },
     }

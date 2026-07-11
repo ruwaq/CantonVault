@@ -12,6 +12,7 @@ import { UserProvider } from './stores/userStore';
 import Header from './components/Header';
 import ToastNotification from './components/ToastNotification';
 import RequireAuth from './components/RequireAuth';
+import RequireAdmin from './components/RequireAdmin';
 import AppInstallsView from "./views/AppInstallsView.tsx";
 import LicensesView from './views/LicensesView';
 import VaultView from './views/VaultView';
@@ -45,7 +46,7 @@ const App: React.FC = () => {
                             <main className="container mt-4">
                                 <Routes>
                                     <Route path="/home" element={<HomeView />} />
-                                    <Route path="/tenants" element={<TenantRegistrationView />} />
+                                    <Route path="/tenants" element={<RequireAdmin><TenantRegistrationView /></RequireAdmin>} />
                                     <Route path="/app-installs" element={<AppInstallsView />} />
                                     <Route path="/licenses" element={<LicensesView />} />
                                     <Route path="/vault" element={<VaultView />} />

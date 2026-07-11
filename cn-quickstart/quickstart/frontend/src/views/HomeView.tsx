@@ -57,7 +57,7 @@ const HomeView: React.FC = () => {
                     <div className="card text-center h-100">
                         <div className="card-body">
                             <h5 className="card-title">📜 Licenses</h5>
-                            <p className="card-text small text-muted">The cn-quickstart licensing demo (reference).</p>
+                            <p className="card-text small text-muted">Reference licensing workspace.</p>
                             <Link to="/licenses" className="btn btn-outline-primary btn-sm">View</Link>
                         </div>
                     </div>

@@ -41,11 +41,22 @@ import java.util.Map;
 @Profile("oauth2")
 public class OAuth2Config {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OAuth2Config.class);
+
     @Value("${application.tenants.AppProvider.partyId}")
     private String partyId;
 
     @Value("${application.tenants.AppProvider.tenantId}")
     private String tenantId;
+
+    /**
+     * When true (default false), a JWT that omits party_id/tenant_id is rejected
+     * instead of being granted the AppProvider party. The insecure legacy fallback
+     * can be re-enabled explicitly for single-tenant dev only via
+     * {@code security.oauth2.allow-missing-claims-fallback=true}.
+     */
+    @Value("${security.oauth2.allow-missing-claims-fallback:false}")
+    private boolean allowMissingClaimsFallback;
 
     private final OAuth2AuthenticationSuccessHandler authenticationSuccessHandler;
     private final ClientRegistrationRepository clientRegistrationRepository;
@@ -131,11 +142,23 @@ public class OAuth2Config {
                     authorities.add(new TenantAuthority(jwtTenantId));
                 }
 
-                // If no claims were found, fall back to the single-tenant config
-                // (backward compatibility with dev/quickstart setup).
+                // SECURITY: Previously a JWT missing party_id or tenant_id was silently
+                // granted the AppProvider party — turning any token from the IdP into an
+                // admin. This fallback is now OFF by default. It can be re-enabled only
+                // explicitly for single-tenant dev (allow-missing-claims-fallback=true),
+                // and even then it logs a warning so it cannot be used unnoticed.
                 if (jwtPartyId == null || jwtTenantId == null) {
-                    authorities.add(new PartyAuthority(partyId));
-                    authorities.add(new TenantAuthority(tenantId));
+                    if (allowMissingClaimsFallback) {
+                        logger.warn("SECURITY: JWT from issuer '{}' is missing party_id/tenant_id claims; "
+                                        + "falling back to AppProvider party '{}' (dev-only mode). "
+                                        + "Disable security.oauth2.allow-missing-claims-fallback in production.",
+                                jwt.getIssuer() == null ? "<unknown>" : jwt.getIssuer().toString(), partyId);
+                        authorities.add(new PartyAuthority(partyId));
+                        authorities.add(new TenantAuthority(tenantId));
+                    }
+                    // When the fallback is disabled (default), the token carries NO
+                    // party/tenant authority and any party-scoped operation will be
+                    // rejected downstream — i.e. the caller cannot act as anyone.
                 }
 
                 return authorities;

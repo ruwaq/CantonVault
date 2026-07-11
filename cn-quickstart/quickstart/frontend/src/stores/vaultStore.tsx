@@ -37,7 +37,11 @@ interface CreateProposalInput {
 
 interface FulfillInput {
     fulfillmentNote: string;
-    allocationContractId?: string;
+    allocationContractId: string;
+}
+
+interface RefundInput {
+    allocationContractId: string;
 }
 
 /** A known Canton party exposed by GET /vault/parties (from backend config). */
@@ -69,8 +73,8 @@ interface VaultContextType extends VaultState {
     rejectProposal: (contractId: string) => Promise<void>;
     fulfillCommitment: (contractId: string, input: FulfillInput) => Promise<void>;
     raiseDispute: (contractId: string, reason: string) => Promise<void>;
-    resolveDispute: (contractId: string, ruling: string) => Promise<void>;
-    refundCommitment: (contractId: string) => Promise<void>;
+    resolveDispute: (contractId: string, ruling: string, allocationContractId?: string) => Promise<void>;
+    refundCommitment: (contractId: string, input: RefundInput) => Promise<void>;
 }
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -90,7 +94,7 @@ interface RawProposal {
     deadline?: string;
 }
 
-interface RawCommitment extends RawProposal {}
+type RawCommitment = RawProposal;
 
 interface RawReceipt {
     proposer?: PartyField;
@@ -98,6 +102,8 @@ interface RawReceipt {
     amount?: number;
     currency?: string;
     timestamp?: string;
+    outcome?: string;
+    settlementExecuted?: boolean;
     note?: string | null;
 }
 
@@ -153,6 +159,8 @@ const normalizeReceipt = (raw: RawReceipt): SettlementReceipt => ({
     amount: Number(raw.amount ?? 0),
     currency: raw.currency ?? 'CC',
     timestamp: raw.timestamp ?? '',
+    outcome: raw.outcome ?? 'fulfilled',
+    settlementExecuted: Boolean(raw.settlementExecuted),
     note: raw.note ?? null,
 });
 
@@ -244,9 +252,9 @@ export const VaultProvider = ({ children }: { children: React.ReactNode }) => {
     const fetchBalance = useCallback(async () => {
         try {
             const response = await vaultApi.get('/balance');
-            const data = response.data as { balance?: number; party?: string };
-            if (typeof data.balance === 'number') {
-                setPartial({ balance: data.balance });
+            const data = response.data as { balance?: number | string; party?: string };
+            if (data.balance !== undefined) {
+                setPartial({ balance: Number(data.balance) });
             }
         } catch {
             // Balance is cosmetic — don't block the UI on failure
@@ -262,13 +270,14 @@ export const VaultProvider = ({ children }: { children: React.ReactNode }) => {
     const refreshAll = useCallback(async () => {
         try {
             setState((s) => ({ ...s, loading: true }));
-            const [proposals, commitments, receipts, disclosures, disputes] =
+            const [proposals, commitments, receipts, disclosures, disputes, balance] =
                 await Promise.allSettled([
                     vaultApi.get('/proposals'),
                     vaultApi.get('/commitments'),
                     vaultApi.get('/receipts'),
                     vaultApi.get('/disclosures'),
                     vaultApi.get('/dispute-cases'),
+                    vaultApi.get('/balance'),
                 ]);
 
             setPartial({
@@ -277,6 +286,9 @@ export const VaultProvider = ({ children }: { children: React.ReactNode }) => {
                 receipts: receipts.status === 'fulfilled' ? toContracts(receipts.value.data, normalizeReceipt) : [],
                 disclosures: disclosures.status === 'fulfilled' ? toContracts(disclosures.value.data, normalizeDisclosure) : [],
                 disputes: disputes.status === 'fulfilled' ? toContracts(disputes.value.data, normalizeDispute) : [],
+                balance: balance.status === 'fulfilled'
+                    ? Number((balance.value.data as { balance?: number | string }).balance ?? 0)
+                    : null,
                 loading: false,
             });
         } catch (err) {
@@ -318,11 +330,7 @@ export const VaultProvider = ({ children }: { children: React.ReactNode }) => {
         try {
             await vaultApi.post(`/commitments/${contractId}/fulfill`, input);
             await refreshAll();
-            toast.displaySuccess(
-                input.allocationContractId
-                    ? 'Fulfilled with real Canton Coin settlement'
-                    : 'Fulfilled (symbolic)',
-            );
+            toast.displaySuccess('Fulfilled with real Canton Coin settlement');
         } catch (err) { handleActionError(err, 'Fulfilling commitment', toast); }
         finally { setPartial({ pendingAction: null }); }
     }, [refreshAll, toast, setPartial]);
@@ -337,22 +345,25 @@ export const VaultProvider = ({ children }: { children: React.ReactNode }) => {
         finally { setPartial({ pendingAction: null }); }
     }, [refreshAll, toast, setPartial]);
 
-    const resolveDispute = useCallback(async (contractId: string, ruling: string) => {
+    const resolveDispute = useCallback(async (contractId: string, ruling: string, allocationContractId?: string) => {
         setPartial({ pendingAction: { cid: contractId, action: 'resolve' } });
         try {
-            await vaultApi.post(`/commitments/${contractId}/resolve`, { ruling });
+            await vaultApi.post(`/commitments/${contractId}/resolve`, {
+                ruling,
+                allocationContractId: allocationContractId?.trim() || undefined,
+            });
             await refreshAll();
             toast.displaySuccess(`Dispute resolved: ${ruling}`);
         } catch (err) { handleActionError(err, 'Resolving dispute', toast); }
         finally { setPartial({ pendingAction: null }); }
     }, [refreshAll, toast, setPartial]);
 
-    const refundCommitment = useCallback(async (contractId: string) => {
+    const refundCommitment = useCallback(async (contractId: string, input: RefundInput) => {
         setPartial({ pendingAction: { cid: contractId, action: 'refund' } });
         try {
-            await vaultApi.post(`/commitments/${contractId}/refund`);
+            await vaultApi.post(`/commitments/${contractId}/refund`, input);
             await refreshAll();
-            toast.displaySuccess('Commitment refunded');
+            toast.displaySuccess('Commitment refunded with real Canton Coin settlement');
         } catch (err) { handleActionError(err, 'Refunding commitment', toast); }
         finally { setPartial({ pendingAction: null }); }
     }, [refreshAll, toast, setPartial]);

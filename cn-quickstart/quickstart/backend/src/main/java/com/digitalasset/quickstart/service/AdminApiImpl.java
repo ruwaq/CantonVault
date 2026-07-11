@@ -15,8 +15,6 @@ import org.openapitools.model.TenantRegistrationRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.server.ResponseStatusException;
@@ -24,7 +22,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.net.URI;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -45,27 +42,16 @@ public class AdminApiImpl implements AdminApi {
     private static final Logger logger = LoggerFactory.getLogger(AdminApiImpl.class);
     private final AuthClientRegistrationRepository authClientRegistrationRepository;
     private final TenantPropertiesRepository tenantPropertiesRepository;
-    private final Optional<UserDetailsManager> userDetailsManager;
-    private final Optional<PasswordEncoder> passwordEncoder;
     private final AuthUtils auth;
 
     @Autowired
     public AdminApiImpl(
-            Optional<AuthClientRegistrationRepository> authClientRegistrationRepository,
-            Optional<UserDetailsManager> userDetailsManager,
-            Optional<PasswordEncoder> passwordEncoder,
+            AuthClientRegistrationRepository authClientRegistrationRepository,
             TenantPropertiesRepository tenantPropertiesRepository,
             AuthUtils auth
     ) {
         this.auth = auth;
-        if (auth.isOAuth2Enabled() && authClientRegistrationRepository.isEmpty()) {
-            throw new IllegalStateException("OAuth2 authentication is enabled but AuthClientRegistrationRepository is not configured");
-        } else if (auth.isSharedSecretEnabled() && userDetailsManager.isEmpty()) {
-            throw new IllegalStateException("Shared secret authentication is enabled but UserDetailsManager is not configured");
-        }
-        this.authClientRegistrationRepository = authClientRegistrationRepository.orElse(null);
-        this.userDetailsManager = userDetailsManager;
-        this.passwordEncoder = passwordEncoder;
+        this.authClientRegistrationRepository = authClientRegistrationRepository;
         this.tenantPropertiesRepository = tenantPropertiesRepository;
     }
 
@@ -77,17 +63,14 @@ public class AdminApiImpl implements AdminApi {
         if (request.getPartyId() == null || request.getPartyId().isBlank()) {
             throw badRequestExc.apply("Party Id is required");
         }
-        if (auth.isOAuth2Enabled()) {
-            if (request.getClientId() == null || request.getClientId().isBlank()) {
-                throw badRequestExc.apply("Client Id is required in OAuth2 mode");
-            }
-            if (request.getIssuerUrl() == null || request.getIssuerUrl().isBlank()) {
-                throw badRequestExc.apply("Issuer Url is required in OAuth2 mode");
-            }
-        } else if (auth.isSharedSecretEnabled()) {
-            if (request.getUsers() == null || request.getUsers().isEmpty()) {
-                throw badRequestExc.apply("At least one User is required in shared-secret mode");
-            }
+        if (request.getClientId() == null || request.getClientId().isBlank()) {
+            throw badRequestExc.apply("Client Id is required in OAuth2 mode");
+        }
+        if (request.getIssuerUrl() == null || request.getIssuerUrl().isBlank()) {
+            throw badRequestExc.apply("Issuer Url is required in OAuth2 mode");
+        }
+        if (request.getUsers() != null && !request.getUsers().isEmpty()) {
+            throw badRequestExc.apply("Users are not supported in OAuth2 mode");
         }
     }
 
@@ -96,48 +79,19 @@ public class AdminApiImpl implements AdminApi {
         if (tenantPropertiesRepository.getTenant(request.getTenantId()) != null) {
             throw conflictExc.apply("TenantId already exists");
         }
-        if (auth.isOAuth2Enabled()) {
-            boolean clientIssuerCombinationExists = authClientRegistrationRepository.getClientRegistrations().stream()
-              .anyMatch(c -> c.getClientId().equals(request.getClientId()) && c.getIssuerURL().equals(request.getIssuerUrl()));
-            if (clientIssuerCombinationExists) {
-                throw conflictExc.apply("ClientId-IssuerUrl combination already exists");
-            }
+        boolean clientIssuerCombinationExists = authClientRegistrationRepository.getClientRegistrations().stream()
+                .anyMatch(c -> c.getClientId().equals(request.getClientId()) && c.getIssuerURL().equals(request.getIssuerUrl()));
+        if (clientIssuerCombinationExists) {
+            throw conflictExc.apply("ClientId-IssuerUrl combination already exists");
         }
     }
 
     private void registerOAuthClient(TenantRegistrationRequest request) {
-            Client c = new Client();
-            c.setTenantId(request.getTenantId());
-            c.setClientId(request.getClientId());
-            c.setIssuerURL(request.getIssuerUrl());
-            authClientRegistrationRepository.registerClient(c);
-    }
-
-    private void registerSharedSecretUsers(TenantRegistrationRequest request) {
-        var encoder = passwordEncoder.orElseThrow(() ->
-                new IllegalStateException("PasswordEncoder not available in shared-secret profile"));
-        request.getUsers().forEach(user -> {
-            logger.info("Creating user {} with roles USER", user);
-            try {
-                // Generate a random initial password for the new tenant user.
-                // In production (OAuth2), users are managed by the IdP — this path
-                // is only active in the shared-secret (demo) profile.
-                // TODO KV https://github.com/digital-asset/cn-quickstart/issues/235
-                //  fix this API leak, we should not rely on Spring Security here.
-                var randomPassword = java.util.UUID.randomUUID().toString();
-                userDetailsManager.get().createUser(
-                    org.springframework.security.core.userdetails.User
-                        .withUsername(user)
-                        .password(encoder.encode(randomPassword))
-                        .roles("USER")
-                        .build()
-                );
-                logger.info("User {} created with BCrypt-encoded random password", user);
-            } catch (Exception e) {
-                logger.error("Error creating user {}: {}", user, e.getMessage());
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, e.getMessage(), e);
-            }
-        });
+        Client c = new Client();
+        c.setTenantId(request.getTenantId());
+        c.setClientId(request.getClientId());
+        c.setIssuerURL(request.getIssuerUrl());
+        authClientRegistrationRepository.registerClient(c);
     }
 
     private void persistTenantMetadata(TenantRegistrationRequest request) {
@@ -175,11 +129,7 @@ public class AdminApiImpl implements AdminApi {
         return auth.asAdminParty(party -> traceServiceCallAsync(ctx, () -> CompletableFuture.supplyAsync(() -> {
             validateRequest(request);
             ensureTenantIsUnique(request);
-            if (auth.isOAuth2Enabled()) {
-                registerOAuthClient(request);
-            } else {
-                registerSharedSecretUsers(request);
-            }
+            registerOAuthClient(request);
             // Save extra properties in a separate repository
             persistTenantMetadata(request);
             // Build the response (OpenAPI model)
@@ -193,12 +143,7 @@ public class AdminApiImpl implements AdminApi {
         var ctx = tracingCtx(logger, "deleteTenantRegistration", "tenantId", tenantId);
         return auth.asAdminParty(party -> traceServiceCallAsync(ctx, () -> CompletableFuture.supplyAsync(() -> {
             try {
-                if (auth.isOAuth2Enabled()) {
-                    authClientRegistrationRepository.removeClientRegistrations(tenantId);
-                } else {
-                    tenantPropertiesRepository.getTenant(tenantId).getUsers().forEach(userDetailsManager.get()::deleteUser);
-                }
-
+                authClientRegistrationRepository.removeClientRegistrations(tenantId);
                 tenantPropertiesRepository.removeTenant(tenantId);
             } catch (NoSuchElementException e) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
@@ -214,39 +159,24 @@ public class AdminApiImpl implements AdminApi {
     public CompletableFuture<ResponseEntity<List<TenantRegistration>>> listTenantRegistrations() {
         var ctx = tracingCtx(logger, "listTenantRegistrations");
         return auth.asAdminParty(party -> traceServiceCallAsync(ctx, () -> CompletableFuture.supplyAsync(() -> {
-            List<TenantRegistration> result;
-            if (auth.isOAuth2Enabled()) {
-                result = authClientRegistrationRepository.getClientRegistrations().stream()
-                        .map(c -> {
-                            TenantRegistration out = new TenantRegistration();
-                            out.setTenantId(c.getTenantId());
-                            out.setClientId(c.getClientId());
-                            out.setIssuerUrl(URI.create(c.getIssuerURL()));
+            List<TenantRegistration> result = authClientRegistrationRepository.getClientRegistrations().stream()
+                    .map(c -> {
+                        TenantRegistration out = new TenantRegistration();
+                        out.setTenantId(c.getTenantId());
+                        out.setClientId(c.getClientId());
+                        out.setIssuerUrl(URI.create(c.getIssuerURL()));
 
-                            TenantPropertiesRepository.TenantProperties props = tenantPropertiesRepository.getTenant(c.getTenantId());
-                            if (props != null) {
-                                if (props.getWalletUrl() != null)
-                                    out.setWalletUrl(URI.create(props.getWalletUrl()));
-                                out.setPartyId(props.getPartyId());
-                                out.setInternal(props.isInternal());
+                        TenantPropertiesRepository.TenantProperties props = tenantPropertiesRepository.getTenant(c.getTenantId());
+                        if (props != null) {
+                            if (props.getWalletUrl() != null) {
+                                out.setWalletUrl(URI.create(props.getWalletUrl()));
                             }
-                            return out;
-                        })
-                        .collect(Collectors.toList());
-            } else {
-                result = tenantPropertiesRepository.getAllTenants().values().stream()
-                        .map(prop -> {
-                            TenantRegistration out = new TenantRegistration();
-                            out.setTenantId(prop.getTenantId());
-                            if (prop.getWalletUrl() != null)
-                                out.setWalletUrl(URI.create(prop.getWalletUrl()));
-                            out.setPartyId(prop.getPartyId());
-                            out.setInternal(prop.isInternal());
-                            out.setUsers(prop.getUsers());
-                            return out;
-                        })
-                        .collect(Collectors.toList());
-            }
+                            out.setPartyId(props.getPartyId());
+                            out.setInternal(props.isInternal());
+                        }
+                        return out;
+                    })
+                    .collect(Collectors.toList());
             return ResponseEntity.ok(result);
         })));
     }

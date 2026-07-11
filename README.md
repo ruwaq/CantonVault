@@ -6,6 +6,8 @@
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](./LICENSE)
 [![Tests](https://img.shields.io/badge/tests-21%20passing-brightgreen)]()
 
+![CantonVault Banner](./cantonvault_banner.jpg)
+
 > Selective disclosure protocol where privacy is an **emergent property of stakeholder scoping** — competitors see empty ledgers by design, not by encryption.
 
 ---

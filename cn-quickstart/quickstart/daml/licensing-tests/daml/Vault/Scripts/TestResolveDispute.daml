@@ -4,7 +4,7 @@ module Vault.Scripts.TestResolveDispute where
 import Daml.Script
 import DA.Time
 import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
-import Vault.CommitmentContract (CommitmentContract(..), RaiseDispute(..), DisputeCase(..), ResolveDispute(..))
+import Vault.CommitmentContract (RaiseDispute(..), ResolveDispute(..))
 
 test_thirdparty_resolves : Script ()
 test_thirdparty_resolves = do
@@ -24,12 +24,16 @@ test_thirdparty_resolves = do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- thirdParty authorizes the disclosure (Canton divulge consent).
-  disputeCid <- submitMulti [proposer, accepter, thirdParty] [] $ exerciseCmd contractCid (RaiseDispute with reason = "unpaid"; actor = proposer)
-  submit thirdParty $ exerciseCmd disputeCid (ResolveDispute with ruling = "proposer")
+  disputeCid <- submit (actAs [proposer, accepter, thirdParty]) do
+    exerciseCmd contractCid (RaiseDispute with reason = "unpaid"; actor = proposer)
+  receiptCid <- submit thirdParty $ exerciseCmd disputeCid (ResolveDispute with ruling = "proposer", allocationCid = None)
   result <- queryContractId thirdParty disputeCid
   case result of
     None -> return () -- DisputeCase archived, resolution DisclosedRecord created
     Some _ -> assertMsg "DisputeCase should be archived after resolution" False
+  Some receipt <- queryContractId proposer receiptCid
+  assertMsg "Dispute resolution must create a terminal receipt" (receipt.outcome == "dispute-proposer")
   return ()

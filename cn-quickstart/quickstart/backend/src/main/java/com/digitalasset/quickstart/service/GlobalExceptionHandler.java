@@ -66,8 +66,22 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
     public ResponseEntity<Map<String, String>> handleResponseStatus(
             org.springframework.web.server.ResponseStatusException ex) {
-        return ResponseEntity.status(ex.getStatusCode())
-            .body(Map.of("error", ex.getReason() != null ? ex.getReason() : "error"));
+        // SECURITY (audit M6): several controllers throw ResponseStatusException
+        // with messages containing contractIds or party ids (e.g. "party X is not
+        // the user"). Echoing the raw reason confirms existence of resources to
+        // unauthorized callers (enumeration aid). Map to a generic, status-based
+        // message instead. Log the real reason server-side for debugging.
+        log.debug("ResponseStatusException: status={} reason={}", ex.getStatusCode(), ex.getReason());
+        int code = ex.getStatusCode().value();
+        String safe = switch (code) {
+            case 404 -> "Resource not found";
+            case 403 -> "Access denied";
+            case 401 -> "Authentication required";
+            case 400 -> "Invalid request";
+            case 409 -> "Conflict";
+            default -> "Error";
+        };
+        return ResponseEntity.status(ex.getStatusCode()).body(Map.of("error", safe));
     }
 
     @ExceptionHandler(Exception.class)

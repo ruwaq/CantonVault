@@ -6,7 +6,7 @@ module Vault.Scripts.TestDoubleFulfill where
 import Daml.Script
 import DA.Time
 import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
-import Vault.CommitmentContract (CommitmentContract(..), Fulfill(..))
+import Vault.CommitmentContract (Fulfill(..))
 import Vault.SettlementReceipt (SettlementReceipt(..))
 
 test_double_fulfill_fails : Script ()
@@ -27,9 +27,10 @@ test_double_fulfill_fails = do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- First fulfill: succeeds
-  receiptCid <- submit accepter $ exerciseCmd contractCid (Fulfill with
+  _ <- submit accepter $ exerciseCmd contractCid (Fulfill with
     fulfillmentNote = "first fulfillment"
     allocationCid = None)
   -- Second fulfill on the SAME contract: must fail (contract is archived)

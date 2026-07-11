@@ -7,20 +7,22 @@ import { useUserStore } from '../stores/userStore';
 import './landing.css';
 
 const LandingView: React.FC = () => {
-    const { user, autoConnect } = useUserStore();
+    const { user, loading } = useUserStore();
     const navigate = useNavigate();
     const [connecting, setConnecting] = useState(false);
 
-    // dApp-style connect: authenticate transparently, then drop the visitor
-    // straight into CantonVault ready to transact. No login screen shown.
     const launch = async () => {
         setConnecting(true);
-        const ok = user !== null || await autoConnect();
+        const target = user !== null ? '/vault' : '/login';
         setConnecting(false);
-        if (ok) navigate('/vault');
+        navigate(target);
     };
 
-    const launchLabel = connecting ? 'Connecting…' : (user ? 'Open CantonVault →' : 'Launch the demo →');
+    const launchLabel = connecting
+        ? 'Opening...'
+        : loading
+            ? 'Checking session...'
+            : (user ? 'Open CantonVault →' : 'Sign in to continue →');
 
     return (
         <div className="cv-landing">
@@ -28,7 +30,7 @@ const LandingView: React.FC = () => {
             <section className="cv-hero">
                 <div className="cv-hero-bg" />
                 <div className="container cv-hero-content">
-                    <span className="cv-badge">Build on Canton Hackathon · 2026</span>
+                    <span className="cv-badge">Canton Network · Production Blueprint</span>
                     <h1 className="cv-hero-title">CantonVault</h1>
                     <p className="cv-hero-tagline">
                         Privacy-first conditional commitments for institutional finance.
@@ -252,7 +254,7 @@ const LandingView: React.FC = () => {
                 <div className="container">
                     <div className="row align-items-center">
                         <div className="col-md-6">
-                            <strong>CantonVault</strong> — Built by Ande (andelabs) for the Build on Canton Hackathon 2026.
+                            <strong>CantonVault</strong> — privacy-preserving commitments with real Canton Coin settlement.
                         </div>
                         <div className="col-md-6 text-md-end">
                             <span className="cv-footer-meta">Daml 3.4.11 · Splice 0.5.3 · MIT License</span>

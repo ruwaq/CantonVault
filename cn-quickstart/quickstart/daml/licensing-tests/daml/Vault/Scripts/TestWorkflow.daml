@@ -30,6 +30,7 @@ test_supply_chain_finance_happy_path = do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
 
   -- 2. Competitor must NOT see the proposal
   competitorProposals <- query @CommitmentProposal competitor
@@ -47,7 +48,7 @@ test_supply_chain_finance_happy_path = do
   assertMsg "buyer sees no contract (factoring hidden from buyer)" (null buyerContracts)
 
   -- 6. Fulfill: financier confirms delivery, supplier receives payment
-  receiptCid <- submit financier $ exerciseCmd contractCid (Fulfill with
+  _ <- submit financier $ exerciseCmd contractCid (Fulfill with
     fulfillmentNote = "factoring payment released"
     allocationCid = None)
 

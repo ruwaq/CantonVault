@@ -4,7 +4,7 @@ module Vault.Scripts.TestInvalidRuling where
 import Daml.Script
 import DA.Time
 import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
-import Vault.CommitmentContract (CommitmentContract(..), RaiseDispute(..), DisputeCase(..), ResolveDispute(..))
+import Vault.CommitmentContract (RaiseDispute(..), ResolveDispute(..))
 
 test_resolve_invalid_ruling_fails : Script ()
 test_resolve_invalid_ruling_fails = do
@@ -24,13 +24,16 @@ test_resolve_invalid_ruling_fails = do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- Raise dispute as proposer (consuming now — requires thirdParty consent
   -- for divulgence since DisputeCase has observer thirdParty)
-  disputeCid <- submitMulti [proposer, thirdParty] [] $ exerciseCmd contractCid (RaiseDispute with
-    reason = "test dispute"
-    actor = proposer)
+  disputeCid <- submit (actAs [proposer, thirdParty]) do
+    exerciseCmd contractCid (RaiseDispute with
+      reason = "test dispute"
+      actor = proposer)
   -- Resolve with invalid ruling: must fail (only "proposer" or "accepter" allowed)
   submitMustFail thirdParty $ exerciseCmd disputeCid (ResolveDispute with
-    ruling = "neither")
+    ruling = "neither"
+    allocationCid = None)
   return ()

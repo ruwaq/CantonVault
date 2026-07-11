@@ -5,7 +5,7 @@ module Vault.Scripts.TestRefundThenFulfill where
 import Daml.Script
 import DA.Time
 import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
-import Vault.CommitmentContract (CommitmentContract(..), Refund(..), Fulfill(..))
+import Vault.CommitmentContract (Refund(..), Fulfill(..))
 
 test_refund_then_fulfill_fails : Script ()
 test_refund_then_fulfill_fails = do
@@ -25,6 +25,7 @@ test_refund_then_fulfill_fails = do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- Wait past deadline, then refund (consuming — archives the commitment)
   passTime (seconds 2)

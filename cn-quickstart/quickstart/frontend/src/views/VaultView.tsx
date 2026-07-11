@@ -8,10 +8,12 @@ import type { PartyDescriptor } from '../stores/vaultStore';
 import {
     type Commitment,
     type DisclosedRecord,
+    type SettlementReceipt,
     type VaultContract,
     type Workflow,
 } from '../types';
-import { FulfillModal, DisputeModal, ResolveModal, shortParty } from '../components/vault/VaultActionModals';
+import { DisputeModal, FulfillModal, RefundModal, ResolveModal } from '../components/vault/VaultActionModals';
+import { shortParty } from '../utils/party';
 
 type Step = 'propose' | 'act' | 'settle';
 
@@ -42,6 +44,7 @@ const VaultView: React.FC = () => {
     // never have to look up the contractId by payload reference.
     const [fulfillTarget, setFulfillTarget] = useState<VaultContract<Commitment> | null>(null);
     const [disputeTarget, setDisputeTarget] = useState<VaultContract<Commitment> | null>(null);
+    const [refundTarget, setRefundTarget] = useState<VaultContract<Commitment> | null>(null);
     const [resolveTarget, setResolveTarget] = useState<string | null>(null);
 
     useEffect(() => {
@@ -132,7 +135,7 @@ const VaultView: React.FC = () => {
                     commitments={vault.commitments}
                     onFulfill={(c) => setFulfillTarget(c)}
                     onDispute={(c) => setDisputeTarget(c)}
-                    onRefund={vault.refundCommitment}
+                    onRefund={(c) => setRefundTarget(c)}
                     disputes={vault.disputes}
                     onResolve={(cid) => setResolveTarget(cid)}
                     pendingAction={vault.pendingAction}
@@ -158,6 +161,18 @@ const VaultView: React.FC = () => {
                     if (target) await vault.fulfillCommitment(target.contractId, { fulfillmentNote: note, allocationContractId });
                 }}
             />
+            <RefundModal
+                show={refundTarget !== null}
+                commitment={refundTarget?.payload ?? null}
+                onClose={() => setRefundTarget(null)}
+                onConfirm={async (allocationContractId) => {
+                    const target = refundTarget;
+                    setRefundTarget(null);
+                    if (target) {
+                        await vault.refundCommitment(target.contractId, { allocationContractId });
+                    }
+                }}
+            />
             <DisputeModal
                 show={disputeTarget !== null}
                 commitment={disputeTarget?.payload ?? null}
@@ -172,10 +187,10 @@ const VaultView: React.FC = () => {
                 show={resolveTarget !== null}
                 contractId={resolveTarget}
                 onClose={() => setResolveTarget(null)}
-                onConfirm={async (ruling) => {
+                onConfirm={async (ruling, allocationContractId) => {
                     const target = resolveTarget;
                     setResolveTarget(null);
-                    if (target) await vault.resolveDispute(target, ruling);
+                    if (target) await vault.resolveDispute(target, ruling, allocationContractId);
                 }}
             />
         </div>
@@ -326,7 +341,7 @@ interface ActStepProps {
     commitments: VaultContract<Commitment>[];
     onFulfill: (c: VaultContract<Commitment>) => void;
     onDispute: (c: VaultContract<Commitment>) => void;
-    onRefund: (id: string) => Promise<void>;
+    onRefund: (c: VaultContract<Commitment>) => void;
     disputes: VaultContract<{ commitmentRef: string }>[];
     onResolve: (contractId: string) => void;
     pendingAction: { cid: string; action: string } | null;
@@ -358,7 +373,7 @@ const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, on
                                 <div className="d-flex gap-1 flex-wrap">
                                     <button className="btn btn-outline-primary btn-sm" onClick={() => onFulfill(c)} disabled={disputed || pendingAction?.cid === c.contractId}>Fulfill</button>
                                     <button className="btn btn-warning btn-sm" onClick={() => onDispute(c)} disabled={disputed || pendingAction?.cid === c.contractId}>Dispute</button>
-                                    <button className="btn btn-outline-secondary btn-sm" onClick={() => onRefund(c.contractId)} disabled={pendingAction?.cid === c.contractId}>Refund</button>
+                                    <button className="btn btn-outline-secondary btn-sm" onClick={() => onRefund(c)} disabled={pendingAction?.cid === c.contractId}>Refund</button>
                                 </div>
                             </div>
                         </div>
@@ -393,7 +408,7 @@ const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, on
 // No mock data: every panel is derived from the store, which mirrors the ACS.
 
 interface PrivacyLabProps {
-    receipts: VaultContract<{ amount: number; currency: string; timestamp: string; note: string | null; proposer: string; accepter: string }>[];
+    receipts: VaultContract<SettlementReceipt>[];
     disclosures: VaultContract<DisclosedRecord>[];
     commitments: VaultContract<Commitment>[];
 }
@@ -473,12 +488,15 @@ const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitme
                 <div key={r.contractId} className="card mb-2 border-success">
                     <div className="card-body py-2 px-3 d-flex justify-content-between align-items-center">
                         <div>
-                            <strong>{r.payload.amount} {r.payload.currency}</strong> settled
+                            <strong>{r.payload.amount} {r.payload.currency}</strong> {r.payload.outcome}
                             <br />
-                            <small className="text-muted">{r.payload.proposer === r.payload.accepter ? '' : shortParty(r.payload.proposer)} → {shortParty(r.payload.accepter)}</small>
+                            <small className="text-muted">{shortParty(r.payload.accepter)} → {shortParty(r.payload.proposer)}</small>
+                            <span className={`badge ms-2 ${r.payload.settlementExecuted ? 'bg-success' : 'bg-secondary'}`}>
+                                {r.payload.settlementExecuted ? 'Funds moved' : 'Recorded outcome'}
+                            </span>
                             {r.payload.note && <span className="badge bg-light text-dark ms-2">{r.payload.note}</span>}
                         </div>
-                        <span className="badge bg-success">Settled</span>
+                        <span className="badge bg-success text-uppercase">{r.payload.outcome}</span>
                     </div>
                 </div>
             ))}

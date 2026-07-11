@@ -8,7 +8,7 @@ module Vault.Scripts.TestFulfillDeadline where
 import Daml.Script
 import DA.Time
 import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
-import Vault.CommitmentContract (CommitmentContract(..), Fulfill(..))
+import Vault.CommitmentContract (Fulfill(..))
 import Vault.SettlementReceipt (SettlementReceipt(..))
 
 -- | Confirm that Fulfill works before the deadline (baseline, same as TestFulfill).
@@ -30,9 +30,10 @@ test_fulfill_before_deadline = do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- Fulfill well before deadline
-  receiptCid <- submit accepter $ exerciseCmd contractCid (Fulfill with
+  _ <- submit accepter $ exerciseCmd contractCid (Fulfill with
     fulfillmentNote = "fulfilled on time"
     allocationCid = None)
   receipts <- query @SettlementReceipt proposer
@@ -60,6 +61,7 @@ test_fulfill_after_deadline_fails = do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- Wait past the deadline
   passTime (seconds 2)

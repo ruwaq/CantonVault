@@ -71,6 +71,8 @@ export interface SettlementReceipt {
     amount: number;
     currency: string;
     timestamp: string; // ISO instant
+    outcome: string;
+    settlementExecuted: boolean;
     note: string | null;
 }
 

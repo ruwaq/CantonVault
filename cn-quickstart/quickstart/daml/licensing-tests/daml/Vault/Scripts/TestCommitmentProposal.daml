@@ -24,8 +24,9 @@ test_propose_accept = do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
   -- Accepter exercises AcceptProposal
-  contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
+  _ <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- Both should see the resulting CommitmentContract
   contracts <- query @CommitmentContract proposer
   assertMsg "Proposer sees the contract" (not (null contracts))

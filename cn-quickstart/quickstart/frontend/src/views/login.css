@@ -1,4 +1,4 @@
-/* CantonVault login — one button, nothing else. */
+/* CantonVault login */
 
 .cv-login {
   position: relative;
@@ -64,12 +64,27 @@
   cursor: pointer;
   transition: transform 0.12s, box-shadow 0.12s;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  margin-bottom: 0.85rem;
 }
 .cv-login-enter:hover {
   transform: translateY(-2px);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
 }
 .cv-login-enter:active { transform: translateY(0); }
+
+.cv-login-actions {
+  display: flex;
+  flex-direction: column;
+}
+
+.cv-login-error {
+  color: #ffd7d7;
+  background: rgba(120, 19, 19, 0.35);
+  border: 1px solid rgba(255, 215, 215, 0.35);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+}
 
 .cv-login-note {
   margin-top: 1.5rem;

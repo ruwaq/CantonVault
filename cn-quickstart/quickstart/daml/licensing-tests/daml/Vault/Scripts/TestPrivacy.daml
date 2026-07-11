@@ -6,7 +6,6 @@ import Daml.Script
 import DA.Time
 import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
 import Vault.CommitmentContract (CommitmentContract(..), RaiseDispute(..))
-import Vault.SettlementReceipt (SettlementReceipt(..))
 
 -- | Critical test: thirdParty must NOT see CommitmentContract or CommitmentProposal
 -- before any dispute. This is the foundation of our privacy claim.
@@ -31,7 +30,8 @@ test_thirdparty_privacy = do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
-  contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
+    realSettlementRequired = False
+  _ <- submit accepter $ exerciseCmd proposalCid AcceptProposal
 
   -- CRITICAL: thirdParty must NOT see CommitmentContract
   tpContracts <- query @CommitmentContract thirdParty
@@ -67,6 +67,7 @@ test_thirdparty_sees_dispute = do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
 
   -- Before dispute: thirdParty sees nothing
@@ -77,7 +78,8 @@ test_thirdparty_sees_dispute = do
   -- becoming an observer of the DisputeCase/DisclosedRecord, since disclosure
   -- needs the recipient's consent. This is the privacy-preserving divulge model:
   -- thirdParty consents to arbitrate, yet still sees ONLY the DisputeCase.
-  disputeCid <- submitMulti [proposer, accepter, thirdParty] [] $ exerciseCmd contractCid (RaiseDispute with reason = "buyer hasn't confirmed delivery"; actor = proposer)
+  disputeCid <- submit (actAs [proposer, accepter, thirdParty]) do
+    exerciseCmd contractCid (RaiseDispute with reason = "buyer hasn't confirmed delivery"; actor = proposer)
 
   -- After dispute: thirdParty sees the DisputeCase
   Some _ <- queryContractId thirdParty disputeCid

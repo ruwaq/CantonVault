@@ -17,7 +17,7 @@ import type {
     Metadata,
 } from '../openapi.d.ts';
 import { AppInstallUnified } from '../types';
-import { createErrorHandler } from "../utils/error";
+import { handleActionError } from "../utils/error";
 
 interface AppInstallState {
     unifiedInstalls: AppInstallUnified[];
@@ -37,8 +37,8 @@ export const AppInstallProvider = ({ children }: { children: React.ReactNode }) 
     const [unifiedInstalls, setUnifiedInstalls] = useState<AppInstallUnified[]>([]);
     const toast = useToast();
 
-    const fetchAll = useCallback(
-        createErrorHandler(`Fetching AppInstall data`, toast)(async () => {
+    const fetchAll = useCallback(async () => {
+        try {
             const client: Client = await api.getClient();
             const requestsResponse = await client.listAppInstallRequests();
             const requests: ApiAppInstallRequest[] = requestsResponse.data;
@@ -63,10 +63,13 @@ export const AppInstallProvider = ({ children }: { children: React.ReactNode }) 
             }));
 
             setUnifiedInstalls([...unifiedRequests, ...unifiedInstallRecords]);
-        }), [setUnifiedInstalls, toast]);
+        } catch (err) {
+            handleActionError(err, 'Fetching AppInstall data', toast);
+        }
+    }, [toast]);
 
-    const accept = useCallback(
-        createErrorHandler(`Accepting AppInstallRequest`, toast)(async (contractId: string, installMeta: Metadata, meta: Metadata) => {
+    const accept = useCallback(async (contractId: string, installMeta: Metadata, meta: Metadata) => {
+        try {
             const client: Client = await api.getClient();
             const commandId = generateCommandId();
             await client.acceptAppInstallRequest(
@@ -75,12 +78,13 @@ export const AppInstallProvider = ({ children }: { children: React.ReactNode }) 
             );
             await fetchAll();
             toast.displaySuccess(`Accepted AppInstallRequest ${contractId}`);
-        }),
-        [toast, fetchAll]
-    );
+        } catch (err) {
+            handleActionError(err, 'Accepting AppInstallRequest', toast);
+        }
+    }, [toast, fetchAll]);
 
-    const reject = useCallback(
-        createErrorHandler(`Rejecting AppInstallRequest`, toast)(async (contractId: string, meta: Metadata) => {
+    const reject = useCallback(async (contractId: string, meta: Metadata) => {
+        try {
             const client: Client = await api.getClient();
             const commandId = generateCommandId();
             await client.rejectAppInstallRequest(
@@ -89,12 +93,13 @@ export const AppInstallProvider = ({ children }: { children: React.ReactNode }) 
             );
             await fetchAll();
             toast.displaySuccess(`Rejected AppInstallRequest ${contractId}`);
-        }),
-        [toast, fetchAll]
-    );
+        } catch (err) {
+            handleActionError(err, 'Rejecting AppInstallRequest', toast);
+        }
+    }, [toast, fetchAll]);
 
-    const cancelInstall = useCallback(
-        createErrorHandler(`Canceling AppInstall`, toast)(async (contractId: string, meta: Metadata) => {
+    const cancelInstall = useCallback(async (contractId: string, meta: Metadata) => {
+        try {
             const client: Client = await api.getClient();
             const commandId = generateCommandId();
             await client.cancelAppInstall(
@@ -103,12 +108,13 @@ export const AppInstallProvider = ({ children }: { children: React.ReactNode }) 
             );
             await fetchAll();
             toast.displaySuccess(`Canceled AppInstall ${contractId}`);
-        }),
-        [toast, fetchAll]
-    );
+        } catch (err) {
+            handleActionError(err, 'Canceling AppInstall', toast);
+        }
+    }, [toast, fetchAll]);
 
-    const createLicense = useCallback(
-        createErrorHandler(`Creating License from AppInstall`, toast)(async (contractId: string, meta: Metadata) => {
+    const createLicense = useCallback(async (contractId: string, meta: Metadata) => {
+        try {
             const client: Client = await api.getClient();
             const body: AppInstallCreateLicenseRequest = { params: { meta } };
             const commandId = generateCommandId();
@@ -116,9 +122,10 @@ export const AppInstallProvider = ({ children }: { children: React.ReactNode }) 
             await fetchAll();
             toast.displaySuccess(`Created License: ${response.data?.licenseId}`);
             return response.data;
-        }),
-        [toast, fetchAll]
-    );
+        } catch (err) {
+            handleActionError(err, 'Creating License from AppInstall', toast);
+        }
+    }, [toast, fetchAll]);
 
     return (
         <AppInstallContext.Provider

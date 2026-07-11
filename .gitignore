@@ -145,6 +145,9 @@ cn-quickstart/**
 .env
 .env.*
 *.env
+.envrc
+.envrc.*
+*.envrc
 !docs/**/.env.example
 
 # Local notes

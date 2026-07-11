@@ -4,7 +4,7 @@ module Vault.Scripts.TestFulfill where
 import Daml.Script
 import DA.Time
 import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
-import Vault.CommitmentContract (CommitmentContract(..), Fulfill(..))
+import Vault.CommitmentContract (Fulfill(..))
 import Vault.SettlementReceipt (SettlementReceipt(..))
 
 test_fulfill_creates_receipt : Script ()
@@ -25,9 +25,10 @@ test_fulfill_creates_receipt = do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- Fulfill: accepter confirms delivery, proposer's committed funds release
-  receiptCid <- submit accepter $ exerciseCmd contractCid (Fulfill with
+  _ <- submit accepter $ exerciseCmd contractCid (Fulfill with
     fulfillmentNote = "payment confirmed"
     allocationCid = None)
   receipts <- query @SettlementReceipt proposer

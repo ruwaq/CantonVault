@@ -71,9 +71,8 @@ export function handleActionError(err: unknown, action: string, toast: ToastLike
  *     [toast],
  *   );
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createErrorHandler(action: string, toast: ToastLike) {
-    return <TArgs extends any[], TRet>(fn: (...args: TArgs) => Promise<TRet>) => {
+    return <TArgs extends unknown[], TRet>(fn: (...args: TArgs) => Promise<TRet>) => {
         return async (...args: TArgs): Promise<TRet | void> => {
             try {
                 return await fn(...args);

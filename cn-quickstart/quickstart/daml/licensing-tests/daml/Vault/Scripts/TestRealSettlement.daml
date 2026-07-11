@@ -9,7 +9,7 @@
 --   2. Create CommitmentProposal → AcceptProposal → CommitmentContract
 --   3. Accepter sees the requested allocation in their wallet
 --   4. Accepter accepts the allocation via the registry factory
---   5. Proposer fetches the allocation and exercises Fulfill with real CC
+--   5. Accepter fetches the allocation and exercises Fulfill with real CC
 --   6. Verify Canton Coins moved from accepter to proposer
 --
 -- In CantonVault's supply-chain-finance scenario:
@@ -23,11 +23,9 @@ import DA.Assert ((===))
 import DA.Time
 import DA.List (head, sortOn)
 import DA.Optional (isNone)
-import DA.Foldable (forA_)
 
 import Splice.Api.Token.MetadataV1 as Api.Token.MetadataV1
 import Splice.Api.Token.AllocationV1 as Api.Token.AllocationV1
-import Splice.Api.Token.HoldingV1
 import Splice.Api.Token.AllocationRequestV1
 import Splice.Api.Token.AllocationInstructionV1
 
@@ -37,7 +35,7 @@ import Splice.Testing.TokenStandard.WalletClient qualified as WalletClient
 import Splice.Testing.Utils
 
 import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
-import Vault.CommitmentContract (CommitmentContract(..), Fulfill(..))
+import Vault.CommitmentContract (Fulfill(..))
 import Vault.SettlementReceipt (SettlementReceipt(..))
 
 -------------------------------------------------------------------------------
@@ -76,18 +74,18 @@ test_real_settlement_dvp = script do
   -----------------------------------------------------
   registry <- AmuletRegistry.initialize AmuletRegistry.defaultAmuletRegistryConfig
 
-  proposer <- allocatePartyExact "Supplier"      -- pays CC to accepter
-  accepter <- allocatePartyExact "Financier"     -- receives CC
+  proposer <- allocatePartyExact "Supplier"      -- receives CC
+  accepter <- allocatePartyExact "Financier"     -- pays CC
 
   -- Feature both apps so both parties can send/receive CC payments
   AmuletRegistry.featureApp registry accepter
   AmuletRegistry.featureApp registry proposer
 
-  -- Fund the proposer so they can pay the commitment amount
-  AmuletRegistry.tapLockedAndUnlockedFunds registry proposer initialAccepterBalance
+  -- Fund the accepter so they can pay the commitment amount
+  AmuletRegistry.tapLockedAndUnlockedFunds registry accepter initialAccepterBalance
 
-  -- Verify the proposer starts with the expected balance
-  WalletClient.checkBalance proposer registry.instrumentId initialAccepterBalance
+  -- Verify the accepter starts with the expected balance
+  WalletClient.checkBalance accepter registry.instrumentId initialAccepterBalance
 
   -----------------------------------------------------
   -- 2. Create the commitment proposal and accept it
@@ -107,6 +105,7 @@ test_real_settlement_dvp = script do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = instrumentAdmin
+    realSettlementRequired = True
 
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
 
@@ -114,28 +113,28 @@ test_real_settlement_dvp = script do
   Some _ <- queryContractId proposer contractCid
 
   -----------------------------------------------------
-  -- 3. The proposer sees the requested allocation in their wallet
+  -- 3. The accepter sees the requested allocation in their wallet
   -----------------------------------------------------
-  -- The AllocationRequest view has sender=proposer, receiver=accepter,
-  -- so the proposer is the one who must allocate (pay) Canton Coins.
-  [proposerAlloc] <- WalletClient.listRequestedAllocations proposer instrumentId
-  proposerAlloc.transferLeg.amount === commitmentAmount
-  proposerAlloc.transferLeg.sender === proposer
-  proposerAlloc.transferLeg.receiver === accepter
+  -- The AllocationRequest view has sender=accepter, receiver=proposer,
+  -- so the accepter is the one who must allocate (pay) Canton Coins.
+  [accepterAlloc] <- WalletClient.listRequestedAllocations accepter instrumentId
+  accepterAlloc.transferLeg.amount === commitmentAmount
+  accepterAlloc.transferLeg.sender === accepter
+  accepterAlloc.transferLeg.receiver === proposer
 
-  proposerHoldingCids <- WalletClient.listHoldingCids proposer instrumentId
+  accepterHoldingCids <- WalletClient.listHoldingCids accepter instrumentId
 
   -----------------------------------------------------
-  -- 4. The proposer accepts (allocates) via the registry factory
+  -- 4. The accepter accepts (allocates) via the registry factory
   -----------------------------------------------------
   enrichedChoice <- RegistryApi.getAllocationFactory registry AllocationFactory_Allocate with
     expectedAdmin = instrumentAdmin
-    allocation = proposerAlloc
+    allocation = accepterAlloc
     requestedAt = now
-    inputHoldingCids = proposerHoldingCids
+    inputHoldingCids = accepterHoldingCids
     extraArgs = emptyExtraArgs
 
-  submitWithDisclosures' proposer enrichedChoice.disclosures $
+  submitWithDisclosures' accepter enrichedChoice.disclosures $
     exerciseCmd enrichedChoice.factoryCid enrichedChoice.arg
 
   -----------------------------------------------------
@@ -145,7 +144,7 @@ test_real_settlement_dvp = script do
   Some commitment <- queryContractId proposer contractCid
   let commitmentRef = (view $ toInterface @AllocationRequest commitment).settlement.settlementRef
   -- The allocation is visible to both proposer (sender) and accepter (receiver)
-  (allocCid, _) <- fetchAllocationForCommitment proposer commitmentRef
+  (allocCid, _) <- fetchAllocationForCommitment accepter commitmentRef
 
   context <- RegistryApi.getAllocation_TransferContext registry allocCid emptyMetadata
   let extraArgs = ExtraArgs with
@@ -153,7 +152,7 @@ test_real_settlement_dvp = script do
         meta = emptyMetadata
 
   -- Fulfill is controller accepter — they confirm delivery and the
-  -- settlement executes (CC transfer from proposer to accepter).
+  -- settlement executes (CC transfer from accepter to proposer).
   submitWithDisclosures' accepter context.disclosures $
     exerciseCmd contractCid Fulfill with
       fulfillmentNote = "Delivery confirmed — Canton Coin payment executed"
@@ -162,11 +161,14 @@ test_real_settlement_dvp = script do
   -----------------------------------------------------
   -- 6. Verify the Canton Coins moved and the receipt was created
   -----------------------------------------------------
-  WalletClient.checkBalanceApprox proposer registry.instrumentId (initialAccepterBalance - commitmentAmount)
-  WalletClient.checkHoldingWithAmountExists accepter registry.instrumentId commitmentAmount
+  WalletClient.checkBalanceApprox accepter registry.instrumentId (initialAccepterBalance - commitmentAmount)
+  WalletClient.checkHoldingWithAmountExists proposer registry.instrumentId commitmentAmount
 
   receipts <- query @SettlementReceipt proposer
   assertMsg "SettlementReceipt must exist after real fulfillment" (not (null receipts))
+  let receipt = snd (head receipts)
+  assertMsg "Real settlement receipt must mark funds as moved" receipt.settlementExecuted
+  assertMsg "Real settlement receipt must record fulfilled outcome" (receipt.outcome == "fulfilled")
 
   mCommitment <- queryContractId proposer contractCid
   assertMsg "CommitmentContract must be archived after Fulfill" (isNone mCommitment)
@@ -194,8 +196,9 @@ test_symbolic_settlement_baseline = script do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
-  receiptCid <- submit accepter $ exerciseCmd contractCid (Fulfill with
+  _ <- submit accepter $ exerciseCmd contractCid (Fulfill with
     fulfillmentNote = "Symbolic fulfill (no real CC)"
     allocationCid = None)
   receipts <- query @SettlementReceipt proposer

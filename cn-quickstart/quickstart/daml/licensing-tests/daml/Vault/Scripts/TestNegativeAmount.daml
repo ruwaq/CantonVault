@@ -24,6 +24,7 @@ test_zero_amount_rejected = do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
   return ()
 
 test_negative_amount_rejected : Script ()
@@ -45,4 +46,5 @@ test_negative_amount_rejected = do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
   return ()

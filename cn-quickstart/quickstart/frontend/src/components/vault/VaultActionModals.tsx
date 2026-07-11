@@ -1,34 +1,40 @@
 // Copyright (c) 2026, CantonVault Hackathon. All rights reserved.
 // SPDX-License-Identifier: 0BSD
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Modal from '../Modal';
 import type { Commitment } from '../../types';
-
-type SettlementMode = 'symbolic' | 'real';
+import { shortParty } from '../../utils/party';
 
 interface FulfillModalProps {
     show: boolean;
     commitment: Commitment | null;
     onClose: () => void;
-    onConfirm: (note: string, allocationContractId: string | undefined) => void;
+    onConfirm: (note: string, allocationContractId: string) => void;
 }
 
 /**
- * Modal to fulfill a commitment. Supports two real modes:
- *  - Symbolic: no Canton Coin allocation (testing/demo without funds)
- *  - Real:     a Canton Coin allocation contract id drives the on-ledger transfer
+ * Modal to fulfill a commitment with real Canton Coin settlement.
  */
 export function FulfillModal({ show, commitment, onClose, onConfirm }: FulfillModalProps) {
     const [note, setNote] = useState('Delivery confirmed');
     const [allocationContractId, setAllocationContractId] = useState('');
-    const [mode, setMode] = useState<SettlementMode>('symbolic');
+
+    useEffect(() => {
+        if (show) {
+            setNote('Delivery confirmed');
+            setAllocationContractId('');
+        }
+    }, [show]);
 
     if (!commitment) return null;
 
     const handleConfirm = () => {
-        const alloc = mode === 'real' && allocationContractId.trim() ? allocationContractId.trim() : undefined;
-        onConfirm(note.trim() || 'Delivery confirmed', alloc);
+        const allocationCid = allocationContractId.trim();
+        if (!allocationCid) {
+            return;
+        }
+        onConfirm(note.trim() || 'Delivery confirmed', allocationCid);
     };
 
     return (
@@ -39,6 +45,7 @@ export function FulfillModal({ show, commitment, onClose, onConfirm }: FulfillMo
             onConfirm={handleConfirm}
             confirmButtonLabel="Fulfill"
             confirmButtonClassName="btn-primary"
+            confirmButtonDisabled={!allocationContractId.trim()}
             size="lg"
         >
             <div className="mb-3">
@@ -51,30 +58,8 @@ export function FulfillModal({ show, commitment, onClose, onConfirm }: FulfillMo
             </div>
 
             <div className="mb-3">
-                <label className="form-label small fw-bold">Settlement mode</label>
-                <div className="form-check">
-                    <input
-                        className="form-check-input"
-                        type="radio"
-                        id="mode-symbolic"
-                        checked={mode === 'symbolic'}
-                        onChange={() => setMode('symbolic')}
-                    />
-                    <label className="form-check-label small" htmlFor="mode-symbolic">
-                        Symbolic &mdash; create SettlementReceipt without moving Canton Coin
-                    </label>
-                </div>
-                <div className="form-check">
-                    <input
-                        className="form-check-input"
-                        type="radio"
-                        id="mode-real"
-                        checked={mode === 'real'}
-                        onChange={() => setMode('real')}
-                    />
-                    <label className="form-check-label small" htmlFor="mode-real">
-                        Real Canton Coin &mdash; execute Allocation transfer on-ledger
-                    </label>
+                <div className="alert alert-info small mb-0">
+                    Production mode requires a real Canton Coin allocation. The payer is the <strong>accepter</strong>; the receiver is the <strong>proposer</strong>.
                 </div>
             </div>
 
@@ -87,22 +72,70 @@ export function FulfillModal({ show, commitment, onClose, onConfirm }: FulfillMo
                 />
             </div>
 
-            {mode === 'real' && (
-                <div className="mb-3">
-                    <label className="form-label small">Allocation contract id</label>
-                    <input
-                        className="form-control form-control-sm"
-                        style={{ fontSize: '0.75rem' }}
-                        placeholder="#0:1 (the Canton Coin allocation created by the proposer)"
-                        value={allocationContractId}
-                        onChange={(e) => setAllocationContractId(e.target.value)}
-                    />
-                    <div className="form-text small">
-                        The accepter confirms delivery and the protocol atomically transfers
-                        Canton Coin from proposer to accepter.
-                    </div>
+            <div className="mb-3">
+                <label className="form-label small">Allocation contract id</label>
+                <input
+                    className="form-control form-control-sm"
+                    style={{ fontSize: '0.75rem' }}
+                    placeholder="#0:1 (the Canton Coin allocation approved by the accepter)"
+                    value={allocationContractId}
+                    onChange={(e) => setAllocationContractId(e.target.value)}
+                />
+                <div className="form-text small">
+                    The accepter confirms delivery and the protocol atomically transfers Canton Coin from accepter to proposer.
                 </div>
-            )}
+            </div>
+        </Modal>
+    );
+}
+
+interface RefundModalProps {
+    show: boolean;
+    commitment: Commitment | null;
+    onClose: () => void;
+    onConfirm: (allocationContractId: string) => void;
+}
+
+export function RefundModal({ show, commitment, onClose, onConfirm }: RefundModalProps) {
+    const [allocationContractId, setAllocationContractId] = useState('');
+
+    useEffect(() => {
+        if (show) {
+            setAllocationContractId('');
+        }
+    }, [show]);
+
+    if (!commitment) return null;
+
+    const handleConfirm = () => {
+        const allocationCid = allocationContractId.trim();
+        if (!allocationCid) {
+            return;
+        }
+        onConfirm(allocationCid);
+    };
+
+    return (
+        <Modal
+            show={show}
+            title={<>Refund commitment &middot; {commitment.description}</>}
+            onClose={onClose}
+            onConfirm={handleConfirm}
+            confirmButtonLabel="Refund"
+            confirmButtonClassName="btn-outline-secondary"
+            confirmButtonDisabled={!allocationContractId.trim()}
+        >
+            <div className="alert alert-warning small">
+                Refund in production also requires a real reverse allocation. The refund moves Canton Coin from proposer back to accepter.
+            </div>
+            <label className="form-label small">Reverse allocation contract id</label>
+            <input
+                className="form-control form-control-sm"
+                style={{ fontSize: '0.75rem' }}
+                placeholder="#0:2 (reverse allocation proposer -> accepter)"
+                value={allocationContractId}
+                onChange={(e) => setAllocationContractId(e.target.value)}
+            />
         </Modal>
     );
 }
@@ -152,40 +185,80 @@ interface ResolveModalProps {
     show: boolean;
     contractId: string | null;
     onClose: () => void;
-    onConfirm: (ruling: 'proposer' | 'accepter') => void;
+    onConfirm: (ruling: 'proposer' | 'accepter', allocationContractId?: string) => void;
 }
 
 /** Modal for the third party to resolve an open dispute. */
 export function ResolveModal({ show, contractId, onClose, onConfirm }: ResolveModalProps) {
+    const [ruling, setRuling] = useState<'proposer' | 'accepter'>('proposer');
+    const [allocationContractId, setAllocationContractId] = useState('');
+
+    useEffect(() => {
+        if (show) {
+            setRuling('proposer');
+            setAllocationContractId('');
+        }
+    }, [show]);
+
     if (!contractId) return null;
+
+    const handleConfirm = () => {
+        const allocationCid = allocationContractId.trim();
+        if (ruling === 'proposer' && !allocationCid) {
+            return;
+        }
+        onConfirm(ruling, allocationCid || undefined);
+    };
+
     return (
         <Modal
             show={show}
             title="Resolve dispute"
             onClose={onClose}
-            footer={
-                <>
-                    <button className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
-                    <button className="btn btn-outline-primary btn-sm" onClick={() => onConfirm('proposer')}>
-                        Rule for proposer
-                    </button>
-                    <button className="btn btn-outline-primary btn-sm" onClick={() => onConfirm('accepter')}>
-                        Rule for accepter
-                    </button>
-                </>
-            }
+            onConfirm={handleConfirm}
+            confirmButtonLabel="Resolve dispute"
+            confirmButtonClassName="btn-primary"
+            confirmButtonDisabled={ruling === 'proposer' && !allocationContractId.trim()}
         >
             <p className="small text-muted">
-                As the third party, rule in favour of one side. A DisclosedRecord is created
-                as immutable proof of the resolution.
+                As the third party, issue a binding ruling. The resolution now creates a terminal settlement receipt, and proposer wins require a real allocation.
             </p>
+            <div className="form-check mb-2">
+                <input
+                    className="form-check-input"
+                    type="radio"
+                    id="resolve-proposer"
+                    checked={ruling === 'proposer'}
+                    onChange={() => setRuling('proposer')}
+                />
+                <label className="form-check-label small" htmlFor="resolve-proposer">
+                    Rule for proposer and execute settlement
+                </label>
+            </div>
+            <div className="form-check mb-3">
+                <input
+                    className="form-check-input"
+                    type="radio"
+                    id="resolve-accepter"
+                    checked={ruling === 'accepter'}
+                    onChange={() => setRuling('accepter')}
+                />
+                <label className="form-check-label small" htmlFor="resolve-accepter">
+                    Rule for accepter without payout
+                </label>
+            </div>
+            {ruling === 'proposer' ? (
+                <>
+                    <label className="form-label small">Allocation contract id</label>
+                    <input
+                        className="form-control form-control-sm"
+                        style={{ fontSize: '0.75rem' }}
+                        placeholder="#0:3 (allocation accepter -> proposer)"
+                        value={allocationContractId}
+                        onChange={(e) => setAllocationContractId(e.target.value)}
+                    />
+                </>
+            ) : null}
         </Modal>
     );
-}
-
-/** Truncate a Canton party id for display: cd0a8760…e402 */
-export function shortParty(party: string): string {
-    if (!party) return '—';
-    if (party.length <= 16) return party;
-    return `${party.slice(0, 8)}…${party.slice(-4)}`;
 }

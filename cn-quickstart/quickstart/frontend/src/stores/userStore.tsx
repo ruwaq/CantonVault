@@ -12,10 +12,6 @@ interface UserContextType {
     user: AuthenticatedUser | null;
     loading: boolean;
     fetchUser: () => Promise<AuthenticatedUser | null>;
-    /** Transparent "connect" — if no session exists, authenticate as the demo
-     *  party automatically. Mirrors the wallet-connect UX of a dApp: the visitor
-     *  never sees a login form, they just arrive ready to transact. */
-    autoConnect: () => Promise<boolean>;
     clearUser: () => void;
     logout: () => Promise<void>;
 }
@@ -59,46 +55,14 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         return () => window.removeEventListener('auth:session-expired', handler);
     }, [clearUser]);
 
-    /** dApp-style connect: try the session, and if there is none, authenticate as
-     *  the demo party via a silent form POST, then refetch. Returns true if
-     *  connected successfully, false otherwise. */
-    const autoConnect = useCallback(async (): Promise<boolean> => {
-        const current = await fetchUser();
-        if (current !== null) return true; // already connected (fresh value, not closure)
-        // Server-side demo session: the backend authenticates as the demo party
-        // and sets the JSESSIONID cookie. The demo token is injected at build
-        // time via VITE_DEMO_TOKEN — if blank the backend will reject with 404.
-        try {
-            const demoToken = import.meta.env.VITE_DEMO_TOKEN;
-            const response = await fetch('/api/demo-session', {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ demoToken: demoToken || '' }),
-            });
+    useEffect(() => {
+        void fetchUser();
+    }, [fetchUser]);
 
-            if (response.status === 404) {
-                // Demo mode is disabled — the visitor must authenticate via another path
-                return false;
-            }
-
-            if (!response.ok) {
-                toast.displayError('Demo authentication failed');
-                return false;
-            }
-
-            await fetchUser();
-            return true;
-        } catch {
-            toast.displayError('Could not connect to the Canton node');
-            return false;
-        }
-    }, [fetchUser, toast]);
-
-    const getCsrfToken = (): string => {
+    const getCsrfToken = useCallback((): string => {
         const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
         return match ? decodeURIComponent(match[1]) : '';
-    };
+    }, []);
 
     const logout = useCallback(async () => {
         try {
@@ -116,13 +80,13 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
             } else {
                 toast.displayError('Error logging out');
             }
-        } catch (error) {
+        } catch {
             toast.displayError('Error logging out');
         }
     }, [clearUser, toast, navigate, getCsrfToken]);
 
     return (
-        <UserContext.Provider value={{ user, loading, fetchUser, autoConnect, clearUser, logout }}>
+        <UserContext.Provider value={{ user, loading, fetchUser, clearUser, logout }}>
             {children}
         </UserContext.Provider>
     );

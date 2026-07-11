@@ -27,6 +27,7 @@ import quickstart_licensing.vault.disclosable.DisclosedRecord;
 import quickstart_licensing.vault.settlementreceipt.SettlementReceipt;
 import splice_api_token_allocation_request_v1.splice.api.token.allocationrequestv1.AllocationRequest;
 import splice_api_token_allocation_v1.splice.api.token.allocationv1.Allocation;
+import splice_api_token_holding_v1.splice.api.token.holdingv1.Holding;
 
 /**
  * Repository for accessing active Daml contracts via PQS.
@@ -134,6 +135,19 @@ public class DamlRepository {
         return pqs.contractByContractId(AllocationRequest.class, contractId);
     }
 
+    public CompletableFuture<List<Contract<AllocationRequest>>> findActiveAllocationRequests() {
+        return pqs.active(AllocationRequest.class);
+    }
+
+    public CompletableFuture<List<Contract<Holding>>> findHoldingsForOwnerAndAdmin(String owner, String instrumentAdmin) {
+        return pqs.activeWhere(
+                Holding.class,
+                "payload->>'owner' = ? AND payload->'instrumentId'->>'admin' = ?",
+                owner,
+                instrumentAdmin
+        );
+    }
+
     /**
      * Fetches an AppInstall contract by contract ID.
      */
@@ -177,6 +191,19 @@ public class DamlRepository {
         return pqs.contractByContractId(CommitmentProposal.class, contractId);
     }
 
+    /**
+     * Fetches a CommitmentProposal by ID, scoped to a party that must be either
+     * the proposer or the accepter. Contracts that do not involve the party are
+     * treated as absent (IDOR protection).
+     */
+    public CompletableFuture<Optional<Contract<CommitmentProposal>>> findCommitmentProposalByIdForParty(
+            String contractId, String party) {
+        return pqs.contractByContractIdWhere(CommitmentProposal.class,
+                "payload->>'proposer' = ? OR payload->>'accepter' = ?",
+                new Object[]{party, party},
+                contractId);
+    }
+
     public CompletableFuture<List<Contract<CommitmentContract>>> findActiveCommitments() {
         return pqs.active(CommitmentContract.class);
     }
@@ -188,6 +215,19 @@ public class DamlRepository {
 
     public CompletableFuture<Optional<Contract<CommitmentContract>>> findCommitmentById(String contractId) {
         return pqs.contractByContractId(CommitmentContract.class, contractId);
+    }
+
+    /**
+     * Fetches a CommitmentContract by ID, scoped to a party that must be either
+     * the proposer or the accepter. Contracts that do not involve the party are
+     * treated as absent (IDOR protection — see security audit C1/C2).
+     */
+    public CompletableFuture<Optional<Contract<CommitmentContract>>> findCommitmentByIdForParty(
+            String contractId, String party) {
+        return pqs.contractByContractIdWhere(CommitmentContract.class,
+                "payload->>'proposer' = ? OR payload->>'accepter' = ?",
+                new Object[]{party, party},
+                contractId);
     }
 
     public CompletableFuture<List<Contract<DisputeCase>>> findDisputeCasesForParty(String party) {

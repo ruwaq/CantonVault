@@ -3,9 +3,8 @@ module Vault.Scripts.TestRefund where
 
 import Daml.Script
 import DA.Time
-import DA.Assert (assertMsg)
 import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
-import Vault.CommitmentContract (CommitmentContract(..), Refund(..))
+import Vault.CommitmentContract (Refund(..))
 
 test_refund_blocked_before_deadline : Script ()
 test_refund_blocked_before_deadline = do
@@ -25,6 +24,7 @@ test_refund_blocked_before_deadline = do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- Refund before deadline must fail (symbolic path: allocationCid = None).
   submitMustFail proposer $ exerciseCmd contractCid
@@ -51,6 +51,7 @@ test_refund_allowed_after_deadline = do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   passTime (seconds 2)
   receiptCid <- submit proposer $ exerciseCmd contractCid

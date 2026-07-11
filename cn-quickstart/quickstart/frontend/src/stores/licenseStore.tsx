@@ -12,7 +12,7 @@ import type {
     LicenseRenewRequest,
     Metadata,
 } from '../openapi.d.ts';
-import { createErrorHandler } from "../utils/error";
+import { handleActionError } from "../utils/error";
 
 /**
  * The core shape of the License-related application state.
@@ -46,46 +46,51 @@ export const LicenseProvider = ({ children }: { children: React.ReactNode }) => 
     /**
      * Fetches all Licenses from the backend, including any associated renewal requests.
      */
-    const fetchLicenses = useCallback(
-        createErrorHandler(`Fetching Licenses`, toast)(async () => {
+    const fetchLicenses = useCallback(async () => {
+        try {
             const client: Client = await api.getClient();
             const response = await client.listLicenses();
             setLicenses(response.data);
-        }), [setLicenses, toast]);
+        } catch (err) {
+            handleActionError(err, 'Fetching Licenses', toast);
+        }
+    }, [toast]);
 
     /**
      * Sends a request to renew a specific License, optionally refreshing the License list on success.
      */
-    const renewLicense = useCallback(
-        createErrorHandler(`Renewing License`, toast)(async (contractId: string, request: LicenseRenewRequest) => {
+    const renewLicense = useCallback(async (contractId: string, request: LicenseRenewRequest) => {
+        try {
             const client: Client = await api.getClient();
             const commandId = generateCommandId();
             await client.renewLicense({ contractId, commandId }, request);
             await fetchLicenses();
             toast.displaySuccess('License Renewal initiated successfully');
-        }),
-        [fetchLicenses, toast]
-    );
+        } catch (err) {
+            handleActionError(err, 'Renewing License', toast);
+        }
+    }, [fetchLicenses, toast]);
 
     /**
      * Sends a request to expire a specific License, optionally refreshing the License list on success.
      */
-    const expireLicense = useCallback(
-        createErrorHandler(`Archiving License`, toast)(async (contractId: string, meta: Metadata) => {
+    const expireLicense = useCallback(async (contractId: string, meta: Metadata) => {
+        try {
             const client: Client = await api.getClient();
             const commandId = generateCommandId();
             await client.expireLicense({ contractId, commandId }, { meta });
             await fetchLicenses();
             toast.displaySuccess('License archived successfully');
-        }),
-        [fetchLicenses, toast]
-    );
+        } catch (err) {
+            handleActionError(err, 'Archiving License', toast);
+        }
+    }, [fetchLicenses, toast]);
 
     /**
      * Completes the renewal flow after the renewal request has been paid.
      */
-    const completeLicenseRenewal = useCallback(
-        createErrorHandler(`Completing License Renewal`, toast)(async (contractId: string, renewalRequestContractId: string, allocationContractId: string) => {
+    const completeLicenseRenewal = useCallback(async (contractId: string, renewalRequestContractId: string, allocationContractId: string) => {
+        try {
             const client: Client = await api.getClient();
             const commandId = generateCommandId();
 
@@ -98,46 +103,50 @@ export const LicenseProvider = ({ children }: { children: React.ReactNode }) => 
             await fetchLicenses();
             toast.displaySuccess('License renewal completed successfully');
             return result.data;
-        }),
-        [fetchLicenses, toast]
-    );
+        } catch (err) {
+            handleActionError(err, 'Completing License Renewal', toast);
+        }
+    }, [fetchLicenses, toast]);
 
     /**
      * Sends a request to withdraw a specific License renewal request.
      */
-    const withdrawLicenseRenewalRequest = useCallback(
-        createErrorHandler(`Withdrawing License renewal request`, toast)(async (contractId: string) => {
+    const withdrawLicenseRenewalRequest = useCallback(async (contractId: string) => {
+        try {
             const client: Client = await api.getClient();
             const commandId = generateCommandId();
             await client.withdrawLicenseRenewalRequest({ contractId, commandId });
             await fetchLicenses();
             toast.displaySuccess('License renewal request withdrawn successfully');
-        }),
-        [fetchLicenses, toast]
-    );
+        } catch (err) {
+            handleActionError(err, 'Withdrawing License renewal request', toast);
+        }
+    }, [fetchLicenses, toast]);
 
     /**
      * Helper to initiate a new License renewal with fixed parameters.
      */
-    const initiateLicenseRenewal = useCallback(
-        createErrorHandler(`Initiate License Renewal`, toast)(async (contractId: string, request: LicenseRenewRequest) => {
+    const initiateLicenseRenewal = useCallback(async (contractId: string, request: LicenseRenewRequest) => {
+        try {
             await renewLicense(contractId, request);
-        }),
-        [renewLicense]
-    );
+        } catch (err) {
+            handleActionError(err, 'Initiate License Renewal', toast);
+        }
+    }, [renewLicense, toast]);
 
     /**
      * Helper to begin the License expiration process with a basic description.
      */
-    const initiateLicenseExpiration = useCallback(
-        createErrorHandler(`Initiate License Expiration`, toast)(async (contractId: string, description: string) => {
+    const initiateLicenseExpiration = useCallback(async (contractId: string, description: string) => {
+        try {
             const meta = {
                 data: { description: description.trim() },
             };
             await expireLicense(contractId, meta);
-        }),
-        [expireLicense]
-    );
+        } catch (err) {
+            handleActionError(err, 'Initiate License Expiration', toast);
+        }
+    }, [expireLicense, toast]);
 
     return (
         <LicenseContext.Provider

@@ -156,16 +156,35 @@ export default function LicenseRenewalRequestModal({
                         Withdraw
                       </button>
                     )}
-                    {!isAdmin && !renewal.settleDeadlinePassed && !renewal.allocationCid && (
-                      <>Please accept the allocation request in your <a href={`${userWallet}/allocations`} target='_blank' rel='noopener noreferrer'>wallet</a>.</>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </Modal>
-  );
-}
+{!isAdmin && !renewal.settleDeadlinePassed && !renewal.allocationCid && (
+                          <>Please accept the allocation request in your <a href={safeWalletUrl(userWallet)} target='_blank' rel='noopener noreferrer'>wallet</a>.</>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Modal>
+      );
+    }
+
+    /**
+     * SECURITY (audit M11): sanitize a wallet URL so it cannot be exploited as a
+     * javascript: or data: vector when rendered in an href. Only http/https URLs
+     * with a valid hostname are allowed; everything else falls back to the default
+     * wallet URL. This is defense-in-depth — the primary control must be in the
+     * backend (AdminApiImpl / TenantPropertiesRepository.addTenant).
+     */
+    function safeWalletUrl(input: string): string {
+      try {
+        const url = new URL(input);
+        if (url.protocol === 'http:' || url.protocol === 'https:') {
+          return input;
+        }
+      } catch {
+        // invalid URL
+      }
+      return 'http://wallet.localhost:2000';
+    }

@@ -15,15 +15,10 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 /**
  * CantonVault backend application.
  *
- * Security is configured per-profile:
- * <ul>
- *   <li>{@code shared-secret} — demo/hackathon only (SharedSecretConfig)</li>
- *   <li>{@code oauth2} — production (OAuth2Config)</li>
- * </ul>
+ * Security is configured for OAuth2 production use.
  *
- * If no security profile is active, Spring Boot's default auto-configuration
- * applies (form login with generated password), which is safe by default
- * but must be overridden in any deployed environment.
+ * The application expects the {@code oauth2} profile and explicit security
+ * configuration in every deployed environment.
  */
 @SpringBootApplication
 @ConfigurationPropertiesScan("com.digitalasset.quickstart")

@@ -6,8 +6,7 @@ import Daml.Script
 import DA.Time
 import DA.Text (isInfixOf)
 import Vault.CommitmentProposal (CommitmentProposal(..), AcceptProposal(..))
-import Vault.CommitmentContract (CommitmentContract(..), Fulfill(..))
-import Vault.SettlementReceipt (SettlementReceipt(..))
+import Vault.CommitmentContract (Fulfill(..))
 
 test_fulfill_receipt_contents : Script ()
 test_fulfill_receipt_contents = do
@@ -27,6 +26,7 @@ test_fulfill_receipt_contents = do
     workflow = "supply-chain-finance"
     deadline = deadline
     instrumentAdmin = dso
+    realSettlementRequired = False
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   receiptCid <- submit accepter $ exerciseCmd contractCid (Fulfill with
     fulfillmentNote = "T8 test note"
@@ -35,6 +35,8 @@ test_fulfill_receipt_contents = do
   Some receipt <- queryContractId proposer receiptCid
   assertMsg "Receipt amount must match commitment" (receipt.amount == 250.75)
   assertMsg "Receipt currency must match commitment" (receipt.currency == "EUR")
+  assertMsg "Receipt outcome must record fulfillment" (receipt.outcome == "fulfilled")
+  assertMsg "Symbolic settlement test receipt must record no fund movement" (not receipt.settlementExecuted)
   case receipt.note of
     None -> assertMsg "Receipt should have a note" False
     Some note -> assertMsg "Receipt note should contain fulfillment note" 

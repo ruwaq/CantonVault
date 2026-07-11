@@ -20,6 +20,10 @@ template CommitmentProposal with
     -- The DSO party that administers the Canton Coin (Amulet) instrument.
     -- Propagated to CommitmentContract.instrumentAdmin on accept.
     instrumentAdmin : Party
+    -- SECURITY (audit H3): when true, the resulting CommitmentContract rejects
+    -- symbolic (None) Fulfill/Refund. Set true for production; false only for
+    -- unit tests that run without a LocalNet settlement layer.
+    realSettlementRequired : Bool
   where
     signatory proposer
     observer  accepter
@@ -44,6 +48,7 @@ template CommitmentProposal with
           deadline = deadline
           instrumentAdmin = instrumentAdmin
           createdAt = now
+          realSettlementRequired = realSettlementRequired
 
     choice RejectProposal : ()
       controller accepter
