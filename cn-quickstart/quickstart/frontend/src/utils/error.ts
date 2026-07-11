@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 import { isAxiosError, type AxiosError } from 'axios';
-import type { ErrorResponse } from "../openapi.d.ts";
+
 
 /** Minimal toast interface so this module stays hook-free. */
 export interface ToastLike {
@@ -12,7 +12,7 @@ export interface ToastLike {
 
 function isAxiosErrorWithErrorResponse(
     err: unknown
-): err is AxiosError<ErrorResponse> {
+): err is AxiosError<unknown> {
     return isAxiosError(err);
 }
 

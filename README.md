@@ -1,7 +1,7 @@
 # CantonVault — Privacy-First Conditional Commitments on Canton Network
 
 [![Hackathon](https://img.shields.io/badge/Build%20on%20Canton-2026-blue)](https://www.encodeclub.com/programmes/canton-hackathon)
-[![Network](https://img.shields.io/badge/network-Canton%20DevNet-green)](https://devnet.cantonloop.com)
+[![Network](https://img.shields.io/badge/network-LocalNet-green)]()
 [![Daml](https://img.shields.io/badge/contracts-Daml%203.x-orange)](https://docs.digitalasset.com/daml)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](./LICENSE)
 [![Tests](https://img.shields.io/badge/tests-21%20passing-brightgreen)]()
@@ -109,10 +109,10 @@ After deadline → Proposer can refund if commitment not fulfilled
 
 | Artifact | Link |
 |---|---|
-| Live App (DevNet) | [Deploying — Will be updated]() |
+| Live App (LocalNet) | [Deploying — Will be updated]() |
 | Pitch Video (3 min) | [Uploading]() |
 | Technical Demo | [Uploading]() |
-| Deployed DAR | `quickstart-licensing-0.0.4.dar` on 5N Sandbox DevNet |
+| Deployed DAR | `quickstart-licensing-0.0.4.dar` on LocalNet |
 
 ---
 
@@ -150,8 +150,8 @@ cd frontend && npx tsc --noEmit                               # Frontend typeche
 | Backend | **Spring Boot 3.4** | Canton gRPC Ledger API v2 + PQS (PostgreSQL) |
 | Frontend | **React 18 + Vite + TypeScript** | REST API via `/api/vault/*` |
 | Infrastructure | **Docker Compose** | Splice onboarding, Canton validator, nginx |
-| Wallet | **Splice Wallet UI (DevNet)** | Canton Coin minting & party allocation |
-| IDE | **Seaport DevNet** | DAR deployment, contract interaction |
+| Wallet | **Splice Wallet UI (LocalNet)** | Canton Coin minting & party allocation |
+| IDE | **Seaport LocalNet** | DAR deployment, contract interaction |
 
 > **Note on wallets**: The Canton Wallet UI (for minting Canton Coin) is distinct from the Loop Wallet used for party allocation — see the [Splice Wallet Reference](https://docs.canton.network/overview/reference/splice-wallet-reference#wallet-ui).
 
@@ -185,7 +185,7 @@ cd frontend && npx tsc --noEmit                               # Frontend typeche
 │ AllocationRequest interface (Splice token standard)   │
 │ SettlementReceipt + DisclosedRecord (evidence)        │
 ├──────────────────────────────────────────────────────┤
-│ CANTON NETWORK (DevNet / mainnet)                    │
+│ CANTON NETWORK (LocalNet / mainnet)                    │
 │ Participant node (gRPC) + PQS (Postgres projection)  │
 │ Splice Registry (token standard factory + context)    │
 │ Wallet-web-ui (user-controlled signing)              │
@@ -240,7 +240,7 @@ export DEMO_TOKEN=demo
 
 ## Roadmap
 
-- **Hackathon**: Complete flow with real Canton Coin settlement on DevNet
+- **Hackathon**: Complete flow with real Canton Coin settlement on LocalNet
 - **Post-hackathon**: Contract keys for uniqueness guarantees, multi-party disclosure UI
 - **Featured App**: Apply for Canton Foundation Protocol Development Fund grant for Cantonomics rewards (62% of ~516M CC/month)
 

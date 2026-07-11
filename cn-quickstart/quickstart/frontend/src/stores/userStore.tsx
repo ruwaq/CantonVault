@@ -59,31 +59,17 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         void fetchUser();
     }, [fetchUser]);
 
-    const getCsrfToken = useCallback((): string => {
-        const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
-        return match ? decodeURIComponent(match[1]) : '';
-    }, []);
+
 
     const logout = useCallback(async () => {
         try {
-            const response = await fetch('/api/logout', {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-XSRF-TOKEN': getCsrfToken(),
-                },
-            });
-            if (response.ok) {
-                clearUser();
-                navigate('/');
-            } else {
-                toast.displayError('Error logging out');
-            }
+            await api.client.post('/logout');
+            clearUser();
+            navigate('/');
         } catch {
             toast.displayError('Error logging out');
         }
-    }, [clearUser, toast, navigate, getCsrfToken]);
+    }, [clearUser, toast, navigate]);
 
     return (
         <UserContext.Provider value={{ user, loading, fetchUser, clearUser, logout }}>

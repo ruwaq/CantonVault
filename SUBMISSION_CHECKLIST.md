@@ -5,8 +5,8 @@ Build on Canton Hackathon 2026 | Deadline: **July 13, 2026, 13:59 CEST**
 ## Critical (binary — must be YES)
 
 - [x] GitHub/GitLab repo is PUBLIC: https://gitlab.com/PrometeoDev/cantonvault
-- [ ] Live demo URL (working on DevNet, tested incognito)
-- [ ] Deployed DAR on 5N Sandbox DevNet (DAR v0.0.4)
+- [ ] Live demo URL (if applicable, tested incognito)
+- [ ] Deployed DAR on LocalNet (DAR v0.0.4)
 - [ ] Pitch video (3 min max, viewable without login)
 - [ ] Technical demo video (3 min max, screen recording showing working flow)
 - [x] `.env` NOT committed, `.env.example` present
@@ -33,7 +33,7 @@ Build on Canton Hackathon 2026 | Deadline: **July 13, 2026, 13:59 CEST**
 - [x] `Refund` choice executes real Canton Coin settlement (no more TODO)
 - [x] CORS configured for cross-origin credentialed calls
 - [ ] Contract keys implemented (uniqueness guarantees) — post-hackathon
-- [ ] Backend connected to DevNet (not localhost) — needs credentials
+- [ ] Backend connected to LocalNet
 
 ## Sponsor Integration
 
@@ -41,7 +41,7 @@ Build on Canton Hackathon 2026 | Deadline: **July 13, 2026, 13:59 CEST**
 - [x] Splice Token Standard — Allocation/AllocationRequest interface for Canton Coin
 - [x] Splice Registry API — TokenStandardProxy for disclosed contracts
 - [x] Seaport IDE — DAR deployment on 5N Sandbox validator
-- [x] Loop Wallet (DevNet) — Party allocation
+- [x] Loop Wallet (LocalNet) — Party allocation
 
 ## Demo Polish
 
@@ -50,13 +50,13 @@ Build on Canton Hackathon 2026 | Deadline: **July 13, 2026, 13:59 CEST**
   - Privacy Lab: 3 real panels (stakeholders / third party before / third party after dispute)
   - Proven by Daml tests `test_thirdparty_sees_dispute` + `test_thirdparty_resolves`
 - [ ] Demo pre-filled with sample data (parties loaded from backend config)
-- [ ] Real Canton Coin settlement demonstrated (allocation flow) — needs DevNet
-- [ ] Split-screen showing competitor sees empty ledger — needs DevNet multi-party
+- [ ] Real Canton Coin settlement demonstrated (allocation flow)
+- [ ] Split-screen showing competitor sees empty ledger — needs LocalNet multi-party
 
 ## Rehearsal
 
 - [ ] Pitch timed under 3 min (target: 90 sec problem+solution, 90 sec demo)
-- [ ] Demo flows tested on DevNet (no local sandbox during video)
+- [ ] Demo flows tested on LocalNet
 - [ ] All external links verified (no 404s, no auth gates)
 - [ ] Video uploaded (unlisted OK but accessible without login)
 

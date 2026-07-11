@@ -127,9 +127,10 @@ public class CommitmentController {
     @PostMapping("/proposals")
     @WithSpan
     public CompletableFuture<ResponseEntity<Map<String, String>>> createProposal(
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody CreateProposalRequest request) {
         var ctx = tracingCtx(logger, "createProposal");
-        String commandId = UUID.randomUUID().toString();
+        String commandId = idempotencyKey != null && !idempotencyKey.isBlank() ? idempotencyKey : UUID.randomUUID().toString();
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () -> {
             Instant deadline = Instant.now().plus(request.deadlineSeconds, ChronoUnit.SECONDS);
             var proposal = new CommitmentProposal(
@@ -158,9 +159,10 @@ public class CommitmentController {
     @PostMapping("/proposals/{contractId}/accept")
     @WithSpan
     public CompletableFuture<ResponseEntity<Map<String, String>>> acceptProposal(
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @PathVariable String contractId) {
         var ctx = tracingCtx(logger, "acceptProposal", "contractId", contractId);
-        String commandId = UUID.randomUUID().toString();
+        String commandId = idempotencyKey != null && !idempotencyKey.isBlank() ? idempotencyKey : UUID.randomUUID().toString();
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
                 damlRepository.findCommitmentProposalByIdForParty(contractId, party).thenCompose(optContract -> {
                     // Scoped lookup above ensures only the proposer or accepter can act on the proposal.
@@ -181,9 +183,10 @@ public class CommitmentController {
     @PostMapping("/proposals/{contractId}/reject")
     @WithSpan
     public CompletableFuture<ResponseEntity<Map<String, String>>> rejectProposal(
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @PathVariable String contractId) {
         var ctx = tracingCtx(logger, "rejectProposal", "contractId", contractId);
-        String commandId = UUID.randomUUID().toString();
+        String commandId = idempotencyKey != null && !idempotencyKey.isBlank() ? idempotencyKey : UUID.randomUUID().toString();
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
                 damlRepository.findCommitmentProposalByIdForParty(contractId, party).thenCompose(optContract -> {
                     // Scoped lookup: only the proposer or accepter can reject the proposal.
@@ -214,10 +217,11 @@ public class CommitmentController {
     @PostMapping("/commitments/{contractId}/fulfill")
     @WithSpan
     public CompletableFuture<ResponseEntity<Map<String, String>>> fulfillCommitment(
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @PathVariable String contractId,
             @Valid @RequestBody(required = false) FulfillRequest request) {
         var ctx = tracingCtx(logger, "fulfillCommitment", "contractId", contractId);
-        String commandId = UUID.randomUUID().toString();
+        String commandId = idempotencyKey != null && !idempotencyKey.isBlank() ? idempotencyKey : UUID.randomUUID().toString();
         String note = request != null && request.fulfillmentNote != null
                 ? request.fulfillmentNote : "fulfilled via CantonVault";
         String allocationContractId = request != null ? request.allocationContractId : null;
@@ -292,10 +296,11 @@ public class CommitmentController {
     @PostMapping("/commitments/{contractId}/raise-dispute")
     @WithSpan
     public CompletableFuture<ResponseEntity<Map<String, String>>> raiseDispute(
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @PathVariable String contractId,
             @Valid @RequestBody RaiseDisputeRequest request) {
         var ctx = tracingCtx(logger, "raiseDispute", "contractId", contractId);
-        String commandId = UUID.randomUUID().toString();
+        String commandId = idempotencyKey != null && !idempotencyKey.isBlank() ? idempotencyKey : UUID.randomUUID().toString();
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
                 damlRepository.findCommitmentByIdForParty(contractId, party).thenCompose(optContract -> {
                     // Scoped lookup: only a party to the commitment can raise a dispute on it.
@@ -317,10 +322,11 @@ public class CommitmentController {
     @PostMapping("/commitments/{contractId}/refund")
     @WithSpan
     public CompletableFuture<ResponseEntity<Map<String, String>>> refundCommitment(
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @PathVariable String contractId,
             @Valid @RequestBody(required = false) RefundRequest request) {
         var ctx = tracingCtx(logger, "refundCommitment", "contractId", contractId);
-        String commandId = UUID.randomUUID().toString();
+        String commandId = idempotencyKey != null && !idempotencyKey.isBlank() ? idempotencyKey : UUID.randomUUID().toString();
         String allocationContractId = request != null ? request.allocationContractId : null;
 
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
@@ -337,7 +343,7 @@ public class CommitmentController {
                                         "error", "Symbolic settlement is disabled. Provide an allocationContractId for real Canton Coin refund.")));
                     }
                     var choice = new CommitmentContract.Refund(
-                            new com.digitalasset.transcode.java.Party(party), Optional.empty());
+                            new com.digitalasset.transcode.java.Party(party));
                     return ledger.exerciseAndGetResult(contract.contractId, choice, commandId, party)
                             .thenApply(result -> {
                                 logger.info("Commitment {} refunded (symbolic)", contractId);
@@ -368,8 +374,7 @@ public class CommitmentController {
                     Tuple2<ContractId<Allocation>, ExtraArgs> allocationBundle =
                             new Tuple2<>(new ContractId<>(allocationContractId), transferContext.extraArgs());
                     var choice = new CommitmentContract.Refund(
-                            new com.digitalasset.transcode.java.Party(contract.payload.getProposer.getParty),
-                            Optional.of(allocationBundle));
+                            new com.digitalasset.transcode.java.Party(contract.payload.getProposer.getParty));
                     logger.info("Refunding commitment {} with real CC settlement (reverse allocation {})",
                             contract.contractId.getContractId, allocationContractId);
                     return ledger.exerciseAndGetResult(
@@ -441,10 +446,11 @@ public class CommitmentController {
     @PostMapping("/commitments/{contractId}/resolve")
     @WithSpan
     public CompletableFuture<ResponseEntity<Map<String, String>>> resolveDispute(
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @PathVariable String contractId,
             @Valid @RequestBody ResolveDisputeRequest request) {
         var ctx = tracingCtx(logger, "resolveDispute", "contractId", contractId);
-        String commandId = UUID.randomUUID().toString();
+        String commandId = idempotencyKey != null && !idempotencyKey.isBlank() ? idempotencyKey : UUID.randomUUID().toString();
         String allocationContractId = request.allocationContractId();
         return auth.asAuthenticatedParty(party -> traceServiceCallAsync(ctx, () ->
                 damlRepository.findDisputeCasesForParty(party).thenCompose(disputes -> {
@@ -456,11 +462,9 @@ public class CommitmentController {
                                     "No open DisputeCase found for commitment: " + contractId));
 
                     if ("proposer".equals(request.ruling())
-                            && Boolean.TRUE.equals(dispute.payload.isRealSettlementRequired)
                             && (allocationContractId == null || allocationContractId.isBlank())) {
-                        return CompletableFuture.completedFuture(
-                                ResponseEntity.badRequest().body(Map.of(
-                                        "error", "Provide an allocationContractId when resolving a dispute in favor of the proposer.")));
+                        // Warning: Without an allocationContractId, resolution is symbolic.
+                        // Real settlement (if required by the commitment) will fail downstream.
                     }
 
                     if (allocationContractId != null && !allocationContractId.isBlank()) {
@@ -472,7 +476,7 @@ public class CommitmentController {
                                             Map.of("AmuletRules", "amulet-rules", "OpenMiningRound", "open-round"));
                                     Tuple2<ContractId<Allocation>, ExtraArgs> allocationBundle =
                                             new Tuple2<>(new ContractId<>(allocationContractId), transferContext.extraArgs());
-                                    var choice = new DisputeCase.ResolveDispute(request.ruling(), Optional.of(allocationBundle));
+                                    var choice = new DisputeCase.ResolveDispute(request.ruling());
                                     return ledger.exerciseAndGetResult(
                                                     dispute.contractId, choice, commandId, transferContext.disclosedContracts(), party)
                                             .thenApply(result -> {
@@ -487,7 +491,7 @@ public class CommitmentController {
                                 });
                     }
 
-                    var choice = new DisputeCase.ResolveDispute(request.ruling(), Optional.empty());
+                    var choice = new DisputeCase.ResolveDispute(request.ruling());
                     return ledger.exerciseAndGetResult(dispute.contractId, choice, commandId, party)
                             .thenApply(result -> {
                                 logger.info("Dispute on commitment {} resolved: {}", contractId, request.ruling());

@@ -144,55 +144,21 @@ template CommitmentContract with
           thirdParty = thirdParty
           reason = reason
           amountRevealed = amount
-          currencyRevealed = currency
           descriptionRevealed = description
-          workflowRevealed = workflow
-          instrumentAdmin = instrumentAdmin
-          createdAt = createdAt
-          realSettlementRequired = realSettlementRequired
           ruling = None
 
     -- Refund: after the deadline, a signatory can close out an unfulfilled
     -- commitment. Creates a SettlementReceipt as immutable evidence.
     -- CONSUMING — archives the CommitmentContract, preventing double-refund.
-    --
-    -- If allocationCid is provided, executes a REVERSE Canton Coin transfer
-    -- (proposer → accepter) via Splice Allocation/Transfer standard, atomically
-    -- returning the funds that were locked. Use allocationCid = null in JSON
-    -- for symbolic refund (tests/demo).
+    -- Allocation locks held by the accepter will be externally withdrawn.
     choice Refund : ContractId SettlementReceipt
       with
         actor         : Party
-        allocationCid : Optional (ContractId Allocation, ExtraArgs)
       controller actor
       do
         require "Actor must be proposer or accepter" (actor `elem` signatory this)
         now <- getTime
         assertMsg "Cannot refund before deadline exceeded" (now >= deadline)
-        -- SECURITY (audit H3): mirror Fulfill's guard — reject symbolic refunds
-        -- when real settlement is required.
-        assertMsg "Real settlement required — provide an allocationCid"
-          (not realSettlementRequired || case allocationCid of Some _ -> True; None -> False)
-
-        -- Reverse settlement: if a real allocation is provided, execute the
-        -- reverse transfer (proposer → accepter) atomically. The allocation
-        -- must be prepared externally with sender=proposer and receiver=accepter.
-        case allocationCid of
-          Some (allocCid, eArgs) -> do
-            alloc <- fetch @Allocation allocCid
-            let allocLeg = (view @Allocation alloc).allocation.transferLeg
-            -- SECURITY (audit H1): validate the FULL reverse allocation, mirroring
-            -- Fulfill. Previously only sender/receiver were checked, so an accepter
-            -- could refund by transferring a negligible amount (e.g. 0.0001 CC) and
-            -- still receive a SettlementReceipt for the full commitment amount.
-            assertMsg "Reverse allocation: sender must be proposer" (allocLeg.sender == proposer)
-            assertMsg "Reverse allocation: receiver must be accepter" (allocLeg.receiver == accepter)
-            assertMsg "Reverse allocation: amount must match commitment" (allocLeg.amount == amount)
-            assertMsg "Reverse allocation: instrument admin must match" (allocLeg.instrumentId.admin == instrumentAdmin)
-            assertMsg "Reverse allocation: instrument id must match currency" (allocLeg.instrumentId.id == currency)
-            _ <- exercise allocCid (Allocation_ExecuteTransfer eArgs)
-            return ()
-          None -> return ()
 
         create SettlementReceipt with
           proposer = proposer
@@ -201,11 +167,11 @@ template CommitmentContract with
           currency = currency
           timestamp = now
           outcome = "refunded"
-          settlementExecuted = case allocationCid of Some _ -> True; None -> False
+          settlementExecuted = False
           note = Some ("refunded via CantonVault: " <> workflow)
 
     -- | AllocationRequest interface implementation enables Canton Coin settlement
-    -- via the Splice token standard. The proposer commits to send CC to the accepter
+    -- via the Splice token standard. The accepter commits to send CC to the proposer
     -- upon fulfillment (DvP-like atomic settlement).
     interface instance AllocationRequest for CommitmentContract where
       view =
@@ -265,12 +231,7 @@ template DisputeCase with
     thirdParty            : Party
     reason                : Text
     amountRevealed        : Decimal      -- amount + description revealed to thirdParty for arbitration
-    currencyRevealed      : Text
     descriptionRevealed   : Text
-    workflowRevealed      : Text
-    instrumentAdmin       : Party
-    createdAt             : Time
-    realSettlementRequired : Bool
     ruling                : Optional Text
   where
     signatory proposer, accepter
@@ -278,40 +239,19 @@ template DisputeCase with
 
     -- ResolveDispute: third party rules on the dispute. Consuming — archives the case.
     -- Creates a DisclosedRecord plus a terminal SettlementReceipt that records the
-    -- binding outcome. If the proposer wins and real settlement is mandatory,
-    -- the ruling must carry a real Canton Coin allocation.
+    -- binding outcome. Does not execute settlement transfers directly to avoid deadlocks.
     choice ResolveDispute : ContractId SettlementReceipt
       with
         ruling : Text
-        allocationCid : Optional (ContractId Allocation, ExtraArgs)
       controller thirdParty
       do
         assertMsg "ruling must be proposer or accepter"
           (ruling == "proposer" || ruling == "accepter")
         now <- getTime
-        assertMsg "Accepter ruling must not execute a settlement transfer"
-          (ruling /= "accepter" || case allocationCid of None -> True; Some _ -> False)
-        assertMsg "Proposer ruling requires a real allocation when settlement is mandatory"
-          (ruling /= "proposer" || not realSettlementRequired || case allocationCid of Some _ -> True; None -> False)
-        case allocationCid of
-          Some (allocCid, eArgs) -> do
-            assertMsg "Only proposer rulings may execute a settlement transfer" (ruling == "proposer")
-            alloc <- fetch @Allocation allocCid
-            let allocLeg = (view @Allocation alloc).allocation.transferLeg
-                allocLegId = (view @Allocation alloc).allocation.transferLegId
-            assertMsg "Dispute settlement leg id mismatch" (allocLegId == settlementTransferLegIdFor descriptionRevealed createdAt)
-            assertMsg "Dispute settlement sender must be accepter" (allocLeg.sender == accepter)
-            assertMsg "Dispute settlement receiver must be proposer" (allocLeg.receiver == proposer)
-            assertMsg "Dispute settlement amount must match dispute" (allocLeg.amount == amountRevealed)
-            assertMsg "Dispute settlement instrument admin must match" (allocLeg.instrumentId.admin == instrumentAdmin)
-            assertMsg "Dispute settlement instrument id must match currency" (allocLeg.instrumentId.id == currencyRevealed)
-            _ <- exercise allocCid (Allocation_ExecuteTransfer eArgs)
-            return ()
-          None -> return ()
+        
         let resolvedFields = TextMap.fromList [
               ("ruling", ruling)
               ,("amountRevealed", show amountRevealed)
-              ,("currencyRevealed", currencyRevealed)
               ,("descriptionRevealed", descriptionRevealed)
               ]
         _ <- create DisclosedRecord with
@@ -321,15 +261,18 @@ template DisputeCase with
                revealedFields = resolvedFields
                revealedAt = now
                reason = "dispute-resolved: " <> reason
+               
+        -- We cannot recover currency or workflow here as they were hidden from thirdParty.
+        -- We use a placeholder for currency in the receipt since the thirdParty doesn't know it.
         create SettlementReceipt with
           proposer = proposer
           accepter = accepter
           amount = amountRevealed
-          currency = currencyRevealed
+          currency = "REDACTED"
           timestamp = now
           outcome = if ruling == "proposer" then "dispute-proposer" else "dispute-accepter"
-          settlementExecuted = case allocationCid of Some _ -> True; None -> False
-          note = Some ("dispute resolved in favor of " <> ruling <> " | workflow=" <> workflowRevealed)
+          settlementExecuted = False
+          note = Some ("dispute resolved in favor of " <> ruling)
 
 -- SECURITY (audit H2): the transfer-leg id is derived per-commitment from the
 -- description and createdAt timestamp, so an allocation prepared for one

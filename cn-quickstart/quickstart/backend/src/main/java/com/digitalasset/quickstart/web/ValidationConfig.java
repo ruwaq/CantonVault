@@ -28,9 +28,10 @@ import org.springframework.validation.beanvalidation.MethodValidationPostProcess
 @Configuration
 public class ValidationConfig {
 
-    // DISABLED — see class-level Javadoc above.
-    // @Bean
-    // public MethodValidationPostProcessor methodValidationPostProcessor() {
-    //     return new MethodValidationPostProcessor();
-    // }
+    @Bean
+    public MethodValidationPostProcessor methodValidationPostProcessor() {
+        MethodValidationPostProcessor processor = new MethodValidationPostProcessor();
+        processor.setProxyTargetClass(true);
+        return processor;
+    }
 }

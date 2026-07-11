@@ -34,6 +34,5 @@ test_resolve_invalid_ruling_fails = do
       actor = proposer)
   -- Resolve with invalid ruling: must fail (only "proposer" or "accepter" allowed)
   submitMustFail thirdParty $ exerciseCmd disputeCid (ResolveDispute with
-    ruling = "neither"
-    allocationCid = None)
+    ruling = "alien")
   return ()

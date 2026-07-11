@@ -29,7 +29,7 @@ test_thirdparty_resolves = do
   -- thirdParty authorizes the disclosure (Canton divulge consent).
   disputeCid <- submit (actAs [proposer, accepter, thirdParty]) do
     exerciseCmd contractCid (RaiseDispute with reason = "unpaid"; actor = proposer)
-  receiptCid <- submit thirdParty $ exerciseCmd disputeCid (ResolveDispute with ruling = "proposer", allocationCid = None)
+  receiptCid <- submit thirdParty $ exerciseCmd disputeCid (ResolveDispute with ruling = "proposer")
   result <- queryContractId thirdParty disputeCid
   case result of
     None -> return () -- DisputeCase archived, resolution DisclosedRecord created

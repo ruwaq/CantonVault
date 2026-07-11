@@ -29,8 +29,7 @@ test_refund_then_fulfill_fails = do
   contractCid <- submit accepter $ exerciseCmd proposalCid AcceptProposal
   -- Wait past deadline, then refund (consuming — archives the commitment)
   passTime (seconds 2)
-  submit proposer $ exerciseCmd contractCid
-    (Refund with actor = proposer, allocationCid = None)
+  submit proposer $ exerciseCmd contractCid (Refund with actor = proposer)
   -- Fulfill on the archived contract must fail
   submitMustFail accepter $ exerciseCmd contractCid (Fulfill with
     fulfillmentNote = "should fail after refund"

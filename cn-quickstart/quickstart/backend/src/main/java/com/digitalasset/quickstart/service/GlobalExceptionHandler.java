@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.Map;
 import java.util.concurrent.CompletionException;
+import jakarta.validation.ConstraintViolationException;
 
 /** Normalizes all controller errors so internals are never leaked to the client. */
 @RestControllerAdvice
@@ -23,6 +24,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
         String msg = ex.getBindingResult().getFieldErrors().stream()
             .map(e -> e.getField() + ": " + e.getDefaultMessage())
+            .reduce((a, b) -> a + "; " + b)
+            .orElse("validation failed");
+        return ResponseEntity.badRequest().body(Map.of("error", msg));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Map<String, String>> handleConstraintViolation(ConstraintViolationException ex) {
+        String msg = ex.getConstraintViolations().stream()
+            .map(v -> v.getPropertyPath() + ": " + v.getMessage())
             .reduce((a, b) -> a + "; " + b)
             .orElse("validation failed");
         return ResponseEntity.badRequest().body(Map.of("error", msg));

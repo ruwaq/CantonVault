@@ -20,7 +20,6 @@ interface TenantRegistrationContextType extends TenantRegistrationState {
     fetchTenantRegistrations: () => Promise<void>
     createTenantRegistration: (registration: TenantRegistrationRequest) => Promise<void>
     deleteTenantRegistration: (tenantId: string) => Promise<void>
-    setRegistrations: React.Dispatch<React.SetStateAction<TenantRegistration[]>>
 }
 
 interface TenantRegistrationProviderProps {
@@ -86,7 +85,6 @@ export const TenantRegistrationProvider = ({
         <TenantRegistrationContext.Provider
             value={{
                 registrations,
-                setRegistrations,
                 fetchTenantRegistrations,
                 createTenantRegistration,
                 deleteTenantRegistration,

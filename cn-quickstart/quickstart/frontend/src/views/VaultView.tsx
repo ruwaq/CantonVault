@@ -51,8 +51,16 @@ const VaultView: React.FC = () => {
         fetchUser();
         vault.refreshAll();
         vault.fetchParties();
-        const id = setInterval(() => vault.refreshAll(), 5000);
-        return () => clearInterval(id);
+        const controller = new AbortController();
+        const poll = async () => {
+            if (controller.signal.aborted) return;
+            await vault.refreshAll();
+            if (!controller.signal.aborted) {
+                setTimeout(poll, 5000);
+            }
+        };
+        void poll();
+        return () => controller.abort();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -84,7 +92,10 @@ const VaultView: React.FC = () => {
                 currency: form.currency.trim() || 'CC',
                 description: form.description.trim(),
                 workflow: form.workflow,
-                deadlineSeconds: parseInt(form.deadlineSeconds) || 3600,
+                deadlineSeconds: (() => {
+                    const parsed = parseInt(form.deadlineSeconds, 10);
+                    return isNaN(parsed) || parsed < 1 ? 3600 : parsed;
+                })(),
             });
             setForm((f) => ({ ...f, description: '', amount: '' }));
         } finally {
