@@ -1,7 +1,7 @@
 # CantonVault — Privacy-First Conditional Commitments on Canton Network
 
 [![Hackathon](https://img.shields.io/badge/Build%20on%20Canton-2026-blue)](https://www.encodeclub.com/programmes/canton-hackathon)
-[![Network](https://img.shields.io/badge/network-LocalNet-green)]()
+[![Network](https://img.shields.io/badge/network-DevNet%20+%20LocalNet-brightgreen)]()
 [![Daml](https://img.shields.io/badge/contracts-Daml%203.x-orange)](https://docs.digitalasset.com/daml)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](./LICENSE)
 [![Tests](https://img.shields.io/badge/tests-21%20passing-brightgreen)]()
@@ -109,10 +109,57 @@ After deadline → Proposer can refund if commitment not fulfilled
 
 | Artifact | Link |
 |---|---|
-| Live App (LocalNet) | [Deploying — Will be updated]() |
+| Live Frontend | [https://canton-vault.pages.dev](https://canton-vault.pages.dev) |
 | Pitch Video (3 min) | [Uploading]() |
 | Technical Demo | [Uploading]() |
-| Deployed DAR | `quickstart-licensing-0.0.4.dar` on LocalNet |
+| GitHub Repo | [https://github.com/ruwaq/CantonVault](https://github.com/ruwaq/CantonVault) |
+
+---
+
+## Canton Network DevNet Deployment ✅
+
+CantonVault smart contracts are **deployed and running on-ledger** on the Canton Network DevNet (not just LocalNet/sandbox).
+
+### How to deploy (reproducible)
+
+```bash
+# 1. Compile the DAR
+cd cn-quickstart/quickstart/daml/licensing
+~/.daml/bin/daml build   # produces cantonvault-contracts-0.1.0.dar
+
+# 2. Deploy to DevNet
+./scripts/devnet-deploy.sh           # uploads DAR + verifies access
+./scripts/devnet-create-contract.sh  # creates a CommitmentProposal on-ledger
+```
+
+### DevNet connection details
+
+- **Ledger API**: `https://ledger-api.validator.devnet.sandbox.fivenorth.io/`
+- **Auth**: OAuth2 client-credentials (`validator-devnet-m2m`)
+- **Network**: Canton Network DevNet (splice v0.6.12, Canton 3.5.7)
+- **Party**: `5nsandbox-devnet-2::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8`
+
+### Evidence of on-ledger deployment (2026-07-13)
+
+| Contract | updateId (tx hash) | Ledger offset |
+|---|---|---|
+| CommitmentProposal #1 | `1220c521048ebd4392a67d331a0cb6cebbc1beb03aed7da2b34ba1e40b4cedfec9f9` | 4297574 |
+| CommitmentProposal #2 | `12207d01a2205c3b578ff9fecf0fdefbb14cd9ba8f75f61eb6f5c652e0209e483113` | 4297626 |
+
+Verify on-ledger yourself:
+```bash
+# Get a token and query the ledger end
+curl -X POST 'https://auth.sandbox.fivenorth.io/application/o/token/' \
+  --header 'Content-Type: application/x-www-form-urlencoded' \
+  --data 'grant_type=client_credentials' \
+  --data 'client_id=validator-devnet-m2m' \
+  --data 'client_secret=r69FQmevLRwEgMB8NnKaSDHPewTOSx7Yy5jucsqAlmsAaJc3DlggedCz4tyyonl4W2WoOVzkUIjy8dHTlc16AOJQzx02QzJylAUG56oLTCoVCJUUK40vRv9CqQEY3fjn' \
+  --data 'audience=validator-devnet-m2m' \
+  --data 'scope=daml_ledger_api'
+# → use access_token to query /v2/state/ledger-end and /v2/packages
+```
+
+> **Note**: The shared hackathon validator (`validator-devnet-m2m`) is an m2m OAuth2 client on the Fivenorth sandbox. Contracts submitted via this client are on the real Canton DevNet synchronizer and visible to all participants.
 
 ---
 
