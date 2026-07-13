@@ -61,6 +61,6 @@ services:
       - ./docker/backend-service/onboarding/env/${AUTH_MODE}.env
     volumes:
       - ./docker/backend-service/onboarding/onboarding.sh:/app/scripts/on/backend-service.sh
-      - ./daml/licensing/.daml/dist/quickstart-licensing-0.0.4.dar:/canton/dars/quickstart-licensing-0.0.4.dar
+      - ./daml/licensing/.daml/dist/quickstart-licensing-0.0.5.dar:/canton/dars/quickstart-licensing-0.0.5.dar
       - ./integration-test/env-init.sh:/app/scripts/on/integration-tests-environment-init.sh
       - ./integration-test:/integration-test

@@ -22,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.net.URI;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -40,19 +41,29 @@ import jakarta.validation.constraints.NotNull;
 @RequestMapping("${openapi.asset.base-path:}")
 public class AdminApiImpl implements AdminApi {
     private static final Logger logger = LoggerFactory.getLogger(AdminApiImpl.class);
-    private final AuthClientRegistrationRepository authClientRegistrationRepository;
+    private final Optional<AuthClientRegistrationRepository> authClientRegistrationRepository;
     private final TenantPropertiesRepository tenantPropertiesRepository;
     private final AuthUtils auth;
 
     @Autowired
     public AdminApiImpl(
-            AuthClientRegistrationRepository authClientRegistrationRepository,
+            Optional<AuthClientRegistrationRepository> authClientRegistrationRepository,
             TenantPropertiesRepository tenantPropertiesRepository,
             AuthUtils auth
     ) {
         this.auth = auth;
         this.authClientRegistrationRepository = authClientRegistrationRepository;
         this.tenantPropertiesRepository = tenantPropertiesRepository;
+    }
+
+    /**
+     * Tenant registration is an OAuth2-only feature. In shared-secret (demo) mode
+     * there is no IdP to register against, so the endpoint returns 503.
+     */
+    private AuthClientRegistrationRepository requireOAuth2ClientRepo() {
+        return authClientRegistrationRepository.orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Tenant registration requires OAuth2 mode (AUTH_MODE=oauth2). Not available in shared-secret demo mode."));
     }
 
     private void validateRequest(@NotNull TenantRegistrationRequest request) {
@@ -79,7 +90,7 @@ public class AdminApiImpl implements AdminApi {
         if (tenantPropertiesRepository.getTenant(request.getTenantId()) != null) {
             throw conflictExc.apply("TenantId already exists");
         }
-        boolean clientIssuerCombinationExists = authClientRegistrationRepository.getClientRegistrations().stream()
+        boolean clientIssuerCombinationExists = requireOAuth2ClientRepo().getClientRegistrations().stream()
                 .anyMatch(c -> c.getClientId().equals(request.getClientId()) && c.getIssuerURL().equals(request.getIssuerUrl()));
         if (clientIssuerCombinationExists) {
             throw conflictExc.apply("ClientId-IssuerUrl combination already exists");
@@ -91,7 +102,7 @@ public class AdminApiImpl implements AdminApi {
         c.setTenantId(request.getTenantId());
         c.setClientId(request.getClientId());
         c.setIssuerURL(request.getIssuerUrl());
-        authClientRegistrationRepository.registerClient(c);
+        requireOAuth2ClientRepo().registerClient(c);
     }
 
     private void persistTenantMetadata(TenantRegistrationRequest request) {
@@ -143,7 +154,7 @@ public class AdminApiImpl implements AdminApi {
         var ctx = tracingCtx(logger, "deleteTenantRegistration", "tenantId", tenantId);
         return auth.asAdminParty(party -> traceServiceCallAsync(ctx, () -> CompletableFuture.supplyAsync(() -> {
             try {
-                authClientRegistrationRepository.removeClientRegistrations(tenantId);
+                requireOAuth2ClientRepo().removeClientRegistrations(tenantId);
                 tenantPropertiesRepository.removeTenant(tenantId);
             } catch (NoSuchElementException e) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
@@ -159,7 +170,7 @@ public class AdminApiImpl implements AdminApi {
     public CompletableFuture<ResponseEntity<List<TenantRegistration>>> listTenantRegistrations() {
         var ctx = tracingCtx(logger, "listTenantRegistrations");
         return auth.asAdminParty(party -> traceServiceCallAsync(ctx, () -> CompletableFuture.supplyAsync(() -> {
-            List<TenantRegistration> result = authClientRegistrationRepository.getClientRegistrations().stream()
+            List<TenantRegistration> result = requireOAuth2ClientRepo().getClientRegistrations().stream()
                     .map(c -> {
                         TenantRegistration out = new TenantRegistration();
                         out.setTenantId(c.getTenantId());
