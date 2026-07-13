@@ -141,25 +141,37 @@ cd cn-quickstart/quickstart/daml/licensing
 
 ### Evidence of on-ledger deployment (2026-07-13)
 
-| Contract | updateId (tx hash) | Ledger offset |
-|---|---|---|
-| CommitmentProposal #1 | `1220c521048ebd4392a67d331a0cb6cebbc1beb03aed7da2b34ba1e40b4cedfec9f9` | 4297574 |
-| CommitmentProposal #2 | `12207d01a2205c3b578ff9fecf0fdefbb14cd9ba8f75f61eb6f5c652e0209e483113` | 4297626 |
+| # | Workflow | Amount | updateId (tx hash) | Offset |
+|---|---|---|---|---|
+| 1 | supply-chain-finance | 5,000 CC | `1220c521048ebd4392a67d331a0cb6cebbc1beb03aed7da2b34ba1e40b4cedfec9f9` | 4297574 |
+| 2 | supply-chain-finance | 7,500 CC | `12207d01a2205c3b578ff9fecf0fdefbb14cd9ba8f75f61eb6f5c652e0209e483113` | 4297626 |
+| 3 | supply-chain-finance | 12,000 CC | `1220e723952e21684661ac7f0a6fcf0db66e570866d062bf34ba938d23ab2090ce01` | 4297881 |
+| 4 | invoice-financing | 3,000 CC | `12202b830f37bcab5a0a234565bc6acd328e8eea979d6b71967068d2430cffb89678` | 4298442 |
+| 5 | otc-block-trade | 25,000 CC | `12204b7cf00a72988934e883439f48da8df2d0497435f2d9e6df87b7826aebb7d27c` | 4298435 |
+
+**Total: 5 CommitmentProposal contracts on-ledger, 52,500 CC across all 3 workflow scenarios.**
 
 Verify on-ledger yourself:
 ```bash
-# Get a token and query the ledger end
-curl -X POST 'https://auth.sandbox.fivenorth.io/application/o/token/' \
-  --header 'Content-Type: application/x-www-form-urlencoded' \
-  --data 'grant_type=client_credentials' \
-  --data 'client_id=validator-devnet-m2m' \
-  --data 'client_secret=r69FQmevLRwEgMB8NnKaSDHPewTOSx7Yy5jucsqAlmsAaJc3DlggedCz4tyyonl4W2WoOVzkUIjy8dHTlc16AOJQzx02QzJylAUG56oLTCoVCJUUK40vRv9CqQEY3fjn' \
-  --data 'audience=validator-devnet-m2m' \
-  --data 'scope=daml_ledger_api'
-# → use access_token to query /v2/state/ledger-end and /v2/packages
+cd cli && npm install && npm run build
+node dist/index.js status          # → Canton 3.5.7, offset ~4.3M
+node dist/index.js propose --amount 1000   # → creates a NEW contract on-ledger
 ```
 
-> **Note**: The shared hackathon validator (`validator-devnet-m2m`) is an m2m OAuth2 client on the Fivenorth sandbox. Contracts submitted via this client are on the real Canton DevNet synchronizer and visible to all participants.
+### CantonVault CLI (`cli/`)
+
+A typed TypeScript CLI for interacting with CantonVault contracts on the DevNet:
+
+```bash
+cd cli && npm install && npm run build
+
+node dist/index.js status                              # DevNet connectivity
+node dist/index.js deploy                              # upload DAR
+node dist/index.js propose --amount 5000               # create CommitmentProposal
+node dist/index.js packages                            # list vetted packages
+```
+
+> **Note**: The shared hackathon validator (`validator-devnet-m2m`) exposes a limited REST API surface (submit, packages, parties, users). The full propose→accept→fulfill→dispute lifecycle is demonstrated end-to-end in LocalNet (22 passing Daml tests + live backend), while DevNet proves the contracts run on-ledger on the real Canton Network synchronizer.
 
 ---
 

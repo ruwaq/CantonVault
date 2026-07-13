@@ -4,13 +4,14 @@ Build on Canton Hackathon 2026 | Deadline: **July 13, 2026, 13:59 CEST**
 
 ## Critical (binary — must be YES)
 
-- [x] GitHub/GitLab repo is PUBLIC: https://gitlab.com/PrometeoDev/cantonvault
-- [ ] Live demo URL (if applicable, tested incognito)
-- [ ] Deployed DAR on LocalNet (DAR v0.0.4)
+- [x] GitHub/GitLab repo is PUBLIC: https://github.com/ruwaq/CantonVault + https://gitlab.com/PrometeoDev/cantonvault
+- [x] Live demo URL: https://canton-vault.pages.dev (HTTP 200, tested)
+- [x] Deployed DAR on Canton DevNet (cantonvault-contracts v0.1.0, Canton 3.5.7) — 5 contracts on-ledger
 - [ ] Pitch video (3 min max, viewable without login)
 - [ ] Technical demo video (3 min max, screen recording showing working flow)
 - [x] `.env` NOT committed, `.env.example` present
 - [x] LICENSE file (MIT)
+- [x] CantonVault CLI (cli/) — typed TypeScript tool for DevNet interaction
 
 ## README
 
@@ -33,7 +34,9 @@ Build on Canton Hackathon 2026 | Deadline: **July 13, 2026, 13:59 CEST**
 - [x] `Refund` choice executes real Canton Coin settlement (no more TODO)
 - [x] CORS configured for cross-origin credentialed calls
 - [ ] Contract keys implemented (uniqueness guarantees) — post-hackathon
-- [ ] Backend connected to LocalNet
+- [x] Backend connected to LocalNet (Up, Started App in 2.7s, Connected to ledger)
+- [x] 22 Daml tests passing (privacy + dispute + settlement + edge cases)
+- [x] TypeScript CLI for DevNet interaction (cli/)
 
 ## Sponsor Integration
 
