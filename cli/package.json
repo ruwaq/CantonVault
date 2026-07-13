@@ -1,0 +1,21 @@
+{
+  "name": "cantonvault-cli",
+  "version": "1.0.0",
+  "description": "CLI to interact with CantonVault contracts on the Canton Network DevNet",
+  "type": "module",
+  "bin": {
+    "cantonvault": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc && node dist/index.js",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}
