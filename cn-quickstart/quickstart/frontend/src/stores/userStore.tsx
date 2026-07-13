@@ -1,90 +1,53 @@
-// Copyright (c) 2026, Digital Asset (Switzerland) GmbH and/or its affiliates. All rights reserved.
+// Copyright (c) 2026, CantonVault Hackathon. All rights reserved.
 // SPDX-License-Identifier: 0BSD
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { isAxiosError } from 'axios';
-import { useToast } from './toastStore';
-import api from '../api';
-import { useNavigate } from 'react-router-dom';
-import type { AuthenticatedUser, Client } from "../openapi.d.ts";
+/**
+ * Thin facade over the SWR-based `useAuth` hooks.
+ *
+ * History: this store previously owned a manual `useState(loading)` +
+ * `fetchUser` + `useEffect` fetch cycle. That coupling let a downstream view
+ * (VaultView) call `fetchUser()` on mount, flip `loading=true`, and cause the
+ * RequireAuth guard to unmount and remount it in an infinite loop — generating
+ * enough traffic to trip Cloudflare's abuse limit.
+ *
+ * SWR now owns the lifecycle. This file preserves the `useUserStore()` hook
+ * signature so existing consumers (RequireAuth, Header, LoginView, VaultView)
+ * keep compiling while delegating to the SWR hooks.
+ */
 
-interface UserContextType {
-    user: AuthenticatedUser | null;
+export type { AuthenticatedUser } from '../hooks/useAuth';
+import React from 'react';
+import { useUser, useLogout, refreshUser } from '../hooks/useAuth';
+
+export interface UserContextType {
+    user: ReturnType<typeof useUser>['user'];
     loading: boolean;
-    fetchUser: () => Promise<AuthenticatedUser | null>;
+    fetchUser: (silent?: boolean) => Promise<unknown>;
     clearUser: () => void;
-    logout: () => Promise<void>;
+    logout: ReturnType<typeof useLogout>;
 }
 
-const UserContext = createContext<UserContextType | undefined>(undefined);
+/**
+ * Hook (not a Provider) — SWR's global cache replaces React Context.
+ * Consumers call `useUserStore()` exactly as before.
+ */
+export const useUserStore = (): UserContextType => {
+    const { user, isLoading } = useUser();
+    const logout = useLogout();
 
-export const UserProvider = ({ children }: { children: React.ReactNode }) => {
-    const [user, setUser] = useState<AuthenticatedUser | null>(null);
-    const [loading, setLoading] = useState<boolean>(true);
-    const toast = useToast();
-    const navigate = useNavigate();
-
-    const fetchUser = useCallback(async (): Promise<AuthenticatedUser | null> => {
-        setLoading(true);
-        try {
-            const client: Client = await api.getClient();
-            const response = await client.getAuthenticatedUser();
-            setUser(response.data);
-            return response.data;
-        } catch (error) {
-            if (isAxiosError(error) && error.response?.status === 401) {
-                // 401 = not authenticated, expected when logged out
-                setUser(null);
-                return null;
-            }
-            // Network/CORS/parse errors (e.g. no backend reachable, SPA served
-            // as fallback) — treat as silently unauthenticated instead of
-            // disrupting the UI with an error toast.
-            setUser(null);
-            return null;
-        } finally {
-            setLoading(false);
-        }
-    }, [setUser, setLoading]);
-
-    const clearUser = useCallback(() => {
-        setUser(null);
-    }, [setUser]);
-
-    /** Listen for global 401 interceptors so state is cleared before redirect. */
-    useEffect(() => {
-        const handler = () => clearUser();
-        window.addEventListener('auth:session-expired', handler);
-        return () => window.removeEventListener('auth:session-expired', handler);
-    }, [clearUser]);
-
-    useEffect(() => {
-        void fetchUser();
-    }, [fetchUser]);
-
-
-
-    const logout = useCallback(async () => {
-        try {
-            await api.client.post('/logout');
-            clearUser();
-            navigate('/');
-        } catch {
-            toast.displayError('Error logging out');
-        }
-    }, [clearUser, toast, navigate]);
-
-    return (
-        <UserContext.Provider value={{ user, loading, fetchUser, clearUser, logout }}>
-            {children}
-        </UserContext.Provider>
-    );
+    return {
+        user,
+        loading: isLoading,
+        // fetchUser delegates to SWR's mutate (silent is kept for API compat;
+        // with SWR there is no `loading` flip to worry about either way).
+        fetchUser: (_silent?: boolean) => refreshUser(),
+        clearUser: () => refreshUser(),
+        logout,
+    };
 };
 
-export const useUserStore = () => {
-    const context = useContext(UserContext);
-    if (context === undefined) {
-        throw new Error('useUser must be used within a UserProvider');
-    }
-    return context;
-};
+// Kept for backwards compatibility with App.tsx imports; SWR uses a global
+// cache so this is now a passthrough Fragment.
+export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    <>{children}</>
+);

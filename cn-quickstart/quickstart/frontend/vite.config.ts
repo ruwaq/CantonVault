@@ -4,9 +4,6 @@ import ViteYaml from '@modyfi/vite-plugin-yaml'
 import type { ClientRequest } from 'node:http'
 
 
-import { cloudflare } from "@cloudflare/vite-plugin";
-
-
 function printWelcomeMessage(): Plugin {
   return {
     name: 'print-welcome-message',
@@ -58,7 +55,7 @@ export default defineConfig(({ mode }: ConfigEnv) => {
     setProxyCustomHeaders(authProxy, forwardedPort);
 
     return {
-        plugins: [react(), ViteYaml(), printWelcomeMessage(), cloudflare()],
+        plugins: [react(), ViteYaml(), printWelcomeMessage()],
         server: {
             host: 'localhost',
             strictPort: true,

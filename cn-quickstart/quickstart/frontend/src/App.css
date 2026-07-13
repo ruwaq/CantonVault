@@ -1,41 +1,5 @@
-/* Copyright (c) 2026, Digital Asset (Switzerland) GmbH and/or its affiliates. All rights reserved. */
+/* Copyright (c) 2026, CantonVault Hackathon. All rights reserved. */
 /* SPDX-License-Identifier: 0BSD */
-
-.table.table-fixed {
-  table-layout: fixed;
-  width: 100%;
-}
-
-.ellipsis-cell {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  vertical-align: middle;
-}
-
-.table.nowrap td,
-.table.nowrap th {
-  white-space: nowrap;
-}
-
-.modal-dialog.modal-dialog-centered.auto-width-modal {
-    max-width: 85vw !important; /* remove Bootstrap cap */
-    margin: 1.75rem auto;
-}
-
-.renewals {
-    margin: 20px;
-}
-
-.deadline-passed::after {
-  content: "⚠️";
-  color: var(--status-danger);
-  font-weight: 700;
-  display: inline-block;
-  margin-left: 6px;
-  vertical-align: top;
-  pointer-events: none;
-}
 
 /* Base App Layout */
 .app-container {
@@ -49,71 +13,245 @@
   padding: 2rem 0;
 }
 
-/* Custom Nav Links */
-.nav-link {
-  color: var(--text-muted) !important;
-  font-weight: 500;
-  transition: color var(--transition-fast);
-  padding: 0.5rem 1rem !important;
-  border-radius: var(--radius-sm);
-}
-
-.nav-link:hover, .nav-link.active {
-  color: var(--text-main) !important;
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-.nav-link-vault {
-  color: var(--accent-primary) !important;
-}
-
-/* Stepper (Vault wizard) */
-.stepper-btn {
-  width: 100%;
-  text-align: start;
-  padding: 0.625rem 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  border: 0;
-  border-left: 3px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.stepper-btn:hover {
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--text-main);
-}
-
-.stepper-btn--active {
-  background: var(--accent-glow);
-  color: var(--text-main);
-  border-left: 3px solid var(--accent-primary);
-  box-shadow: var(--shadow-sm);
-}
-
-.stepper-btn-icon {
-  font-size: 1.5rem;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 0.5rem;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-}
-
+/* ── Navigation ── */
 .navbar-brand {
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text-main) !important;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
+  text-decoration: none;
+}
+
+.cv-brand-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.cv-brand-text {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--text-main);
+}
+
+.cv-brand-accent {
+  color: #D4A35B;
+}
+
+.cv-nav-link {
+  position: relative;
+  color: var(--text-muted) !important;
+  font-weight: 600;
+  font-size: 0.92rem;
+  padding: 0.5rem 0.9rem !important;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast);
+  text-decoration: none;
+}
+
+.cv-nav-link:hover { color: var(--text-main) !important; }
+
+.cv-nav-link--active {
+  color: var(--text-main) !important;
+}
+
+.cv-nav-link--active::after {
+  content: "";
+  position: absolute;
+  left: 0.9rem;
+  right: 0.9rem;
+  bottom: 0.15rem;
+  height: 2px;
+  background: var(--accent-primary);
+  border-radius: 1px;
+}
+
+.nav-link-vault {
+  color: var(--accent-primary) !important;
+}
+
+/* Balance badge in header */
+.cv-balance {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+/* ── Vault header (action bar) ── */
+.cv-vault-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.cv-vault-title {
+  font-size: 1.9rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0;
+  background: linear-gradient(135deg, #fff 0%, #a1a1aa 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.cv-vault-party {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.cv-vault-party code {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  color: #c7d2fe;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+.cv-vault-party-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-success);
+  flex-shrink: 0;
+}
+
+/* ── Stepper ── */
+.cv-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.cv-step-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1.1rem;
+  border: var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+  flex: 1 1 200px;
+  min-width: 200px;
+}
+
+.cv-step-pill:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.cv-step-pill--active {
+  border-color: var(--accent-primary);
+  background: rgba(99, 102, 241, 0.1);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.15);
+}
+
+.cv-step-pill-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.cv-step-pill--active .cv-step-pill-num {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #fff;
+}
+
+.cv-step-pill-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.cv-step-pill-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.cv-step-pill--active .cv-step-pill-title { color: var(--text-main); }
+
+.cv-step-pill-icon { font-size: 1rem; }
+
+.cv-step-pill-desc {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.cv-stepper-line {
+  flex: 0 0 24px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0 0.5rem;
+}
+
+/* ── Empty states ── */
+.cv-empty { padding: 3rem 1rem; }
+
+.cv-empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* ── Legacy helpers retained for components still referencing them ── */
+.table.table-fixed { table-layout: fixed; width: 100%; }
+.ellipsis-cell { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; vertical-align: middle; }
+.table.nowrap td, .table.nowrap th { white-space: nowrap; }
+
+.modal-dialog.modal-dialog-centered.auto-width-modal {
+  max-width: 85vw !important;
+  margin: 1.75rem auto;
+}
+
+.renewals { margin: 20px; }
+
+.deadline-passed::after {
+  content: "⚠️";
+  color: var(--status-danger);
+  font-weight: 700;
+  display: inline-block;
+  margin-left: 6px;
+  vertical-align: top;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .cv-stepper { flex-direction: column; align-items: stretch; }
+  .cv-stepper-line { display: none; }
+  .cv-step-pill { width: 100%; }
 }

@@ -5,3 +5,8 @@ declare module '*.yaml' {
     const content: Record<string, unknown>;
     export default content;
 }
+
+declare module '*.svg' {
+    const content: string;
+    export default content;
+}

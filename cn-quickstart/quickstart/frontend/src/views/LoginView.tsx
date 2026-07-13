@@ -1,59 +1,34 @@
 // Copyright (c) 2026, CantonVault Hackathon. All rights reserved.
 // SPDX-License-Identifier: 0BSD
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUserStore } from '../stores/userStore';
-import api from '../api';
-import type { Client, LoginLink } from '../openapi.d.ts';
+import { useUser, useLoginLinks } from '../hooks/useAuth';
 import './login.css';
 
+/**
+ * Login view. The DevNet demo session is stateless: GET /api/authenticated-user
+ * always returns the demo operator, so if the user lands here with a reachable
+ * backend we skip straight into the vault.
+ */
 const LoginView: React.FC = () => {
     const navigate = useNavigate();
-    const { user, loading } = useUserStore();
-    const [loginLinks, setLoginLinks] = useState<LoginLink[]>([]);
-    const [linksLoading, setLinksLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const { user, isLoading } = useUser();
+    const { loginLinks, isLoading: linksLoading } = useLoginLinks();
 
     useEffect(() => {
-        if (!loading && user !== null) {
-            navigate('/home');
+        if (!isLoading && user !== null) {
+            navigate('/vault', { replace: true });
         }
-    }, [loading, user, navigate]);
-
-    useEffect(() => {
-        let active = true;
-
-        const loadLoginLinks = async () => {
-            setLinksLoading(true);
-            try {
-                const client: Client = await api.getClient();
-                const response = await client.listLinks();
-                if (!active) {
-                    return;
-                }
-                setLoginLinks(response.data);
-                setError(response.data.length === 0 ? 'No login providers are configured yet.' : null);
-            } catch {
-                if (active) {
-                    setError('Could not load login providers. Please try again in a moment.');
-                }
-            } finally {
-                if (active) {
-                    setLinksLoading(false);
-                }
-            }
-        };
-
-        void loadLoginLinks();
-
-        return () => {
-            active = false;
-        };
-    }, []);
+    }, [isLoading, user, navigate]);
 
     const startLogin = (url: string) => {
-        window.location.assign(url);
+        // Internal links go through the router; external OAuth URLs hard-navigate.
+        if (url.startsWith('/')) {
+            navigate(url);
+        } else {
+            window.location.assign(url);
+        }
     };
 
     return (
@@ -62,22 +37,24 @@ const LoginView: React.FC = () => {
             <div className="cv-login-card">
                 <div className="cv-login-mark">🔐</div>
                 <h1>CantonVault</h1>
-                <p className="cv-login-sub">Sign in with your organization's identity provider to access CantonVault.</p>
-                {linksLoading ? <p className="cv-login-note">Loading login providers...</p> : null}
-                {error ? <p className="cv-login-error">{error}</p> : null}
-                <div className="cv-login-actions">
-                    {loginLinks.map((link) => (
-                        <button
-                            key={link.url}
-                            className="btn cv-login-enter"
-                            onClick={() => startLogin(link.url)}
-                            type="button"
-                        >
-                            Continue as {link.name}
-                        </button>
-                    ))}
-                </div>
-                <p className="cv-login-note">Authentication is handled server-side via OAuth2/OIDC.</p>
+                <p className="cv-login-sub">Access the privacy-preserving commitment demo on Canton Network.</p>
+                {linksLoading ? (
+                    <p className="cv-login-note">Preparing demo session…</p>
+                ) : (
+                    <div className="cv-login-actions">
+                        {loginLinks.map((link) => (
+                            <button
+                                key={link.url}
+                                className="btn cv-login-enter"
+                                onClick={() => startLogin(link.url)}
+                                type="button"
+                            >
+                                Continue as {link.name}
+                            </button>
+                        ))}
+                    </div>
+                )}
+                <p className="cv-login-note">The demo session is stateless and runs on the Canton DevNet.</p>
             </div>
         </div>
     );

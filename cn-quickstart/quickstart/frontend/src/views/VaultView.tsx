@@ -26,7 +26,7 @@ const WORKFLOWS: { value: Workflow; label: string; hint: string; icon: string }[
 ];
 
 const VaultView: React.FC = () => {
-    const { user, fetchUser } = useUserStore();
+    const { user } = useUserStore();
     const toast = useToast();
     const vault = useVaultStore();
     const [step, setStep] = useState<Step>('propose');
@@ -54,19 +54,10 @@ const VaultView: React.FC = () => {
     const [resolveTarget, setResolveTarget] = useState<string | null>(null);
 
     useEffect(() => {
-        fetchUser();
-        vault.refreshAll();
-        vault.fetchParties();
-        const controller = new AbortController();
-        const poll = async () => {
-            if (controller.signal.aborted) return;
-            await vault.refreshAll();
-            if (!controller.signal.aborted) {
-                setTimeout(poll, 5000);
-            }
-        };
-        void poll();
-        return () => controller.abort();
+        // SWR auto-fetches all vault reads on mount and revalidates on tab focus,
+        // so there is no polling loop here. We only prime the parties list once
+        // (it is static config, doesn't benefit from focus revalidation).
+        void vault.fetchParties();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -113,33 +104,26 @@ const VaultView: React.FC = () => {
     return (
         <div className="pb-5">
             {/* Upper Action Bar */}
-            <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+            <div className="cv-vault-header">
                 <div>
-                    <h2 className="page-title fs-3 fw-bold mb-1">CantonVault Control Hub</h2>
-                    <p className="text-muted small mb-0">Privacy-preserving conditional commitments with native Canton Coin settlement</p>
+                    <h2 className="cv-vault-title">CantonVault</h2>
+                    {myParty && (
+                        <div className="cv-vault-party">
+                            <span className="cv-vault-party-dot" />
+                            <code>{shortParty(myParty)}</code>
+                            <span className="text-muted">· signed party</span>
+                        </div>
+                    )}
                 </div>
-                <div className="d-flex align-items-center gap-2">
-                    <span className="badge bg-primary text-uppercase px-3 py-2 small fw-bold">Selective Disclosure</span>
-                    <button className="btn btn-sm btn-outline-light px-3" onClick={() => vault.refreshAll()} disabled={vault.loading}>
-                        {vault.loading ? (
-                            <>
-                                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                Syncing Ledger...
-                            </>
-                        ) : 'Force Sync'}
-                    </button>
-                </div>
+                <button className="btn btn-sm btn-outline-light px-3" onClick={() => vault.refreshAll()} disabled={vault.loading}>
+                    {vault.loading ? (
+                        <>
+                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            Syncing…
+                        </>
+                    ) : '↻ Sync'}
+                </button>
             </div>
-
-            {myParty && (
-                <div className="alert alert-light py-2 px-3 small border-start border-3 border-primary mb-4 glass-panel d-flex align-items-center justify-content-between">
-                    <div>
-                        <span className="me-2">🔑</span>
-                        Authorized Party ID: <code className="bg-white bg-opacity-10 text-white px-2 py-0.5 rounded">{shortParty(myParty)}</code>
-                    </div>
-                    <span className="text-muted small d-none d-md-inline">Transactions execute under this signature</span>
-                </div>
-            )}
 
             <Stepper step={step} setStep={setStep} />
 
@@ -240,27 +224,24 @@ const Stepper: React.FC<{ step: Step; setStep: (s: Step) => void }> = ({ step, s
         { key: 'settle', label: 'Privacy Lab', icon: '🛡️', desc: 'Verify selective disclosure' },
     ];
     return (
-        <div className="card glass-panel py-3 px-4 mb-4">
-            <div className="row justify-content-between align-items-center g-3">
-                {steps.map((s, idx) => (
-                    <div className="col-md-4 text-center text-md-start" key={s.key}>
-                        <button
-                            className={`stepper-btn ${step === s.key ? 'stepper-btn--active' : ''}`}
-                            onClick={() => setStep(s.key)}
-                        >
-                            <span className="stepper-btn-icon">
-                                {s.icon}
+        <div className="cv-stepper">
+            {steps.map((s, idx) => (
+                <React.Fragment key={s.key}>
+                    <button
+                        className={`cv-step-pill ${step === s.key ? 'cv-step-pill--active' : ''}`}
+                        onClick={() => setStep(s.key)}
+                    >
+                        <span className="cv-step-pill-num">{idx + 1}</span>
+                        <span className="cv-step-pill-body">
+                            <span className="cv-step-pill-title">
+                                <span className="cv-step-pill-icon">{s.icon}</span> {s.label}
                             </span>
-                            <div>
-                                <div className={`fw-bold small ${step === s.key ? 'text-white' : 'text-muted'}`}>
-                                    {idx + 1}. {s.label}
-                                </div>
-                                <div className="xsmall text-muted">{s.desc}</div>
-                            </div>
-                        </button>
-                    </div>
-                ))}
-            </div>
+                            <span className="cv-step-pill-desc">{s.desc}</span>
+                        </span>
+                    </button>
+                    {idx < steps.length - 1 && <span className="cv-stepper-line" />}
+                </React.Fragment>
+            ))}
         </div>
     );
 };
@@ -275,8 +256,8 @@ interface ProposeStepProps {
     proposals: VaultContract<{ description: string; amount: number; currency: string; workflow: Workflow }>[];
     myParty: string;
     parties: PartyDescriptor[];
-    onAccept: (id: string) => Promise<void>;
-    onReject: (id: string) => Promise<void>;
+    onAccept: (id: string) => Promise<unknown>;
+    onReject: (id: string) => Promise<unknown>;
     pendingAction: { cid: string; action: string } | null;
     accepterMode: 'select' | 'custom';
     setAccepterMode: React.Dispatch<React.SetStateAction<'select' | 'custom'>>;
@@ -428,10 +409,10 @@ const ProposeStep: React.FC<ProposeStepProps> = ({
                 </div>
                 <div className="card-body pt-3">
                     {proposals.length === 0 ? (
-                        <div className="text-center py-5 text-muted">
-                            <div className="fs-1 mb-3">📭</div>
-                            <h6 className="fw-semibold text-white">No pending proposals</h6>
-                            <p className="small mb-0 max-width-320 mx-auto text-muted">Create a proposal on the left or wait for one to arrive from another node.</p>
+                        <div className="text-center py-5 text-muted cv-empty">
+                            <div className="cv-empty-icon">←</div>
+                            <h6 className="fw-semibold text-white">No proposals yet</h6>
+                            <p className="small mb-0 max-width-320 mx-auto text-muted">Fill the form on the left and submit to create your first private commitment on-ledger.</p>
                         </div>
                     ) : (
                         <div className="d-flex flex-column gap-3">
@@ -514,10 +495,10 @@ const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, on
                     </div>
                     <div className="card-body pt-3">
                         {commitments.length === 0 ? (
-                            <div className="text-center py-5 text-muted">
-                                <div className="fs-1 mb-3">🤝</div>
+                            <div className="text-center py-5 text-muted cv-empty">
+                                <div className="cv-empty-icon">🤝</div>
                                 <h6 className="fw-semibold text-white">No active commitments</h6>
-                                <p className="small mb-0 max-width-320 mx-auto text-muted">Accept a private proposal in Step 1 to move the deal into an active commitment contract.</p>
+                                <p className="small mb-0 max-width-320 mx-auto text-muted">Accept a proposal in Step 1 to move a deal into an active commitment contract.</p>
                             </div>
                         ) : (
                             <div className="d-flex flex-column gap-3">
@@ -602,8 +583,8 @@ const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, on
                     </div>
                     <div className="card-body pt-3">
                         {disputes.length === 0 ? (
-                            <div className="text-center py-5 text-muted">
-                                <div className="fs-1 mb-3 text-opacity-50">🛡️</div>
+                            <div className="text-center py-5 text-muted cv-empty">
+                                <div className="cv-empty-icon">🛡️</div>
                                 <h6 className="fw-semibold text-white">Ledger is clean</h6>
                                 <p className="small mb-0 max-width-300 mx-auto text-muted">No open disputes. The arbitrator has zero exposure to any active agreements.</p>
                             </div>

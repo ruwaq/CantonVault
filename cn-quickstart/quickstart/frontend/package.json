@@ -6,10 +6,11 @@
   "scripts": {
     "gen:openapi": "npx --yes openapicmd typegen --client ../common/openapi.yaml >| src/openapi.d.ts",
     "dev": "vite",
-    "build": "npm run gen:openapi && tsc -b --noEmit && vite build",
+    "build": "npm run gen:openapi && tsc -b --noEmit && vite build && npm run copy:functions",
+    "copy:functions": "cp -R functions dist/functions",
     "lint": "eslint .",
-    "preview": "npm run build && wrangler dev",
-    "deploy": "npm run build && wrangler deploy"
+    "preview": "npm run build && wrangler pages dev dist --compatibility-flags nodejs_compat",
+    "deploy": "npm run build && wrangler pages deploy dist"
   },
   "dependencies": {
     "@modyfi/vite-plugin-yaml": "^1.1.1",
@@ -19,6 +20,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.3",
+    "swr": "^2.4.2",
     "uuid": "^14.0.1"
   },
   "devDependencies": {
