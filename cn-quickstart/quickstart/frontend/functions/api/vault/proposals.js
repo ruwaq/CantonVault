@@ -32,20 +32,21 @@ export const onRequest = async (context) => {
       }
 
       const result = await submitCreate('Vault.CommitmentProposal:CommitmentProposal', {
+        // `||` (not `??`) so empty strings from the frontend fall back to PARTY.
         proposer: PARTY,
-        accepter: String(body.accepter ?? PARTY),
-        thirdParty: String(body.thirdParty ?? PARTY),
+        accepter: String(body.accepter || PARTY),
+        thirdParty: String(body.thirdParty || PARTY),
         amount,
-        currency: String(body.currency ?? 'CC'),
+        currency: String(body.currency || 'CC'),
         description,
-        workflow: String(body.workflow ?? 'supply-chain-finance'),
-        deadline: String(body.deadline ?? '2026-12-31T23:59:59Z'),
+        workflow: String(body.workflow || 'supply-chain-finance'),
+        deadline: String(body.deadline || '2026-12-31T23:59:59Z'),
         instrumentAdmin: PARTY,
         realSettlementRequired: false,
       });
 
       return Response.json({
-        contractId: result.updateId,
+        contractId: result.contractId,
         payload: { ...body, amount, description },
         updateId: result.updateId,
         offset: result.completionOffset,

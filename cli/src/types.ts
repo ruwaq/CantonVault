@@ -11,7 +11,7 @@ export type Workflow =
   | 'invoice-financing'
   | 'otc-block-trade';
 
-/** A Canton party ID, e.g. "5nsandbox-devnet-2::1220a14ca128...". */
+/** A Canton party ID, e.g. "cancore::1220a14ca128...". */
 export type PartyId = string;
 
 /** A Canton package ID (hash), e.g. "1ab77b2b85ac4f9bf...". */
@@ -23,10 +23,13 @@ export type ContractId = string;
 /** Ledger offset (a Long serialized as string). */
 export type LedgerOffset = number;
 
-/** Result of submitting a command — the tx hash + where it landed. */
+/** Result of submitting a command — the tx hash + where it landed + created contractId. */
 export interface SubmitResult {
   updateId: string;
   completionOffset: LedgerOffset;
+  /** The real on-ledger contractId of a contract created by this command (if any).
+   *  Extracted from the CreatedEvent; undefined for exercises that only archive. */
+  contractId?: string;
 }
 
 /** The full CommitmentProposal template payload. */
@@ -60,7 +63,7 @@ export const DEVNET_CONFIG: LedgerConfig = {
   clientId: 'validator-devnet-m2m',
   clientSecret:
     'r69FQmevLRwEgMB8NnKaSDHPewTOSx7Yy5jucsqAlmsAaJc3DlggedCz4tyyonl4W2WoOVzkUIjy8dHTlc16AOJQzx02QzJylAUG56oLTCoVCJUUK40vRv9CqQEY3fjn',
-  party: '5nsandbox-devnet-2::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8',
+  party: 'cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8',
   synchronizerId: 'wallet::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8',
 };
 

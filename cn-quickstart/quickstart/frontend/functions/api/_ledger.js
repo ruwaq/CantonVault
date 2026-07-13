@@ -7,7 +7,7 @@ const CLIENT_ID = 'validator-devnet-m2m';
 const CLIENT_SECRET =
   'r69FQmevLRwEgMB8NnKaSDHPewTOSx7Yy5jucsqAlmsAaJc3DlggedCz4tyyonl4W2WoOVzkUIjy8dHTlc16AOJQzx02QzJylAUG56oLTCoVCJUUK40vRv9CqQEY3fjn';
 const PARTY =
-  '5nsandbox-devnet-2::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
+  'cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
 const SYNCHRONIZER_ID =
   'wallet::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
 const PKG = 'cantonvault-contracts';
@@ -67,22 +67,52 @@ export async function ledgerEnd() {
   return (await ledgerGet('/v2/state/ledger-end')).offset;
 }
 
+// Canton 3.5 JSON Ledger API command submission. We use submit-and-wait-for-transaction
+// (not submit-and-wait) because only the former returns the full event list, which is how
+// we recover the REAL contractId of a created contract — submit-and-wait returns only
+// {updateId, completionOffset}, and updateId is the tx hash, NOT a usable contractId.
+//
+// The request body is wrapped as { commands: { ... }, transactionShape } per the 3.5 schema.
+function buildCommandEnvelope(commands) {
+  return {
+    commands: {
+      applicationId: 'AppId',
+      commandId: `cv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      actAs: [PARTY],
+      readAs: [PARTY],
+      commands,
+      transactionShape: 'CURRENT_LEDGER_END',
+    },
+    workflowId: 'cantonvault',
+  };
+}
+
+// Extract the first CreatedEvent contractId from a submit-and-wait-for-transaction response.
+// The ledger returns events as [{CreatedEvent: {...}} | {ArchivedEvent: {...}} | {ExercisedEvent: {...}}].
+function extractCreatedContractId(txResponse) {
+  const events = txResponse?.transaction?.events ?? [];
+  for (const e of events) {
+    if (e.CreatedEvent?.contractId) return e.CreatedEvent.contractId;
+  }
+  return null;
+}
+
 export async function submitCreate(template, args) {
-  return ledgerPost('/v2/commands/submit-and-wait', {
-    applicationId: 'AppId',
-    commandId: `cv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    actAs: [PARTY],
-    readAs: [PARTY],
-    commands: [
-      {
-        CreateCommand: {
-          templateId: `#${PKG}:${template}`,
-          createArguments: args,
-        },
+  const tx = await ledgerPost('/v2/commands/submit-and-wait-for-transaction', buildCommandEnvelope([
+    {
+      CreateCommand: {
+        templateId: `#${PKG}:${template}`,
+        createArguments: args,
       },
-    ],
-    transactionFormat: { synchronizerId: SYNCHRONIZER_ID },
-  });
+    },
+  ]));
+  // Return both the tx-level updateId/offset (proves it landed) and the created
+  // contractId (needed to exercise subsequent choices on this contract).
+  return {
+    updateId: tx.transaction?.updateId ?? tx.updateId,
+    completionOffset: tx.transaction?.offset ?? tx.completionOffset,
+    contractId: extractCreatedContractId(tx),
+  };
 }
 
 // Exercise a choice on an existing contract (Canton 3.5 JSON Ledger API).
@@ -90,23 +120,23 @@ export async function submitCreate(template, args) {
 // the package prefix is added here. `argument` is the choice's record payload
 // (may be empty {}), serialized under the `choiceArgument` field per the 3.5 spec.
 export async function submitExercise(template, contractId, choice, argument) {
-  return ledgerPost('/v2/commands/submit-and-wait', {
-    applicationId: 'AppId',
-    commandId: `cv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    actAs: [PARTY],
-    readAs: [PARTY],
-    commands: [
-      {
-        ExerciseCommand: {
-          templateId: `#${PKG}:${template}`,
-          contractId,
-          choice,
-          choiceArgument: argument,
-        },
+  const tx = await ledgerPost('/v2/commands/submit-and-wait-for-transaction', buildCommandEnvelope([
+    {
+      ExerciseCommand: {
+        templateId: `#${PKG}:${template}`,
+        contractId,
+        choice,
+        choiceArgument: argument,
       },
-    ],
-    transactionFormat: { synchronizerId: SYNCHRONIZER_ID },
-  });
+    },
+  ]));
+  // Choices like AcceptProposal/Fulfill create a new contract (CommitmentContract /
+  // SettlementReceipt). Return that new contractId so the caller can act on it.
+  return {
+    updateId: tx.transaction?.updateId ?? tx.updateId,
+    completionOffset: tx.transaction?.offset ?? tx.completionOffset,
+    contractId: extractCreatedContractId(tx),
+  };
 }
 
 // Read active contracts from the ACS filtered by templateId(s).

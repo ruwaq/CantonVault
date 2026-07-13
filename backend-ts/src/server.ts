@@ -138,20 +138,21 @@ app.post('/api/vault/proposals', async (req, res) => {
 
     const result = await ledger.proposeProposal({
       proposer: DEVNET_CONFIG.party,
+      // `||` so empty strings fall back to the demo party (frontend sends "" when unset).
       accepter: body.accepter?.trim() || DEVNET_CONFIG.party,
       thirdParty: body.thirdParty?.trim() || DEVNET_CONFIG.party,
       amount,
-      currency: String(body.currency ?? 'CC'),
+      currency: String(body.currency || 'CC'),
       description,
-      workflow: (body.workflow ?? 'supply-chain-finance') as Workflow,
-      deadline: body.deadline ?? '2026-12-31T23:59:59Z',
+      workflow: (body.workflow || 'supply-chain-finance') as Workflow,
+      deadline: body.deadline || '2026-12-31T23:59:59Z',
       instrumentAdmin: DEVNET_CONFIG.party,
       realSettlementRequired: false,
     });
 
     console.log(`Proposal created: ${result.updateId} at offset ${result.completionOffset}`);
     res.status(201).json({
-      contractId: result.updateId,
+      contractId: result.contractId ?? result.updateId,
       payload: { ...body, amount, description },
       updateId: result.updateId,
       offset: result.completionOffset,

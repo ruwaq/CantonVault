@@ -137,8 +137,10 @@ program
       console.log('\n✅ CommitmentProposal created on Canton DevNet\n');
       console.log(`  updateId:    ${result.updateId}`);
       console.log(`  offset:      ${result.completionOffset}`);
+      console.log(`  contractId:  ${result.contractId ?? '(not extracted)'}`);
       console.log(`  amount:      ${opts.amount} ${opts.currency}`);
       console.log(`  description: ${opts.description}`);
+      console.log(`\n  To accept: cantonvault accept "${result.contractId ?? '<contractId>'}"`);
     } catch (err) {
       console.error('❌ Propose failed:', (err as Error).message);
       process.exit(1);

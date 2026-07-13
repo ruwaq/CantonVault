@@ -187,7 +187,7 @@ CantonVault smart contracts are compiled, vetted, and **actively deployed on-led
 *   **Ledger API Endpoint**: `https://ledger-api.validator.devnet.sandbox.fivenorth.io/`
 *   **Auth Mechanism**: OAuth2 Client Credentials (`validator-devnet-m2m`)
 *   **Synchronizer Network**: Canton Network DevNet (splice v0.6.12, Canton 3.5.7)
-*   **Active Party ID**: `5nsandbox-devnet-2::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8`
+*   **Active Party ID**: `cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8`
 
 ### On-Ledger Tx Proofs (July 2026)
 We successfully processed **52,500 CC (Canton Coins)** across all three workflow scenarios:

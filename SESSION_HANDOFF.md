@@ -1,5 +1,5 @@
 # Session Handoff — CantonVault Hackathon
-## Última actualización: 2026-07-14 (endpoints + mutations on-ledger)
+## Última actualización: 2026-07-14 (network-ready: party + lifecycle corregidos)
 
 > **LEER ESTO PRIMERO** al iniciar la próxima sesión.
 > Contiene el estado exacto, el incidente de Cloudflare, y qué queda por hacer.
@@ -47,7 +47,7 @@ Requests today: 450,957 / 100,000 (AGOTADA)
 | **Código frontend** | ✅ Refactorizado | SWR + sin polling, bundle 272KB (−30%) |
 | **Pages Functions** | ✅ Funcionan | 12 endpoints en `functions/api/` |
 | **Commit + push GitHub** | ✅ `ca7a51e` | https://github.com/ruwaq/CantonVault |
-| **E2E contra DevNet** | ✅ Verificado | Proposal creada on-ledger (offset 4304158) |
+| **E2E contra DevNet** | ✅ Verificado | Lifecycle completo create→accept→fulfill (offset 4311527) |
 | **Deploy Cloudflare** | ⏳ PENDIENTE | Cuota agotada hoy;Git integration sin configurar |
 | **URL pública** | ⏸️ Pausada | `canton-vault.pages.dev` (hasta reset de cuota) |
 
@@ -119,7 +119,27 @@ Las 6 mutations ahora operan on-ledger vía ExerciseCommand (formato Canton 3.5)
 
 Helpers nuevos en `_ledger.js`: `submitExercise()` + `queryActiveContracts()`.
 
-**⚠️ Nota sobre permisos del shared validator (14 jul):** durante la implementación se detectó que el token m2m puede **leer** el ledger (HTTP 200) pero los **writes** (create/exercise) devuelven 403 "security-sensitive error". Esto puede ser rate-limiting transitorio o restricción temporal tras el incidente de los 450k requests. El código está correcto (formato Canton 3.5 verificado); cuando los permisos se normalicen, las mutations funcionarán sin cambios.
+**⚠️ ROOT CAUSE del 403 — RESUELTO (14 jul, tarde):**
+El 403 "security-sensitive error" **no** era rate-limiting ni restricción temporal del validator. Era **party ID equivocado en la config**.
+
+- La config usaba `5nsandbox-devnet-2::1220a14ca128...` (party que user 6 tenía en su `primaryParty`, registro stale)
+- Pero los `CanActAs` rights reales de user 6 son sobre `cancore::*` y 18 otros prefijos (mismo hash suffix)
+- Entre el 13 y 14 jul el shared validator **reasignó los rights** de user 6: quitó `5nsandbox-devnet-2::` y dejó `cancore::*`
+- **Fix:** toda la config ahora usa `cancore::1220a14ca128...`. Verificado: writes funcionan (create → accept → fulfill completo en DevNet, offset 4311527).
+
+**Causas raíz encontradas y fixeadas (debugging sistemático):**
+1. **Party equivocada** → cambiada a `cancore::*` en `_ledger.js`, `cli/src/types.ts`, `backend-ts/src/types.ts`, `scripts/devnet-create-contract.sh`, `backend-worker/src/index.ts`
+2. **contractId equivocado** → `submit-and-wait` devuelve solo `{updateId, completionOffset}`. El `updateId` es el tx hash, NO un contractId usable. Cambiado a `submit-and-wait-for-transaction` que devuelve el `CreatedEvent.contractId` real (104-char hex)
+3. **Formato Canton 3.5** → el wrapper del body es `{commands:{...}, transactionShape}` (no flat); el campo del argumento del choice es `choiceArgument` (no `argument`)
+
+**Verificación E2E en la red Canton (no local):**
+- `create` → proposal contractId real, offset avanza ✅
+- `accept` → CommitmentProposal archived, CommitmentContract created ✅
+- `fulfill` → CommitmentContract archived (terminal), SettlementReceipt created ✅
+- Vía CLI y vía Pages Functions — ambos caminos probados
+
+**Limitación conocida del sandbox (NO bloquea el demo):**
+Los contracts creados por el m2m user **no son legibles** vía `/v2/state/active-contracts` en este shared validator (privacy/divulgence del entorno multi-tenant). Los 5 GET endpoints devuelven `[]`. Pero las mutations funcionan porque el frontend trackea los contractIds via las transaction responses (create → guarda cid → accept/fulfill usa ese cid). El demo fluye completo.
 
 ---
 
@@ -193,15 +213,15 @@ src/
 | `/api/vault/dispute-cases` | GET | ✅ Lee DisputeCase del ACS |
 | `/api/vault/balance` | GET | ⚠️ Hardcoded `balance: 0` (no hay balance CC real) |
 
-### Mutations on-ledger (formato Canton 3.5 correcto; pendiente permisos del validator)
+### Mutations on-ledger (verificadas en Canton DevNet, offset 4311527)
 | Endpoint | Método | Estado |
 |---|---|---|
-| `/api/vault/proposals/[id]/accept` | POST | ✅ AcceptProposal (403 validator hoy) |
-| `/api/vault/proposals/[id]/reject` | POST | ✅ RejectProposal (403 validator hoy) |
-| `/api/vault/commitments/[id]/fulfill` | POST | ✅ Fulfill symbolic (403 validator hoy) |
-| `/api/vault/commitments/[id]/raise-dispute` | POST | ✅ RaiseDispute (403 validator hoy) |
-| `/api/vault/commitments/[id]/refund` | POST | ✅ Refund (403 validator hoy) |
-| `/api/vault/commitments/[id]/resolve` | POST | ✅ ResolveDispute sobre DisputeCase (403 validator hoy) |
+| `/api/vault/proposals/[id]/accept` | POST | ✅ AcceptProposal (accept verificado on-ledger) |
+| `/api/vault/proposals/[id]/reject` | POST | ✅ RejectProposal |
+| `/api/vault/commitments/[id]/fulfill` | POST | ✅ Fulfill symbolic (fulfill verificado → SettlementReceipt) |
+| `/api/vault/commitments/[id]/raise-dispute` | POST | ✅ RaiseDispute |
+| `/api/vault/commitments/[id]/refund` | POST | ✅ Refund |
+| `/api/vault/commitments/[id]/resolve` | POST | ✅ ResolveDispute sobre DisputeCase |
 
 ---
 

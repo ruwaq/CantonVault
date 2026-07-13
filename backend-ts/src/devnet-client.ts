@@ -145,60 +145,76 @@ export class CantonVaultClient {
   // ── Low-level Ledger API v2 helpers ─────────────────────────────────────
 
   /**
-   * Submit a Create command and wait for completion.
-   * Handles the Canton 3.5 JSON Ledger API format (CreateCommand wrapper,
-   * string templateId, transactionFormat.synchronizerId).
+   * Build the Canton 3.5 command envelope. We use submit-and-wait-for-transaction
+   * (not submit-and-wait) because only the former returns the CreatedEvent, which
+   * is how we recover the REAL contractId of a created contract — submit-and-wait
+   * returns only {updateId, completionOffset}, and updateId is the tx hash, NOT a
+   * usable contractId. The body is wrapped as { commands: {...}, transactionShape }.
    */
-  private async submitCreate(template: string, args: Record<string, unknown>): Promise<SubmitResult> {
-    const commandId = `cv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const body = {
-      applicationId: 'AppId',
-      commandId,
-      actAs: [this.party],
-      readAs: [this.party],
-      commands: [
-        {
-          CreateCommand: {
-            templateId: `#${CANTONVAULT_PACKAGE}:${template}`,
-            createArguments: args,
-          },
-        },
-      ],
-      transactionFormat: {
-        synchronizerId: this.synchronizerId,
+  private buildEnvelope(commands: unknown[]): Record<string, unknown> {
+    return {
+      commands: {
+        applicationId: 'AppId',
+        commandId: `cv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        actAs: [this.party],
+        readAs: [this.party],
+        commands,
+        transactionShape: 'CURRENT_LEDGER_END',
       },
+      workflowId: 'cantonvault',
     };
-    return this.post('/v2/commands/submit-and-wait', body);
   }
 
-  /** Submit an Exercise command on an existing contract. */
+  /** Pull the first CreatedEvent contractId out of a submit-and-wait-for-transaction response. */
+  private extractCreatedContractId(tx: any): string | undefined {
+    const events = tx?.transaction?.events ?? [];
+    for (const e of events) {
+      if (e?.CreatedEvent?.contractId) return e.CreatedEvent.contractId as string;
+    }
+    return undefined;
+  }
+
+  /** Submit a Create command and wait for the transaction, returning the created contractId. */
+  private async submitCreate(template: string, args: Record<string, unknown>): Promise<SubmitResult> {
+    const body = this.buildEnvelope([
+      {
+        CreateCommand: {
+          templateId: `#${CANTONVAULT_PACKAGE}:${template}`,
+          createArguments: args,
+        },
+      },
+    ]);
+    const tx = await this.post<any>('/v2/commands/submit-and-wait-for-transaction', body);
+    return {
+      updateId: tx?.transaction?.updateId ?? '',
+      completionOffset: tx?.transaction?.offset ?? 0,
+      contractId: this.extractCreatedContractId(tx),
+    };
+  }
+
+  /** Submit an Exercise command on an existing contract (Canton 3.5: choiceArgument field). */
   private async submitExercise(
     template: string,
     contractId: ContractId,
     choice: string,
     args: Record<string, unknown>,
   ): Promise<SubmitResult> {
-    const commandId = `cv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const body = {
-      applicationId: 'AppId',
-      commandId,
-      actAs: [this.party],
-      readAs: [this.party],
-      commands: [
-        {
-          ExerciseCommand: {
-            templateId: `#${CANTONVAULT_PACKAGE}:${template}`,
-            contractId,
-            choice,
-            argument: args,
-          },
+    const body = this.buildEnvelope([
+      {
+        ExerciseCommand: {
+          templateId: `#${CANTONVAULT_PACKAGE}:${template}`,
+          contractId,
+          choice,
+          choiceArgument: args,
         },
-      ],
-      transactionFormat: {
-        synchronizerId: this.synchronizerId,
       },
+    ]);
+    const tx = await this.post<any>('/v2/commands/submit-and-wait-for-transaction', body);
+    return {
+      updateId: tx?.transaction?.updateId ?? '',
+      completionOffset: tx?.transaction?.offset ?? 0,
+      contractId: this.extractCreatedContractId(tx),
     };
-    return this.post('/v2/commands/submit-and-wait', body);
   }
 
   // ── HTTP helpers ────────────────────────────────────────────────────────

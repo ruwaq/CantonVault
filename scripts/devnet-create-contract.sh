@@ -18,7 +18,7 @@ AUTH_URL="https://auth.sandbox.fivenorth.io/application/o/token/"
 CLIENT_ID="validator-devnet-m2m"
 CLIENT_SECRET="r69FQmevLRwEgMB8NnKaSDHPewTOSx7Yy5jucsqAlmsAaJc3DlggedCz4tyyonl4W2WoOVzkUIjy8dHTlc16AOJQzx02QzJylAUG56oLTCoVCJUUK40vRv9CqQEY3fjn"
 # Party of the m2m shared validator user (otc-canton-fund-oauth, sub=6)
-MY_PARTY="5nsandbox-devnet-2::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8"
+MY_PARTY="cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8"
 SYNCHRONIZER_ID="wallet::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8"
 CMD_ID="cantonvault-$(date +%s)"
 
