@@ -1,0 +1,14 @@
+{
+  "name": "cantonvault-backend-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker backend — bridges CantonVault frontend to Canton Network DevNet",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241205.0",
+    "wrangler": "^3.95.0"
+  }
+}

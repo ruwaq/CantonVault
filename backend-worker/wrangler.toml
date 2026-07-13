@@ -1,0 +1,10 @@
+name = "cantonvault-backend"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Routes are auto-generated: cantonvault-backend.<your-subdomain>.workers.dev
+# Or bind a custom domain via the Cloudflare dashboard.
+
+[observability]
+enabled = true

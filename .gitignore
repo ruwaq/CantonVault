@@ -84,6 +84,8 @@ cn-quickstart/**
 !cn-quickstart/quickstart/frontend/vite.config.ts
 !cn-quickstart/quickstart/frontend/src/
 !cn-quickstart/quickstart/frontend/src/**
+!cn-quickstart/quickstart/frontend/functions/
+!cn-quickstart/quickstart/frontend/functions/**
 
 # === Plan de hardening 2026-07-02: archivos nuevos a trackear ===
 # (ver docs/superpowers/plans/2026-07-02-production-hardening.md)
