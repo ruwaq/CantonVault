@@ -16,7 +16,7 @@ const ToastNotification: React.FC = () => {
 
     return (
         <div
-            className="position-fixed mt3 start-50 translate-middle-x"
+            className="position-fixed mt-3 start-50 translate-middle-x"
             style={{ zIndex: 2000, top: "3rem" }}
         >
             <div

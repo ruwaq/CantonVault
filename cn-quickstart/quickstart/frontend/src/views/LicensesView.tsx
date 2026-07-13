@@ -7,6 +7,7 @@ import { useUserStore } from '../stores/userStore';
 import LicenseRenewalRequestModal from '../components/LicenseRenewalRequestModal.tsx';
 import LicenseArchiveModal from '../components/LicenseExpireModal.tsx';
 import { formatDateTime } from '../utils/format';
+import { shortParty } from '../utils/party';
 
 import type {
   License,
@@ -99,62 +100,115 @@ const LicensesView: React.FC = () => {
 
 
   return (
-    <div>
-      <h2>Licenses</h2>
-      <table className="table table-fixed" id="licenses-table">
-        <thead>
-          <tr>
-            <th style={{ width: '220px' }}>License Contract ID</th>
-            {user?.isAdmin && (
-              <th style={{ width: '150px' }}>User</th>
-            )}
-            <th style={{ width: '200px' }}>Expires At</th>
-            <th style={{ width: '110px' }}>License #</th>
-            <th style={{ width: '100px' }}>Pending Renewals</th>
-            <th style={{ width: '100px' }}>Accepted Renewals</th>
-            <th style={{ width: '130px' }}>Status</th>
-            <th style={{ width: '300px' }}>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {licenses.map((license) => {
-            return (
-              <tr key={license.contractId} className="license-row">
-                <td className="ellipsis-cell license-contract-id">{license.contractId}</td>
-                {user?.isAdmin && (
-                  <td className="ellipsis-cell license-user">{license.user}</td>
-                )}
-                <td className={`ellipsis-cell license-expires-at ${license.isExpired && 'deadline-passed'}`}>
-                  {formatDateTime(license.expiresAt)}
-                </td>
-                <td className="ellipsis-cell license-number">{license.licenseNum}</td>
-                <td className="ellipsis-cell">{license.renewalRequests?.filter(r => !r.allocationCid).length || 0}</td>
-                <td className="ellipsis-cell">{license.renewalRequests?.filter(r => r.allocationCid).length || 0}</td>
-                <td className="ellipsis-cell license-status">{license.isExpired ? 'EXPIRED' : 'ACTIVE'}</td>
-                <td className="license-actions">
-                  {(isAdmin || (license.renewalRequests?.length ?? 0) > 0) && (
-                    <button
-                      className="btn btn-primary btn-actions-license"
-                      onClick={() => openRenewalModal(license.contractId)}
-                    >
-                      Renewals
-                    </button>
-                  )
-                  }
-                  {license.expiresAt && license.isExpired && (
-                    <button
-                      className="btn btn-danger btn-expire-license"
-                      onClick={() => openArchiveModal(license.contractId)}
-                    >
-                      Archive
-                    </button>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="pb-5">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 className="page-title fs-3 fw-bold mb-1">Daml App Licenses</h2>
+          <p className="text-muted small mb-0">Monitor contract expiry, initiate renewals, and archive expired app leases</p>
+        </div>
+      </div>
+
+      <div className="card glass-panel">
+        <div className="card-header bg-transparent border-bottom border-secondary border-opacity-20 pb-3 d-flex justify-content-between align-items-center">
+          <h5 className="mb-0 fw-bold d-flex align-items-center gap-2">
+            <span>📜</span> License Ledger
+          </h5>
+          {licenses.length > 0 && (
+            <span className="badge bg-primary px-2">{licenses.length} registered</span>
+          )}
+        </div>
+        <div className="card-body pt-3">
+          {licenses.length === 0 ? (
+            <div className="text-center py-5 text-muted">
+              <div className="fs-1 mb-3">📇</div>
+              <h6 className="fw-semibold text-white">No active licenses</h6>
+              <p className="small mb-0">Configure your application to issue and manage digital licenses.</p>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table align-middle" id="licenses-table">
+                <thead>
+                  <tr>
+                    <th>License Contract ID</th>
+                    {user?.isAdmin && <th>User</th>}
+                    <th>Expires At</th>
+                    <th>License #</th>
+                    <th>Pending Renew</th>
+                    <th>Accepted Renew</th>
+                    <th>Status</th>
+                    <th className="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {licenses.map((license) => {
+                    const isExpired = license.isExpired;
+                    const pendingRenewalsCount = license.renewalRequests?.filter(r => !r.allocationCid).length || 0;
+                    const acceptedRenewalsCount = license.renewalRequests?.filter(r => r.allocationCid).length || 0;
+                    
+                    return (
+                      <tr key={license.contractId} className="license-row">
+                        <td className="font-monospace small license-contract-id" title={license.contractId}>
+                          {shortParty(license.contractId)}
+                        </td>
+                        {user?.isAdmin && (
+                          <td className="ellipsis-cell license-user" title={license.user}>
+                            {shortParty(license.user)}
+                          </td>
+                        )}
+                        <td className={`license-expires-at ${isExpired ? 'text-danger fw-semibold deadline-passed' : 'text-muted'}`}>
+                          {formatDateTime(license.expiresAt)}
+                        </td>
+                        <td className="font-monospace small license-number">{license.licenseNum}</td>
+                        <td>
+                          {pendingRenewalsCount > 0 ? (
+                            <span className="badge bg-warning text-dark">{pendingRenewalsCount}</span>
+                          ) : (
+                            <span className="text-muted">0</span>
+                          )}
+                        </td>
+                        <td>
+                          {acceptedRenewalsCount > 0 ? (
+                            <span className="badge bg-success">{acceptedRenewalsCount}</span>
+                          ) : (
+                            <span className="text-muted">0</span>
+                          )}
+                        </td>
+                        <td className="license-status">
+                          {isExpired ? (
+                            <span className="badge bg-danger">EXPIRED</span>
+                          ) : (
+                            <span className="badge bg-success">ACTIVE</span>
+                          )}
+                        </td>
+                        <td className="license-actions text-end">
+                          <div className="btn-group" role="group">
+                            {(isAdmin || (license.renewalRequests?.length ?? 0) > 0) && (
+                              <button
+                                className="btn btn-sm btn-primary btn-actions-license fw-semibold"
+                                onClick={() => openRenewalModal(license.contractId)}
+                              >
+                                Renewals
+                              </button>
+                            )}
+                            {license.expiresAt && isExpired && (
+                              <button
+                                className="btn btn-sm btn-danger btn-expire-license fw-semibold"
+                                onClick={() => openArchiveModal(license.contractId)}
+                              >
+                                Archive
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
 
       <LicenseRenewalRequestModal
         show={showRenewalModal && !!selectedLicense}

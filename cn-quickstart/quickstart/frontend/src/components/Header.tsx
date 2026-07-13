@@ -8,11 +8,11 @@ import { useVaultStore } from '../stores/vaultStore';
 
 const Header: React.FC = () => {
     return (
-        <header>
-            <nav className="navbar navbar-expand-lg navbar-light bg-light">
-                <div className="container-fluid">
+        <header className="sticky-top">
+            <nav className="navbar navbar-expand-lg glass-nav py-3">
+                <div className="container">
                     <a className="navbar-brand" href="#">
-                        Canton Network Quickstart
+                        <span className="fs-4">🏦</span> CantonVault
                     </a>
                     <div>
                         <button
@@ -30,9 +30,9 @@ const Header: React.FC = () => {
                     <div className="collapse navbar-collapse" id="navbarNav">
                         <AuthenticatedLinks />
                     </div>
-                </div>
-                <div>
-                    <UserSection />
+                    <div className="d-none d-lg-flex">
+                        <UserSection />
+                    </div>
                 </div>
             </nav>
         </header>
@@ -44,25 +44,25 @@ const AuthenticatedLinks: React.FC = () => {
 
     if (loading || user === null) {
         return (
-            <ul className="navbar-nav me-auto mb-2 mb-lg-0">
+            <ul className="navbar-nav ms-4 mb-2 mb-lg-0 gap-2">
                 <li className="nav-item"><span className="nav-link text-muted">Loading…</span></li>
             </ul>
         );
     }
 
     return (
-        <ul className="navbar-nav me-auto mb-2 mb-lg-0">
+        <ul className="navbar-nav ms-4 mb-2 mb-lg-0 gap-2">
             <li className="nav-item">
                 <Link className="nav-link" to="/home">Home</Link>
             </li>
             <li className="nav-item">
-                <Link className="nav-link" to="/app-installs">AppInstalls</Link>
+                <Link className="nav-link" to="/app-installs">Apps</Link>
             </li>
             <li className="nav-item">
                 <Link className="nav-link" to="/licenses">Licenses</Link>
             </li>
             <li className="nav-item">
-                <Link className="nav-link fw-bold text-primary" to="/vault">CantonVault</Link>
+                <Link className="nav-link fw-bold nav-link-vault" to="/vault">Vault</Link>
             </li>
             {user.isAdmin && (
                 <li className="nav-item">
@@ -76,35 +76,30 @@ const AuthenticatedLinks: React.FC = () => {
 const UserSection: React.FC = () => {
     const { user, loading, logout } = useUserStore();
 
-    if (loading) return <div className="ms-auto">Loading...</div>;
-
+    if (loading) return <div className="ms-auto text-muted">Loading...</div>;
 
     if (user === null) {
         return (
             <ul className="navbar-nav ms-auto">
                 <li className="nav-item">
-                    <Link className="nav-link" to="/login">Login</Link>
+                    <Link className="btn btn-primary btn-sm px-4" to="/login">Login</Link>
                 </li>
             </ul>
         );
     }
 
     return (
-        <ul className="navbar-nav ms-auto">
-            <li className="nav-item">
-                <BalanceBadge />
-            </li>
-            <li className="nav-item">
-                <span className="nav-link fw-bold" id="user-name">
+        <div className="d-flex align-items-center gap-3">
+            <BalanceBadge />
+            <div className="d-flex align-items-center gap-2 border-start border-secondary ps-3">
+                <span className="text-white fw-medium small" id="user-name">
                     {user.name}
                 </span>
-            </li>
-            <li className="nav-item">
-                <button className="nav-link btn btn-link" onClick={logout}>
+                <button className="btn btn-outline-light btn-sm" onClick={logout}>
                     Logout
                 </button>
-            </li>
-        </ul>
+            </div>
+        </div>
     );
 };
 

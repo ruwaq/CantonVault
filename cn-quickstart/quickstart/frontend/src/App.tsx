@@ -34,34 +34,36 @@ const App: React.FC = () => {
 
     return (
         <AppProviders>
-            <Routes>
-                {/* Full-screen public pages — no app chrome */}
-                <Route path="/" element={<LandingView />} />
-                <Route path="/login" element={<LoginView />} />
-                {/* Authenticated app — with header nav */}
-                <Route path="/*" element={
-                    <RequireAuth>
-                        <>
-                            <Header />
-                            <main className="container mt-4">
-                                <Routes>
-                                    <Route path="/home" element={<HomeView />} />
-                                    <Route path="/tenants" element={<RequireAdmin><TenantRegistrationView /></RequireAdmin>} />
-                                    <Route path="/app-installs" element={<AppInstallsView />} />
-                                    <Route path="/licenses" element={<LicensesView />} />
-                                    <Route path="/vault" element={<VaultView />} />
-                                    <Route path="*" element={
-                                        <div className="text-center mt-5">
-                                            <h3>Page not found</h3>
-                                            <p className="text-muted">The page you requested does not exist.</p>
-                                        </div>
-                                    } />
-                                </Routes>
-                            </main>
-                        </>
-                    </RequireAuth>
-                } />
-            </Routes>
+            <div className="app-container">
+                <Routes>
+                    {/* Full-screen public pages — no app chrome */}
+                    <Route path="/" element={<LandingView />} />
+                    <Route path="/login" element={<LoginView />} />
+                    {/* Authenticated app — with header nav */}
+                    <Route path="/*" element={
+                        <RequireAuth>
+                            <>
+                                <Header />
+                                <main className="container app-main">
+                                    <Routes>
+                                        <Route path="/home" element={<HomeView />} />
+                                        <Route path="/tenants" element={<RequireAdmin><TenantRegistrationView /></RequireAdmin>} />
+                                        <Route path="/app-installs" element={<AppInstallsView />} />
+                                        <Route path="/licenses" element={<LicensesView />} />
+                                        <Route path="/vault" element={<VaultView />} />
+                                        <Route path="*" element={
+                                            <div className="text-center mt-5">
+                                                <h3 className="text-white">Page not found</h3>
+                                                <p className="text-muted">The page you requested does not exist.</p>
+                                            </div>
+                                        } />
+                                    </Routes>
+                                </main>
+                            </>
+                        </RequireAuth>
+                    } />
+                </Routes>
+            </div>
             <ToastNotification />
         </AppProviders>
     );

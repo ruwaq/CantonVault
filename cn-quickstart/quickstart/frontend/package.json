@@ -8,17 +8,21 @@
     "dev": "vite",
     "build": "npm run gen:openapi && tsc -b --noEmit && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "@modyfi/vite-plugin-yaml": "^1.1.1",
+    "@types/uuid": "^10.0.0",
     "axios": "^1.16.1",
     "openapi-client-axios": "^7.9.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.30.3"
+    "react-router-dom": "^6.30.3",
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.44.0",
     "@eslint/js": "^9.9.0",
     "@types/node": "^22.19.17",
     "@types/react": "^18.3.28",
@@ -30,6 +34,7 @@
     "globals": "^15.15.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.58.2",
-    "vite": "^6.4.2"
+    "vite": "^6.4.2",
+    "wrangler": "^4.110.0"
   }
 }

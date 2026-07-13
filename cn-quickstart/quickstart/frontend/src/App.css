@@ -18,7 +18,6 @@
   white-space: nowrap;
 }
 
-
 .modal-dialog.modal-dialog-centered.auto-width-modal {
     max-width: 85vw !important; /* remove Bootstrap cap */
     margin: 1.75rem auto;
@@ -29,12 +28,92 @@
 }
 
 .deadline-passed::after {
-  content: "\2757"; /* exclamation */
-  color: #e74c3c;
+  content: "⚠️";
+  color: var(--status-danger);
   font-weight: 700;
   display: inline-block;
-  margin-left: 0px;
-  padding-left: 0px;
+  margin-left: 6px;
   vertical-align: top;
   pointer-events: none;
+}
+
+/* Base App Layout */
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main {
+  flex: 1;
+  padding: 2rem 0;
+}
+
+/* Custom Nav Links */
+.nav-link {
+  color: var(--text-muted) !important;
+  font-weight: 500;
+  transition: color var(--transition-fast);
+  padding: 0.5rem 1rem !important;
+  border-radius: var(--radius-sm);
+}
+
+.nav-link:hover, .nav-link.active {
+  color: var(--text-main) !important;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.nav-link-vault {
+  color: var(--accent-primary) !important;
+}
+
+/* Stepper (Vault wizard) */
+.stepper-btn {
+  width: 100%;
+  text-align: start;
+  padding: 0.625rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.stepper-btn:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-main);
+}
+
+.stepper-btn--active {
+  background: var(--accent-glow);
+  color: var(--text-main);
+  border-left: 3px solid var(--accent-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.stepper-btn-icon {
+  font-size: 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.navbar-brand {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-main) !important;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }

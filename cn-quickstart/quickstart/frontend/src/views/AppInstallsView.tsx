@@ -5,6 +5,7 @@ import React, { useEffect } from 'react';
 import { useAppInstallStore } from '../stores/appInstallStore';
 import { useUserStore } from '../stores/userStore';
 import type { AppInstallUnified } from '../types';
+import { shortParty } from '../utils/party';
 
 const AppInstallsView: React.FC = () => {
   const {
@@ -27,89 +28,122 @@ const AppInstallsView: React.FC = () => {
   }, [fetchUser, fetchAll]);
 
   return (
-    <div>
-      <h2>App Installs</h2>
-      <div className="alert alert-info" role="alert">
-        <strong>Note:</strong> Run <code>make create-app-install-request</code> to submit an AppInstallRequest
+    <div className="pb-5">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 className="page-title fs-3 fw-bold mb-1">App Installations</h2>
+          <p className="text-muted small mb-0">Manage applications installed on the Canton Network nodes</p>
+        </div>
       </div>
-      <div className="mt-4">
-        <table className="table table-fixed" id="app-installs-table">
-          <thead>
-            <tr>
-              <th style={{ width: '150px' }}>Contract ID</th>
 
-              {user?.isAdmin && (
-                <th style={{ width: '150px' }}>User</th>
-              )}
-              <th style={{ width: '100px' }}># Licenses</th>
-              <th style={{ width: '300px' }}>Meta</th>
-              <th style={{ width: '250px' }}>Status</th>
-              <th style={{ width: '310px' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {unifiedInstalls.map((item: AppInstallUnified) => (
-              <tr key={item.contractId} className="app-install-row">
-                <td className="ellipsis-cell app-install-contract-id">
-                  {item.contractId}
-                </td>
-                {user?.isAdmin && (
-                  <td className="ellipsis-cell app-install-user">
-                    {item.user}
-                  </td>
-                )}
-                <td className="app-install-num-licenses" data-testid="num-licenses">
-                  {item.numLicensesCreated}
-                </td>
-                <td className="ellipsis-cell app-install-meta">
-                  {item.meta ? JSON.stringify(item.meta.data) : '{}'}
-                </td>
-                <td className="ellipsis-cell app-install-status">
-                  {item.status === 'REQUEST' ? 'AWAITING_ACCEPTANCE' : 'ACCEPTED'}
-                </td>
-                <td className="app-install-actions">
-                  {item.status === 'REQUEST' ? (
-                    user?.isAdmin ? (
-                      <div className="btn-group" role="group">
-                        {unifiedInstalls.findIndex((i) => i.status === 'INSTALL' && i.user === item.user) === -1 && (
-                          <button
-                            className="btn btn-success btn-accept-install"
-                            onClick={() => accept(item.contractId, item.meta, {})}
-                          >
-                            Accept
-                          </button>
-                        )}
-                        <button
-                          className="btn btn-warning btn-reject-install"
-                          onClick={() => reject(item.contractId, {})}
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    ) : null
-                  ) : (
-                    <div className="btn-group" role="group">
-                      <button
-                        className="btn btn-danger btn-cancel-install"
-                        onClick={() => cancelInstall(item.contractId, {})}
-                      >
-                        Cancel
-                      </button>
+      <div className="alert alert-light py-2 px-3 small border-start border-3 border-primary mb-4 glass-panel d-flex align-items-center gap-3">
+        <span className="fs-5">💡</span>
+        <div>
+          <strong>Developer notice:</strong> Run <code>make create-app-install-request</code> on the host system to dispatch new AppInstallRequest contracts to this node.
+        </div>
+      </div>
+
+      <div className="card glass-panel">
+        <div className="card-header bg-transparent border-bottom border-secondary border-opacity-20 pb-3 d-flex justify-content-between align-items-center">
+          <h5 className="mb-0 fw-bold d-flex align-items-center gap-2">
+            <span>⚙️</span> Installation Registry
+          </h5>
+          {unifiedInstalls.length > 0 && (
+            <span className="badge bg-primary px-2">{unifiedInstalls.length} entries</span>
+          )}
+        </div>
+        <div className="card-body pt-3">
+          {unifiedInstalls.length === 0 ? (
+            <div className="text-center py-5 text-muted">
+              <div className="fs-1 mb-3">📦</div>
+              <h6 className="fw-semibold text-white">No installations found</h6>
+              <p className="small mb-0">Node has no active app installations or pending requests.</p>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table align-middle" id="app-installs-table">
+                <thead>
+                  <tr>
+                    <th>Contract ID</th>
+                    {user?.isAdmin && <th>User</th>}
+                    <th># Licenses</th>
+                    <th>Meta Payload</th>
+                    <th>Status</th>
+                    <th className="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {unifiedInstalls.map((item: AppInstallUnified) => (
+                    <tr key={item.contractId} className="app-install-row">
+                      <td className="font-monospace small app-install-contract-id" title={item.contractId}>
+                        {shortParty(item.contractId)}
+                      </td>
                       {user?.isAdmin && (
-                        <button
-                          className="btn btn-success btn-create-license"
-                          onClick={() => createLicense(item.contractId, {})}
-                        >
-                          Create License
-                        </button>
+                        <td className="ellipsis-cell app-install-user" title={item.user}>
+                          {shortParty(item.user)}
+                        </td>
                       )}
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                      <td className="app-install-num-licenses fw-bold" data-testid="num-licenses">
+                        {item.numLicensesCreated}
+                      </td>
+                      <td className="small text-muted font-monospace" style={{ maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.meta ? JSON.stringify(item.meta.data) : '{}'}
+                      </td>
+                      <td className="app-install-status">
+                        {item.status === 'REQUEST' ? (
+                          <span className="badge bg-warning text-dark">AWAITING_ACCEPTANCE</span>
+                        ) : (
+                          <span className="badge bg-success">INSTALLED & ACTIVE</span>
+                        )}
+                      </td>
+                      <td className="app-install-actions text-end">
+                        {item.status === 'REQUEST' ? (
+                          user?.isAdmin ? (
+                            <div className="btn-group" role="group">
+                              {unifiedInstalls.findIndex((i) => i.status === 'INSTALL' && i.user === item.user) === -1 && (
+                                <button
+                                  className="btn btn-sm btn-success btn-accept-install fw-medium"
+                                  onClick={() => accept(item.contractId, item.meta, {})}
+                                >
+                                  Accept
+                                </button>
+                              )}
+                              <button
+                                className="btn btn-sm btn-outline-danger btn-reject-install fw-medium"
+                                onClick={() => reject(item.contractId, {})}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-muted small">Pending approval</span>
+                          )
+                        ) : (
+                          <div className="btn-group" role="group">
+                            <button
+                              className="btn btn-sm btn-outline-danger btn-cancel-install fw-medium"
+                              onClick={() => cancelInstall(item.contractId, {})}
+                            >
+                              Cancel
+                            </button>
+                            {user?.isAdmin && (
+                              <button
+                                className="btn btn-sm btn-success btn-create-license fw-medium"
+                                onClick={() => createLicense(item.contractId, {})}
+                              >
+                                Create License
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

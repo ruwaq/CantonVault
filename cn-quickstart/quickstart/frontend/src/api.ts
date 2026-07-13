@@ -1,45 +1,48 @@
-// Copyright (c) 2026, Digital Asset (Switzerland) GmbH and/or its affiliates. All rights reserved.
-// SPDX-License-Identifier: 0BSD
+import { OpenAPIClientAxios } from 'openapi-client-axios';
+import { Client as ApiClient } from './openapi';
+import { v4 as uuidv4 } from 'uuid';
 
-import OpenAPIClientAxios, { type Document } from 'openapi-client-axios';
-import openApi from '../../common/openapi.yaml'
-
-const api: OpenAPIClientAxios = new OpenAPIClientAxios({
-    definition: openApi as Document,
+const api = new OpenAPIClientAxios({
+    definition: '/api/v3/api-docs',
     withServer: { url: '/api' },
 });
 
-/**
- * Global 401 handler: when any API call receives a 401 (expired session,
- * missing auth), clear the in-memory user state and redirect to the landing
- * page so the user can re-authenticate rather than seeing a stale UI.
- *
- * Uses a DOM CustomEvent so stores can subscribe without circular imports.
- */
-function onSessionExpired() {
-    // Avoid redirect loops on the login page itself
-    if (window.location.pathname !== '/') {
-        window.dispatchEvent(new CustomEvent('auth:session-expired'));
-        window.location.href = '/';
-    }
-}
+api.init();
 
-api.init().then(() => {
-    api.client.defaults.withCredentials = true;
-    api.client.defaults.withXSRFToken = true;
-    api.client.defaults.xsrfCookieName = 'XSRF-TOKEN';
-    api.client.defaults.xsrfHeaderName = 'X-XSRF-TOKEN';
-
-    // Global 401 interceptor: expired/revoked sessions redirect to landing
-    api.client.interceptors.response.use(
-        (response) => response,
-        (error) => {
-            if (error.response?.status === 401) {
-                onSessionExpired();
+export const getApiClient = async (): Promise<ApiClient> => {
+    const client = await api.getClient<ApiClient>();
+    
+    // Check if the interceptor is already registered to avoid duplicates
+    const extendedClient = client as ApiClient & { _idempotencyInterceptorAdded?: boolean };
+    if (!extendedClient._idempotencyInterceptorAdded) {
+        // Add Idempotency-Key to mutating requests
+        extendedClient.interceptors.request.use((config) => {
+            if (config.method && ['post', 'put', 'patch'].includes(config.method.toLowerCase())) {
+                if (!config.headers['Idempotency-Key']) {
+                    config.headers['Idempotency-Key'] = uuidv4();
+                }
             }
-            return Promise.reject(error);
-        },
-    );
-});
+            return config;
+        });
+
+        // Global Error Handling for 400 Bad Request
+        extendedClient.interceptors.response.use(
+            (response) => response,
+            (error) => {
+                if (error.response && error.response.status === 400) {
+                    console.error("Validation Error (400):", error.response.data);
+                    // Emit custom event for toast store if needed, or just reject cleanly
+                    const event = new CustomEvent('api:validation-error', { detail: error.response.data });
+                    window.dispatchEvent(event);
+                    return Promise.reject(new Error(error.response.data?.message || "Invalid request parameters."));
+                }
+                return Promise.reject(error);
+            }
+        );
+        extendedClient._idempotencyInterceptorAdded = true;
+    }
+
+    return extendedClient;
+};
 
 export default api;
