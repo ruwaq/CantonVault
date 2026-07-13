@@ -13,11 +13,11 @@
          styles, and connections may load from, providing defense-in-depth against
          XSS. script-src allows the CDN (Bootstrap) and inline module scripts
          (Vite dev). connect-src is restricted to 'self' so tokens/data cannot be
-         exfiltrated to third-party origins. frame-ancestors 'none' blocks
-         clickjacking. For full enforcement prefer setting CSP as a response
-         header from the backend/nginx; this meta tag is the client-side fallback. -->
+         exfiltrated to third-party origins. Note: frame-ancestors is ignored in
+         meta tags (must be set as HTTP response header); included here as
+         documentation only. For full enforcement set CSP via nginx/backend headers. -->
     <meta http-equiv="Content-Security-Policy"
-          content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self' https://cdn.jsdelivr.net; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
+          content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self' https://cdn.jsdelivr.net; connect-src 'self'; base-uri 'self'; form-action 'self';" />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
     <!-- Load Bootstrap via CDN (audited M12: upgraded 5.0.2 → 5.3.3) -->

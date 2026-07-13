@@ -7,7 +7,12 @@ const api = new OpenAPIClientAxios({
     withServer: { url: '/api' },
 });
 
-api.init();
+// Init catches errors silently — when no backend is reachable (e.g. static
+// SPA deployment without backend), getClient() will reject at call time and
+// callers handle it. Throwing during module init would crash the whole app.
+api.init().catch((err) => {
+    console.warn('OpenAPI client init failed — backend may be unreachable.', err);
+});
 
 export const getApiClient = async (): Promise<ApiClient> => {
     const client = await api.getClient<ApiClient>();

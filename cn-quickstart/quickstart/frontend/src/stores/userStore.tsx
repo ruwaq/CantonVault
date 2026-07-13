@@ -33,16 +33,19 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
             return response.data;
         } catch (error) {
             if (isAxiosError(error) && error.response?.status === 401) {
+                // 401 = not authenticated, expected when logged out
                 setUser(null);
                 return null;
-            } else {
-                toast.displayError('Error fetching user');
-                return null;
             }
+            // Network/CORS/parse errors (e.g. no backend reachable, SPA served
+            // as fallback) — treat as silently unauthenticated instead of
+            // disrupting the UI with an error toast.
+            setUser(null);
+            return null;
         } finally {
             setLoading(false);
         }
-    }, [setUser, setLoading, toast]);
+    }, [setUser, setLoading]);
 
     const clearUser = useCallback(() => {
         setUser(null);
