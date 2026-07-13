@@ -1,10 +1,22 @@
-import { ledgerEnd, PARTY, submitCreate } from '../_ledger.js';
+import { ledgerEnd, PARTY, PKG, submitCreate, queryActiveContracts } from '../_ledger.js';
+
+const PROPOSAL_TPL = 'Vault.CommitmentProposal:CommitmentProposal';
 
 export const onRequest = async (context) => {
   const { request } = context;
 
   if (request.method === 'GET') {
-    return Response.json([]);
+    try {
+      const contracts = await queryActiveContracts([
+        `#${PKG}:${PROPOSAL_TPL}`,
+      ]);
+      return Response.json(contracts);
+    } catch (err) {
+      return Response.json(
+        { error: 'Failed to query proposals from DevNet', detail: err.message },
+        { status: 502 },
+      );
+    }
   }
 
   if (request.method === 'POST') {

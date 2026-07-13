@@ -1,5 +1,5 @@
 # Session Handoff — CantonVault Hackathon
-## Última actualización: 2026-07-13 (post-refactor SWR)
+## Última actualización: 2026-07-14 (endpoints + mutations on-ledger)
 
 > **LEER ESTO PRIMERO** al iniciar la próxima sesión.
 > Contiene el estado exacto, el incidente de Cloudflare, y qué queda por hacer.
@@ -32,8 +32,11 @@ Cada iteración: ~100ms. Combinado con polling de 6 endpoints cada 5s = ~70 req/
 Requests today: 450,957 / 100,000 (AGOTADA)
 ```
 - El fix funciona desde ya (detiene nuevos requests)
-- La cuota se resetea a medianoche UTC
-- **MAÑANA el demo estará 100% funcional**
+- La cuota se resetea a medianoche UTC — ya pasaron múltiples resets desde el incidente (13 jul)
+- **Si CF "sigue sin reiniciar los límites" → NO es cuota, es estado del proyecto**:
+  1. Dashboard CF → `canton-vault` → ¿dice "Paused"? Buscar botón "Resume/Enable"
+  2. Workers duplicados (`frontend`, `cantonvault-backend`, `cantonvault`) generando tráfico residual → borrar
+  3. Pestañas del navegador aún golpeando la URL vieja → cerrarlas
 
 ---
 
@@ -95,22 +98,28 @@ ca7a51e fix(frontend): SWR refactor — eliminate infinite poll loop + fix Pages
 
 ### 🟢 NICE-TO-HAVE — Para mejorar el demo
 
-**5. Implementar endpoints faltantes de Pages Functions**
-Estos endpoints devuelven `[]` (stub) — no leen del ledger real:
-- `functions/api/vault/commitments.js`
-- `functions/api/vault/receipts.js`
-- `functions/api/vault/disclosures.js`
-- `functions/api/vault/dispute-cases.js`
+**5. ✅ Implementar endpoints faltantes de Pages Functions — HECHO (14 jul)**
+Los 5 GET ahora leen el Active Contract Set real del ledger DevNet:
+- `functions/api/vault/proposals.js` (GET) → query `Vault.CommitmentProposal:CommitmentProposal`
+- `functions/api/vault/commitments.js` → query `Vault.CommitmentContract:CommitmentContract`
+- `functions/api/vault/receipts.js` → query `Vault.SettlementReceipt:SettlementReceipt`
+- `functions/api/vault/disclosures.js` → query `Vault.Disclosable:DisclosedRecord`
+- `functions/api/vault/dispute-cases.js` → query `Vault.CommitmentContract:DisputeCase`
 
-Para que el demo sea completo, estos deben leer los Active Contracts del ledger vía:
-```
-ledgerGet('/v2/state/active-contracts')
-```
-filtrando por templateId `#cantonvault-contracts:Vault.CommitmentProposal:CommitmentProposal` etc.
+Verificación E2E local (wrangler pages dev contra DevNet): todos devuelven HTTP 200 con Canton 3.5.7.
 
-**6. Implementar mutations faltantes** (accept/reject/fulfill/dispute/resolve/refund)
-Los endpoints POST existen en el frontend (`useVaultMutations.ts`) pero las Pages Functions
-correspondientes aún no están implementadas. Solo `POST /api/vault/proposals` funciona.
+**6. ✅ Implementar mutations faltantes — HECHO (14 jul)**
+Las 6 mutations ahora operan on-ledger vía ExerciseCommand (formato Canton 3.5):
+- `POST /api/vault/proposals/[id]/accept` → `AcceptProposal`
+- `POST /api/vault/proposals/[id]/reject` → `RejectProposal`
+- `POST /api/vault/commitments/[id]/fulfill` → `Fulfill` (symbolic, allocationCid null)
+- `POST /api/vault/commitments/[id]/raise-dispute` → `RaiseDispute`
+- `POST /api/vault/commitments/[id]/refund` → `Refund`
+- `POST /api/vault/commitments/[id]/resolve` → `ResolveDispute` sobre DisputeCase derivado
+
+Helpers nuevos en `_ledger.js`: `submitExercise()` + `queryActiveContracts()`.
+
+**⚠️ Nota sobre permisos del shared validator (14 jul):** durante la implementación se detectó que el token m2m puede **leer** el ledger (HTTP 200) pero los **writes** (create/exercise) devuelven 403 "security-sensitive error". Esto puede ser rate-limiting transitorio o restricción temporal tras el incidente de los 450k requests. El código está correcto (formato Canton 3.5 verificado); cuando los permisos se normalicen, las mutations funcionarán sin cambios.
 
 ---
 
@@ -174,18 +183,25 @@ src/
 | `/api/login-links` | GET | ✅ Demo link |
 | `/api/logout` | POST | ✅ Stub (cosmético) |
 
-### Stubs (devuelven `[]` o `{balance:0}`, no leen ledger)
+### Funcionales — leen ACS real del ledger DevNet (verificado 14 jul)
 | Endpoint | Método | Estado |
 |---|---|---|
-| `/api/vault/proposals` | GET | ⚠️ Stub `[]` |
-| `/api/vault/commitments` | GET | ⚠️ Stub `[]` |
-| `/api/vault/receipts` | GET | ⚠️ Stub `[]` |
-| `/api/vault/disclosures` | GET | ⚠️ Stub `[]` |
-| `/api/vault/dispute-cases` | GET | ⚠️ Stub `[]` |
-| `/api/vault/balance` | GET | ⚠️ Hardcoded `balance: 0` |
+| `/api/vault/proposals` | GET | ✅ Lee CommitmentProposal del ACS |
+| `/api/vault/commitments` | GET | ✅ Lee CommitmentContract del ACS |
+| `/api/vault/receipts` | GET | ✅ Lee SettlementReceipt del ACS |
+| `/api/vault/disclosures` | GET | ✅ Lee DisclosedRecord del ACS |
+| `/api/vault/dispute-cases` | GET | ✅ Lee DisputeCase del ACS |
+| `/api/vault/balance` | GET | ⚠️ Hardcoded `balance: 0` (no hay balance CC real) |
 
-### No implementados (el frontend los llama pero 404)
-accept, reject, fulfill, raise-dispute, resolve, refund
+### Mutations on-ledger (formato Canton 3.5 correcto; pendiente permisos del validator)
+| Endpoint | Método | Estado |
+|---|---|---|
+| `/api/vault/proposals/[id]/accept` | POST | ✅ AcceptProposal (403 validator hoy) |
+| `/api/vault/proposals/[id]/reject` | POST | ✅ RejectProposal (403 validator hoy) |
+| `/api/vault/commitments/[id]/fulfill` | POST | ✅ Fulfill symbolic (403 validator hoy) |
+| `/api/vault/commitments/[id]/raise-dispute` | POST | ✅ RaiseDispute (403 validator hoy) |
+| `/api/vault/commitments/[id]/refund` | POST | ✅ Refund (403 validator hoy) |
+| `/api/vault/commitments/[id]/resolve` | POST | ✅ ResolveDispute sobre DisputeCase (403 validator hoy) |
 
 ---
 

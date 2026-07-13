@@ -85,4 +85,47 @@ export async function submitCreate(template, args) {
   });
 }
 
-export { LEDGER_API, PARTY, SYNCHRONIZER_ID };
+// Exercise a choice on an existing contract (Canton 3.5 JSON Ledger API).
+// `template` is the "ModuleName:EntityName" suffix (e.g. 'Vault.CommitmentContract:CommitmentContract');
+// the package prefix is added here. `argument` is the choice's record payload
+// (may be empty {}), serialized under the `choiceArgument` field per the 3.5 spec.
+export async function submitExercise(template, contractId, choice, argument) {
+  return ledgerPost('/v2/commands/submit-and-wait', {
+    applicationId: 'AppId',
+    commandId: `cv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    actAs: [PARTY],
+    readAs: [PARTY],
+    commands: [
+      {
+        ExerciseCommand: {
+          templateId: `#${PKG}:${template}`,
+          contractId,
+          choice,
+          choiceArgument: argument,
+        },
+      },
+    ],
+    transactionFormat: { synchronizerId: SYNCHRONIZER_ID },
+  });
+}
+
+// Read active contracts from the ACS filtered by templateId(s).
+// Returns a uniform shape [{ contractId, payload }] that the frontend's
+// RawContractEnvelope + vaultNormalizers expect, regardless of the raw
+// envelope fields Canton returns.
+export async function queryActiveContracts(templateIds) {
+  const data = await ledgerPost('/v2/state/active-contracts', {
+    filter: {
+      filtersForAnyParty: {
+        identifierFilter: { templateIds },
+      },
+    },
+    readAs: [PARTY],
+  });
+  return (Array.isArray(data) ? data : []).map((item) => ({
+    contractId: item.contractId,
+    payload: item.payload ?? item,
+  }));
+}
+
+export { LEDGER_API, PARTY, SYNCHRONIZER_ID, PKG };
