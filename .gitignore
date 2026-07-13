@@ -63,6 +63,9 @@ cn-quickstart/**
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/config/CorsConfig.java
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/config/VaultPartyProperties.java
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/security/
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/security/Auth.java
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/security/StaticTokenProvider.java
+!cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/security/SharedSecretConfig.java
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/security/sharedsecret/
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/security/sharedsecret/SharedSecretConfig.java
 !cn-quickstart/quickstart/backend/src/main/java/com/digitalasset/quickstart/security/oauth2/
