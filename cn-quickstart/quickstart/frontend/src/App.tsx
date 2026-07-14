@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: 0BSD
 
 import React from 'react';
-import './App.css';
+import './styles/vault.css';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './stores/toastStore';
 import LoginView from './views/LoginView';

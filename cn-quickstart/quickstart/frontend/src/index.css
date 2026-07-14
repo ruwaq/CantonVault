@@ -1,7 +1,9 @@
 /* Copyright (c) 2026, Digital Asset (Switzerland) GmbH and/or its affiliates. All rights reserved. */
 /* SPDX-License-Identifier: 0BSD */
 
-@import './theme.css';
+@import './styles/tokens.css';
+@import './styles/base.css';
+@import './styles/vault.css';
 
 /* Minimal resets specific to index.css if any */
 body {

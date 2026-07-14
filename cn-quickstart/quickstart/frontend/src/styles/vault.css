@@ -1,7 +1,14 @@
-/* Copyright (c) 2026, CantonVault Hackathon. All rights reserved. */
-/* SPDX-License-Identifier: 0BSD */
+/* src/styles/vault.css — CantonVault-specific (cv-*) classes.
+ *
+ * Migrated from App.css. Token names moved to the semantic layer.
+ * Text on glass surfaces uses --text-on-glass (not --text-muted) per the
+ * WCAG AA contrast fix.
+ *
+ * Copyright (c) 2026, CantonVault Hackathon. All rights reserved.
+ * SPDX-License-Identifier: 0BSD
+ */
 
-/* Base App Layout */
+/* ── Base App Layout ── */
 .app-container {
   min-height: 100vh;
   display: flex;
@@ -17,7 +24,7 @@
 .navbar-brand {
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: var(--text-main) !important;
+  color: var(--text-heading) !important;
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -34,7 +41,7 @@
   font-size: 1.15rem;
   font-weight: 800;
   letter-spacing: 0.06em;
-  color: var(--text-main);
+  color: var(--text-heading);
 }
 
 .cv-brand-accent {
@@ -52,10 +59,10 @@
   text-decoration: none;
 }
 
-.cv-nav-link:hover { color: var(--text-main) !important; }
+.cv-nav-link:hover { color: var(--text-body) !important; }
 
 .cv-nav-link--active {
-  color: var(--text-main) !important;
+  color: var(--text-heading) !important;
 }
 
 .cv-nav-link--active::after {
@@ -65,19 +72,19 @@
   right: 0.9rem;
   bottom: 0.15rem;
   height: 2px;
-  background: var(--accent-primary);
+  background: var(--accent);
   border-radius: 1px;
 }
 
 .nav-link-vault {
-  color: var(--accent-primary) !important;
+  color: var(--accent) !important;
 }
 
 /* Balance badge in header */
 .cv-balance {
   font-size: 0.88rem;
   font-weight: 600;
-  color: var(--text-main);
+  color: var(--text-heading);
   white-space: nowrap;
 }
 
@@ -107,7 +114,7 @@
   align-items: center;
   gap: 0.45rem;
   font-size: 0.85rem;
-  color: var(--text-muted);
+  color: var(--text-on-glass);   /* on glass → body contrast, not muted */
   margin-top: 0.25rem;
 }
 
@@ -160,7 +167,7 @@
 }
 
 .cv-step-pill--active {
-  border-color: var(--accent-primary);
+  border-color: var(--accent);
   background: rgba(99, 102, 241, 0.1);
   box-shadow: 0 4px 16px rgba(99, 102, 241, 0.15);
 }
@@ -182,9 +189,9 @@
 }
 
 .cv-step-pill--active .cv-step-pill-num {
-  background: var(--accent-primary);
-  border-color: var(--accent-primary);
-  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
 }
 
 .cv-step-pill-body {
@@ -196,19 +203,20 @@
 .cv-step-pill-title {
   font-weight: 700;
   font-size: 0.92rem;
-  color: var(--text-muted);
+  color: var(--text-on-glass);   /* on glass → readable, not muted */
   display: flex;
   align-items: center;
   gap: 0.4rem;
 }
 
-.cv-step-pill--active .cv-step-pill-title { color: var(--text-main); }
+.cv-step-pill--active .cv-step-pill-title { color: var(--text-heading); }
 
 .cv-step-pill-icon { font-size: 1rem; }
 
 .cv-step-pill-desc {
   font-size: 0.74rem;
-  color: var(--text-muted);
+  color: var(--text-on-glass);   /* on glass → readable */
+  opacity: 0.85;
 }
 
 .cv-stepper-line {

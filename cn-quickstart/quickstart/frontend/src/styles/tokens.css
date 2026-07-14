@@ -1,0 +1,73 @@
+/* src/styles/tokens.css — 3-tier design tokens (primitive → semantic)
+ *
+ * Fixes root cause of illegible dark-mode text: text-on-glass now uses
+ * --text-on-glass (#e4e4e7, AAA contrast), NEVER --text-muted.
+ * Glass opacity raised 0.65 → 0.85 for a stable composite background.
+ *
+ * Token discipline:
+ *   PRIMITIVES  — zinc scale, do NOT reference directly in components.
+ *   SEMANTICS   — the only layer components should use.
+ *   ALIASES     — legacy names kept for backwards-compat during refactor;
+ *                 point at the new semantic tokens so old classes keep working.
+ */
+:root {
+  /* ── PRIMITIVES (zinc scale, do not use directly in components) ── */
+  --zinc-950: #09090b;
+  --zinc-900: #18181b;
+  --zinc-800: #27272a;
+  --zinc-700: #3f3f46;
+  --zinc-100: #f4f4f5;
+  --zinc-200: #e4e4e7;
+  --zinc-300: #d4d4d8;
+  --zinc-400: #a1a1aa;
+
+  /* ── SEMANTIC — surfaces (3 elevation levels) ── */
+  --bg-base:     #09090b;   /* app background */
+  --bg-surface:  #18181b;   /* opaque cards */
+  --bg-elevated: #27272a;   /* hover / modals */
+
+  /* Glass raised 0.65 → 0.85: steadier backdrop, less contrast variance */
+  --bg-glass:        rgba(24, 24, 27, 0.85);
+  --bg-glass-heavy:  rgba(9, 9, 11, 0.92);   /* nav */
+
+  /* ── SEMANTIC — text (the key to the contrast fix) ── */
+  --text-heading:  #f4f4f5;  /* titles, critical data · 17:1 on bg-base (AAA) */
+  --text-body:     #e4e4e7;  /* main text · 14:1 (AAA) */
+  --text-muted:    #a1a1aa;  /* hints, meta · 7:1 on bg-base (AAA) */
+  --text-on-glass: #e4e4e7;  /* ← text on glass, NEVER use --text-muted here */
+  --text-on-accent:#ffffff;  /* on indigo buttons */
+  --text-disabled: #52525b;  /* placeholders */
+
+  /* ── Accents (Electric Indigo) ── */
+  --accent:        #6366f1;
+  --accent-hover:  #4f46e5;
+  --accent-glow:   rgba(99, 102, 241, 0.4);
+
+  /* ── Status ── */
+  --status-success: #10b981;  --status-success-bg: rgba(16, 185, 129, 0.15);
+  --status-warning: #f59e0b;  --status-warning-bg: rgba(245, 158, 11, 0.15);
+  --status-danger:  #ef4444;  --status-danger-bg:  rgba(239, 68, 68, 0.15);
+
+  /* ── Borders, shadows, radius, transitions ── */
+  --border-subtle: 1px solid rgba(255, 255, 255, 0.10);
+  --border-focus:  1px solid var(--accent);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+  --shadow-glow: 0 0 20px var(--accent-glow);
+
+  --radius-sm: 6px;  --radius-md: 12px;  --radius-lg: 20px;  --radius-pill: 9999px;
+  --transition-fast: 0.15s ease-out;  --transition-normal: 0.25s ease-out;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* ── LEGACY ALIASES (backwards-compat — point at new semantic tokens) ──
+   * Kept so the cv-* / login / landing classes keep resolving while the
+   * refactor migrates them to the new names. Safe to remove once every
+   * reference is updated; harmless while present.
+   */
+  --text-main:        var(--text-body);
+  --accent-primary:   var(--accent);
+  --bg-surface-hover: var(--bg-elevated);
+}
