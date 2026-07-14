@@ -182,4 +182,96 @@ export async function walletBalance(party = PARTY) {
   };
 }
 
+// ── KV index of CantonVault contractIds ─────────────────────────────────────
+// The Canton sandbox multi-tenant validator does NOT divulge contracts created
+// by the m2m user through the Active Contract Set (ACS). queryActiveContracts()
+// always returns [] for our templates here, and /v2/updates is drowned by 200+
+// unrelated HTLC contracts per offset page. So we maintain a local append-only
+// index in Cloudflare KV: every create/exercise writes {cid, kind, payload,
+// status} here, and the GET endpoints read from it filtered by status.
+//
+// Key shape: "<kind>:<contractId>"  e.g. "proposal:00a1...e5f8"
+// Value shape: { cid, kind, payload, status, sourceCid?, createdAt, offset }
+//
+// `kind` ∈ { proposal, commitment, receipt, disclosure, dispute }.
+// `status` tracks the lifecycle (pending/accepted/rejected/active/fulfilled/
+// refunded/disputed/resolved) so each GET can filter to the relevant subset.
+// `sourceCid` links a derived contract back to its origin (e.g. a receipt to
+// the commitment it settled, a dispute to its commitment) — used by resolve.js.
+
+const KV_BINDING = 'VAULT_KV';
+
+function kv(env) {
+  const ns = env?.[KV_BINDING];
+  if (!ns) throw new Error('KV namespace VAULT_KV not bound');
+  return ns;
+}
+
+// Write one index record. Overwrites (idempotent) if the same cid is written twice.
+export async function kvPut(env, kind, cid, record) {
+  const key = `${kind}:${cid}`;
+  const entry = {
+    cid,
+    kind,
+    status: record.status ?? 'active',
+    payload: record.payload ?? {},
+    sourceCid: record.sourceCid ?? null,
+    createdAt: record.createdAt ?? new Date().toISOString(),
+    offset: record.offset ?? null,
+  };
+  await kv(env).put(key, JSON.stringify(entry));
+  return entry;
+}
+
+// Read one record (returns null if absent).
+export async function kvGet(env, kind, cid) {
+  const raw = await kv(env).get(`${kind}:${cid}`);
+  return raw ? JSON.parse(raw) : null;
+}
+
+// Update only the status of an existing record (no-op if absent).
+export async function kvUpdateStatus(env, kind, cid, status) {
+  const entry = await kvGet(env, kind, cid);
+  if (!entry) return null;
+  entry.status = status;
+  await kv(env).put(`${kind}:${cid}`, JSON.stringify(entry));
+  return entry;
+}
+
+// List all records of a kind, optionally filtered by status.
+// One list() call + N get() calls. For the demo (tens of contracts) this is a
+// handful of reads — well within the 100k/day Free tier.
+export async function kvList(env, kind, statuses) {
+  const ns = kv(env);
+  const listed = await ns.list({ prefix: `${kind}:` });
+  const want = statuses ? new Set(statuses) : null;
+  const records = [];
+  for (const k of listed.keys) {
+    const raw = await ns.get(k.name);
+    if (!raw) continue;
+    const entry = JSON.parse(raw);
+    if (!want || want.has(entry.status)) records.push(entry);
+  }
+  // Newest first — the demo reads better with recent activity on top.
+  records.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  return records;
+}
+
+// List records shaped as the frontend's RawContractEnvelope expects:
+// [{ contractId, payload }]. This is what the GET endpoints return so the
+// existing vaultNormalizers (cidOf / toContracts) work without frontend changes.
+// Dispute records additionally surface `commitmentRef` (from sourceCid) inside
+// the payload, since the frontend's DisputeCase type reads commitmentRef.
+export async function kvListAsContracts(env, kind, statuses) {
+  const records = await kvList(env, kind, statuses);
+  return records.map((r) => {
+    const payload = { ...r.payload };
+    // DisputeCase normalizer reads payload.commitmentRef; surface the KV link.
+    if (r.sourceCid && payload.commitmentRef === undefined) {
+      payload.commitmentRef = r.sourceCid;
+    }
+    return { contractId: r.cid, payload, _status: r.status, _offset: r.offset };
+  });
+}
+
 export { LEDGER_API, VALIDATOR_API, PARTY, SYNCHRONIZER_ID, PKG };

@@ -1,12 +1,14 @@
-import { PKG, queryActiveContracts } from '../_ledger.js';
+import { kvListAsContracts } from '../_ledger.js';
 
-// DisclosedRecords: immutable selective-disclosure proofs created by
-// RaiseDispute and ResolveDispute. Evidentiary (no choices) → accumulate.
-const TEMPLATE = `#${PKG}:Vault.Disclosable:DisclosedRecord`;
-
-export const onRequest = async () => {
+// GET /api/vault/disclosures — DisclosedRecords: immutable selective-disclosure
+// proofs created by RaiseDispute and ResolveDispute. Evidentiary (no choices) →
+// accumulate. Served from the KV index (the ACS does not divulge these in the
+// shared sandbox). Statuses: "dispute" (from RaiseDispute), "resolve" (from
+// ResolveDispute).
+export const onRequest = async (context) => {
+  const { env } = context;
   try {
-    const contracts = await queryActiveContracts([TEMPLATE]);
+    const contracts = await kvListAsContracts(env, 'disclosure');
     return Response.json(contracts);
   } catch (err) {
     return Response.json(

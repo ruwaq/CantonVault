@@ -1,15 +1,25 @@
-import { ledgerEnd, PARTY, PKG, submitCreate, queryActiveContracts } from '../_ledger.js';
+import {
+  PARTY,
+  PKG,
+  submitCreate,
+  queryActiveContracts,
+  kvList,
+  kvListAsContracts,
+  kvPut,
+} from '../_ledger.js';
 
 const PROPOSAL_TPL = 'Vault.CommitmentProposal:CommitmentProposal';
 
 export const onRequest = async (context) => {
-  const { request } = context;
+  const { request, env } = context;
 
   if (request.method === 'GET') {
     try {
-      const contracts = await queryActiveContracts([
-        `#${PKG}:${PROPOSAL_TPL}`,
-      ]);
+      // The Canton sandbox ACS does not divulge our contracts to the m2m user,
+      // so we serve the pending proposals from the KV index instead. Only
+      // status:"pending" proposals are shown — accepted/rejected ones have
+      // moved on in the lifecycle (see accept.js / reject.js).
+      const contracts = await kvListAsContracts(env, 'proposal', ['pending']);
       return Response.json(contracts);
     } catch (err) {
       return Response.json(
@@ -31,7 +41,7 @@ export const onRequest = async (context) => {
         return Response.json({ error: 'Description is required' }, { status: 400 });
       }
 
-      const result = await submitCreate('Vault.CommitmentProposal:CommitmentProposal', {
+      const payload = {
         // `||` (not `??`) so empty strings from the frontend fall back to PARTY.
         proposer: PARTY,
         accepter: String(body.accepter || PARTY),
@@ -43,6 +53,15 @@ export const onRequest = async (context) => {
         deadline: String(body.deadline || '2026-12-31T23:59:59Z'),
         instrumentAdmin: PARTY,
         realSettlementRequired: false,
+      };
+      const result = await submitCreate('Vault.CommitmentProposal:CommitmentProposal', payload);
+
+      // Index the newly created proposal in KV so the GET endpoint (and the
+      // demo UI) can show it. The sandbox ACS won't divulge it.
+      await kvPut(env, 'proposal', result.contractId, {
+        status: 'pending',
+        payload,
+        offset: result.completionOffset,
       });
 
       return Response.json({

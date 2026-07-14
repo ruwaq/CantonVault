@@ -1,4 +1,4 @@
-import { PARTY, submitExercise } from '../../../_ledger.js';
+import { PARTY, submitExercise, kvGet, kvPut, kvUpdateStatus } from '../../../_ledger.js';
 
 // POST /api/vault/commitments/:id/raise-dispute
 // Exercises RaiseDispute on a CommitmentContract. Either signatory escalates
@@ -7,7 +7,7 @@ import { PARTY, submitExercise } from '../../../_ledger.js';
 const TEMPLATE = 'Vault.CommitmentContract:CommitmentContract';
 
 export const onRequest = async (context) => {
-  const { params, request } = context;
+  const { params, request, env } = context;
   const contractId = params.id;
   try {
     const body = await request.json().catch(() => ({}));
@@ -18,7 +18,48 @@ export const onRequest = async (context) => {
       reason,
       actor: PARTY,
     });
+
+    // RaiseDispute creates a DisputeCase (its contractId is what ResolveDispute
+    // must target). Index it with a sourceCid link back to the commitment so
+    // resolve.js can find it without querying the (empty) ACS.
+    const commitmentRecord = await kvGet(env, 'commitment', contractId);
+    await kvUpdateStatus(env, 'commitment', contractId, 'disputed');
+    const p = commitmentRecord?.payload ?? {};
+    if (result.contractId) {
+      // DisputeCase — the resolvable contract (status "open" until resolved).
+      await kvPut(env, 'dispute', result.contractId, {
+        status: 'open',
+        payload: {
+          commitmentRef: contractId,
+          proposer: p.proposer,
+          accepter: p.accepter,
+          thirdParty: p.thirdParty,
+          reason,
+          amountRevealed: p.amount,
+          descriptionRevealed: p.description,
+          ruling: null,
+        },
+        sourceCid: contractId,
+        offset: result.completionOffset,
+      });
+      // DisclosedRecord — the selective-disclosure proof (amount + description
+      // only). The RaiseDispute choice also creates this on-ledger.
+      await kvPut(env, 'disclosure', `${contractId}-dispute`, {
+        status: 'dispute',
+        payload: {
+          sourceCid: contractId,
+          discloser: PARTY,
+          observer: p.thirdParty,
+          revealedFields: { amount: String(p.amount ?? ''), description: p.description ?? '' },
+          reason,
+        },
+        sourceCid: contractId,
+        offset: result.completionOffset,
+      });
+    }
+
     return Response.json({
+      disputeCaseId: result.contractId,
       updateId: result.updateId,
       offset: result.completionOffset,
     });

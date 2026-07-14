@@ -11,5 +11,18 @@
   },
   "compatibility_flags": [
     "nodejs_compat"
+  ],
+  // KV index of CantonVault contractIds. The Canton sandbox multi-tenant
+  // validator does not divulge contracts created by the m2m user via the
+  // Active Contract Set (ACS), so the 5 GET endpoints would otherwise return
+  // []. This KV namespace acts as a local append-only index: mutations write
+  // {cid, kind, payload, status} on every create/exercise, and GETs read from
+  // here filtered by status. Free tier: 100k reads / 1k writes per day — the
+  // demo uses ~5 writes + ~30 reads per session, comfortably within limits.
+  "kv_namespaces": [
+    {
+      "binding": "VAULT_KV",
+      "id": "8c756265442a41bc8f57632075790a50"
+    }
   ]
 }

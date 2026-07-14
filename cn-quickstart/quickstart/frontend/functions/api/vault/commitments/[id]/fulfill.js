@@ -1,4 +1,4 @@
-import { submitExercise } from '../../../_ledger.js';
+import { submitExercise, kvGet, kvPut, kvUpdateStatus } from '../../../_ledger.js';
 
 // POST /api/vault/commitments/:id/fulfill
 // Exercises Fulfill on a CommitmentContract. Accepter confirms delivery.
@@ -8,7 +8,7 @@ import { submitExercise } from '../../../_ledger.js';
 const TEMPLATE = 'Vault.CommitmentContract:CommitmentContract';
 
 export const onRequest = async (context) => {
-  const { params, request } = context;
+  const { params, request, env } = context;
   const contractId = params.id;
   try {
     const body = await request.json().catch(() => ({}));
@@ -17,7 +17,31 @@ export const onRequest = async (context) => {
       fulfillmentNote,
       allocationCid: null,
     });
+
+    // Mark the commitment fulfilled (leaves the active list) and index the
+    // SettlementReceipt created by the Fulfill choice.
+    const commitmentRecord = await kvGet(env, 'commitment', contractId);
+    await kvUpdateStatus(env, 'commitment', contractId, 'fulfilled');
+    if (result.contractId) {
+      const p = commitmentRecord?.payload ?? {};
+      await kvPut(env, 'receipt', result.contractId, {
+        status: 'fulfilled',
+        payload: {
+          proposer: p.proposer,
+          accepter: p.accepter,
+          amount: p.amount,
+          currency: p.currency,
+          outcome: 'fulfilled',
+          settlementExecuted: false,
+          note: fulfillmentNote,
+        },
+        sourceCid: contractId,
+        offset: result.completionOffset,
+      });
+    }
+
     return Response.json({
+      contractId: result.contractId,
       updateId: result.updateId,
       offset: result.completionOffset,
     });

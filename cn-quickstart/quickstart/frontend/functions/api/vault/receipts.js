@@ -1,12 +1,13 @@
-import { PKG, queryActiveContracts } from '../_ledger.js';
+import { kvListAsContracts } from '../_ledger.js';
 
-// SettlementReceipts: immutable terminal evidence of every Fulfill / Refund /
-// ResolveDispute. They have no consuming choice, so they accumulate on the ledger.
-const TEMPLATE = `#${PKG}:Vault.SettlementReceipt:SettlementReceipt`;
-
-export const onRequest = async () => {
+// GET /api/vault/receipts — SettlementReceipts: immutable terminal evidence of
+// every Fulfill / Refund / ResolveDispute. Served from the KV index (the ACS
+// does not divulge these in the shared sandbox). All statuses are returned:
+// fulfilled, refunded, dispute-proposer, dispute-accepter.
+export const onRequest = async (context) => {
+  const { env } = context;
   try {
-    const contracts = await queryActiveContracts([TEMPLATE]);
+    const contracts = await kvListAsContracts(env, 'receipt');
     return Response.json(contracts);
   } catch (err) {
     return Response.json(

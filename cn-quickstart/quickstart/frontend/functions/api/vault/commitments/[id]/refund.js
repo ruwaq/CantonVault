@@ -1,4 +1,4 @@
-import { PARTY, submitExercise } from '../../../_ledger.js';
+import { PARTY, submitExercise, kvGet, kvPut, kvUpdateStatus } from '../../../_ledger.js';
 
 // POST /api/vault/commitments/:id/refund
 // Exercises Refund on a CommitmentContract after the deadline. Either signatory
@@ -8,14 +8,36 @@ import { PARTY, submitExercise } from '../../../_ledger.js';
 const TEMPLATE = 'Vault.CommitmentContract:CommitmentContract';
 
 export const onRequest = async (context) => {
-  const { params } = context;
+  const { params, env } = context;
   const contractId = params.id;
   try {
     // The choice requires `actor` (parametrized signatory controller).
     const result = await submitExercise(TEMPLATE, contractId, 'Refund', {
       actor: PARTY,
     });
+
+    const commitmentRecord = await kvGet(env, 'commitment', contractId);
+    await kvUpdateStatus(env, 'commitment', contractId, 'refunded');
+    if (result.contractId) {
+      const p = commitmentRecord?.payload ?? {};
+      await kvPut(env, 'receipt', result.contractId, {
+        status: 'refunded',
+        payload: {
+          proposer: p.proposer,
+          accepter: p.accepter,
+          amount: p.amount,
+          currency: p.currency,
+          outcome: 'refunded',
+          settlementExecuted: false,
+          note: 'refunded after deadline',
+        },
+        sourceCid: contractId,
+        offset: result.completionOffset,
+      });
+    }
+
     return Response.json({
+      contractId: result.contractId,
       updateId: result.updateId,
       offset: result.completionOffset,
     });

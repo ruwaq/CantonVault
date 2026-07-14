@@ -1,13 +1,13 @@
-import { PKG, queryActiveContracts } from '../_ledger.js';
+import { kvListAsContracts } from '../_ledger.js';
 
-// Active CommitmentContracts: proposals that have been accepted and are
-// pending Fulfill / Refund / RaiseDispute. Consuming choices archive them,
-// so the ACS naturally reflects the live state.
-const TEMPLATE = `#${PKG}:Vault.CommitmentContract:CommitmentContract`;
-
-export const onRequest = async () => {
+// GET /api/vault/commitments — active CommitmentContracts (status "active" or
+// "disputed" in the KV index). The sandbox ACS does not divulge these, so we
+// serve them from the local KV index maintained by accept.js. A commitment
+// leaves this list once it is fulfilled / refunded / resolved (terminal states).
+export const onRequest = async (context) => {
+  const { env } = context;
   try {
-    const contracts = await queryActiveContracts([TEMPLATE]);
+    const contracts = await kvListAsContracts(env, 'commitment', ['active', 'disputed']);
     return Response.json(contracts);
   } catch (err) {
     return Response.json(
