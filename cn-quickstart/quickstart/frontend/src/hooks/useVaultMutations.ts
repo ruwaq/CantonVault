@@ -30,6 +30,24 @@ export interface MutationState {
 
 const IDLE: MutationState = { cid: null, action: null, isMutating: false };
 
+/**
+ * Convert an in-progress gerund action ("Accepting proposal") into a
+ * past-tense success message ("Proposal accepted") for toast confirmations.
+ * The jury reads the success toast as a completed fact, not an ongoing action.
+ */
+function toSuccessMessage(action: string): string {
+    const map: Record<string, string> = {
+        'Creating proposal': 'Proposal created on-ledger',
+        'Accepting proposal': 'Proposal accepted — commitment is live',
+        'Rejecting proposal': 'Proposal rejected',
+        'Fulfilling commitment': 'Commitment fulfilled — Canton Coin settled',
+        'Raising dispute': 'Dispute raised — third party notified',
+        'Resolving dispute': 'Dispute resolved — settlement recorded',
+        'Refunding commitment': 'Commitment refunded',
+    };
+    return map[action] ?? action;
+}
+
 // Vault SWR cache keys (must match useVaultData.ts).
 const K = {
     proposals: ['vault', 'proposals'] as const,
@@ -76,6 +94,16 @@ export function useVaultMutations() {
                 .then(async (result) => {
                     // Targeted revalidation: only refetch what this mutation touched.
                     await Promise.all(keysToInvalidate.map((key) => mutate(key)));
+                    // Surface an on-ledger success toast so the jury sees what
+                    // landed on the Canton Network. The axios response carries
+                    // contractId + offset from the backend. Convert the gerund
+                    // action ("Accepting proposal") into a past-tense success
+                    // ("Proposal accepted") for a natural confirmation message.
+                    const data = (result as { data?: { contractId?: string; offset?: number } })?.data;
+                    toast.displaySuccess(toSuccessMessage(action), {
+                        contractId: data?.contractId,
+                        offset: data?.offset,
+                    });
                     return result;
                 })
                 .catch((err) => {

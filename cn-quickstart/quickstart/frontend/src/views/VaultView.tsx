@@ -25,6 +25,28 @@ const WORKFLOWS: { value: Workflow; label: string; hint: string; icon: string }[
     { value: 'otc-block-trade', label: 'OTC Block Trade', hint: 'Dealer A → Dealer B, Clearing on demand', icon: '📈' },
 ];
 
+// ── Copy-CID button ──────────────────────────────────────────────────────────
+// Tiny reusable control so the jury can copy any contractId to verify it
+// independently against the Canton DevNet explorer / ledger offset.
+const CopyCidButton: React.FC<{ cid: string }> = ({ cid }) => {
+    const [copied, setCopied] = useState(false);
+    return (
+        <button
+            className="btn btn-sm btn-outline-light border-0 py-0 px-1 align-baseline"
+            style={{ fontSize: '0.7rem' }}
+            title="Copy full contract id"
+            onClick={() => {
+                void navigator.clipboard?.writeText(cid).then(() => {
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1500);
+                });
+            }}
+        >
+            {copied ? '✓ copied' : '⧉ copy'}
+        </button>
+    );
+};
+
 const VaultView: React.FC = () => {
     const { user } = useUserStore();
     const toast = useToast();
@@ -412,7 +434,12 @@ const ProposeStep: React.FC<ProposeStepProps> = ({
                         <div className="text-center py-5 text-muted cv-empty">
                             <div className="cv-empty-icon">←</div>
                             <h6 className="fw-semibold text-white">No proposals yet</h6>
-                            <p className="small mb-0 max-width-320 mx-auto text-muted">Fill the form on the left and submit to create your first private commitment on-ledger.</p>
+                            <p className="small mb-1 max-width-320 mx-auto text-muted">
+                                Fill the form on the left and hit <strong>Submit Private Proposal</strong> to deploy your first commitment on the Canton Network.
+                            </p>
+                            <p className="xsmall mb-0 max-width-320 mx-auto text-muted opacity-75">
+                                Takes ~2 seconds. You'll see the on-ledger contractId + offset here instantly.
+                            </p>
                         </div>
                     ) : (
                         <div className="d-flex flex-column gap-3">
@@ -430,8 +457,9 @@ const ProposeStep: React.FC<ProposeStepProps> = ({
                                                 <div className="text-muted small mb-2">
                                                     Amount: <strong className="text-success">{p.payload.amount} {p.payload.currency}</strong>
                                                 </div>
-                                                <div className="text-muted xsmall font-monospace" style={{ fontSize: '0.7rem' }}>
-                                                    Contract ID: {p.contractId.slice(0, 20)}...
+                                                <div className="text-muted xsmall font-monospace d-flex align-items-center gap-1" style={{ fontSize: '0.7rem' }}>
+                                                    <span>Contract ID: {p.contractId.slice(0, 16)}…</span>
+                                                    <CopyCidButton cid={p.contractId} />
                                                 </div>
                                             </div>
                                             <div className="d-flex gap-2">
@@ -498,7 +526,9 @@ const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, on
                             <div className="text-center py-5 text-muted cv-empty">
                                 <div className="cv-empty-icon">🤝</div>
                                 <h6 className="fw-semibold text-white">No active commitments</h6>
-                                <p className="small mb-0 max-width-320 mx-auto text-muted">Accept a proposal in Step 1 to move a deal into an active commitment contract.</p>
+                                <p className="small mb-0 max-width-320 mx-auto text-muted">
+                                    Go to <strong>Step 1 · Propose</strong> and hit <strong>Accept</strong> on a proposal to bring a deal live here.
+                                </p>
                             </div>
                         ) : (
                             <div className="d-flex flex-column gap-3">
@@ -560,6 +590,10 @@ const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, on
                                                         <div className="col-sm-4">
                                                             <strong>Arbitrator:</strong> <span className="font-monospace">{shortParty(c.payload.thirdParty)}</span>
                                                         </div>
+                                                    </div>
+                                                    <div className="mt-1 font-monospace d-flex align-items-center gap-1" style={{ fontSize: '0.7rem' }}>
+                                                        <span>Contract ID: {c.contractId.slice(0, 16)}…</span>
+                                                        <CopyCidButton cid={c.contractId} />
                                                     </div>
                                                 </div>
                                             </div>
@@ -785,7 +819,8 @@ const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitme
                 <div className="card-body pt-3">
                     {receipts.length === 0 ? (
                         <div className="text-center py-4 text-muted">
-                            <p className="small mb-0">No receipts yet. Settle a commitment or resolve a dispute in Step 2 to generate atomic coin settlement receipts.</p>
+                            <p className="small mb-1">No settlement receipts yet.</p>
+                            <p className="xsmall mb-0 opacity-75">Fulfill a commitment in <strong>Step 2 · Act</strong> — the atomic Canton Coin transfer generates an immutable receipt here.</p>
                         </div>
                     ) : (
                         <div className="d-flex flex-column gap-2">
