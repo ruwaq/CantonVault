@@ -21,70 +21,72 @@ The key Canton feature being demonstrated: **the third party's validator node ph
 
 ---
 
-## The 3-step wizard
+## The 3-step flow
 
-The UI has three steps: **Propose → Act → Privacy Lab**.
+The UI has three steps: **Create → Act → Verify**.
 
-### Step 1 · Propose — create a private commitment (~20s)
+### Step 1 · Create — send a private offer (~20s)
 
 1. Open https://canton-vault.pages.dev
-2. You're on **Step 1 · Propose**. The form on the left is pre-filled with defaults.
-3. Pick a **Workflow Scenario** (Supply Chain Finance, Invoice Financing, or OTC Block Trade).
-4. Enter an **Amount** (e.g. `5000`) and a **Description** (e.g. `Invoice INV-2026-001`).
-5. Leave Accepter and Third Party as the default party (the demo party plays all roles).
-6. Click **Submit Private Proposal**.
+2. You're on **Step 1 · Create**. A 4-screen wizard walks you through one decision per screen:
+   - **Screen 1:** What's this agreement for? (e.g. `Invoice INV-2026-001`)
+   - **Screen 2:** How much? (e.g. `5000` CC)
+   - **Screen 3:** Who else? (accepter + mediator — pre-selected with defaults)
+   - **Screen 4:** Review and send — pick an expiry (1 hour / 1 day / 1 week), then **Send offer**.
+3. A success screen confirms: **✓ Offer sent!**
 
 **What happens:**
 - A `CommitmentProposal` contract is created on the Canton DevNet ledger.
-- A green toast appears: **✓ On-ledger confirmed** with the contractId + ledger offset.
-- Your proposal appears in the **Active Proposals** list on the right.
+- Your offer appears in the **Active Proposals** list on the right with its real contractId.
 
-> 📌 The toast shows a real contractId (138 chars) and the ledger offset where the transaction landed. Hit **⧉ copy** to grab the full contractId.
+> 📌 The contractId is a real 138-char on-ledger identifier. Hit **⧉ copy** to grab it and verify independently.
 
 ### Step 2 · Act — accept, fulfill, dispute (~40s)
 
-1. Your proposal is in the **Active Proposals** list with **Accept** / **Reject** buttons.
-2. Click **Accept**.
-   - The proposal disappears from the list (it was consumed — Daml archival).
-   - A green toast confirms: *"Proposal accepted — commitment is live."*
+1. Your proposal is in the **Active Proposals** list with **Accept offer** / **Decline** buttons.
+2. Click **Accept offer** → confirm in the "Here's what will happen" dialog.
+   - The proposal is consumed (Daml archival) and becomes a live commitment.
 3. Switch to **Step 2 · Act** (click the stepper at the top).
-4. Your commitment now appears under **Active Commitments** with three actions: **Fulfill**, **Dispute**, **Refund**.
-5. Click **Fulfill** → confirm in the modal.
+4. Your commitment appears under **Active Commitments** with three actions: **Confirm delivery**, **Report a problem**, **Cancel and refund**.
+5. Click **Confirm delivery** → fill the modal → confirm.
    - The commitment is archived (Daml consuming choice — prevents double-fulfill).
    - Canton Coin is settled atomically (accepter → proposer).
    - A `SettlementReceipt` is created as immutable evidence.
 
-### Step 3 · Privacy Lab — verify the privacy guarantee (~30s)
+### Step 3 · Verify — the Privacy Lab (~30s)
 
-1. Switch to **Step 3 · Privacy Lab**.
-2. You see three columns side by side:
+1. Switch to **Step 3 · Verify**.
+2. A banner affirms: **🛡️ The mediator sees nothing of this.** Not hidden, not encrypted — never sent.
+3. Three columns show the same commitment from different validator nodes:
 
 | Column | What it shows |
 |---|---|
-| **🤝 Stakeholders View** | Full commitment: amount, description, all party IDs |
-| **🔒 Arbitrator (Pre-Dispute)** | `Found contracts: 0` — the arbitrator node has literally zero data |
-| **🏛️ Arbitrator (Disclosed)** | Empty until you raise a dispute (see below) |
+| **🤝 What you see** | Full commitment: amount, description, party labels (hashes under "Technical details ▾") |
+| **🔒 What the mediator sees** | **0 agreements found.** The mediator's node has no record of this transaction. |
+| **👁️ What the mediator learns after a report** | Empty until you raise a dispute (see below) |
 
-3. Below: **Canton Coin Settlement Receipts** — your fulfilled commitment appears here with the outcome (`fulfilled`) and atomic-settlement badge.
+4. Below: **Payment receipts** — your fulfilled commitment appears here with "Payment completed" badge.
 
-> 🔑 **The privacy proof:** Column 2 is not "empty because we didn't load data." It's empty because **Canton's sub-transaction privacy model physically never sent the transaction to the arbitrator's validator node.** The arbitrator's ledger is genuinely blank.
+> 🔑 **The privacy proof:** Column 2 is not "empty because we didn't load data." It's empty because **Canton's sub-transaction privacy model physically never sent the transaction to the mediator's validator node.** The mediator's ledger is genuinely blank.
 
 ---
 
 ## Optional: The dispute flow (selective disclosure)
 
-This demonstrates **on-demand selective disclosure** — the core privacy primitive.
+This demonstrates **on-demand selective disclosure** — the core privacy primitive. A seed dispute is already live in the demo, so you can see the result immediately, or create your own:
 
-1. Go back to **Step 2 · Act**. Create a new proposal + accept it (repeat Steps 1-2 above).
-2. On the new active commitment, click **Dispute** → enter a reason → confirm.
+1. Go back to **Step 2 · Act**. Create a new offer + accept it (repeat Step 1 above).
+2. On the new active commitment, click **Report a problem** → enter a reason → confirm.
    - The commitment is archived.
-   - A `DisputeCase` is created — **now the third party becomes an observer.**
+   - A `DisputeCase` is created — **now the mediator becomes an observer.**
    - A `DisclosedRecord` is created revealing **only** `amount` and `description` (not currency, not workflow, not party identities).
-3. Go to **Step 3 · Privacy Lab** → the **Arbitrator (Disclosed)** column now shows the selective disclosure: just the two revealed fields + the dispute reason.
-4. Go back to **Step 2** → the dispute appears under **Escalations & Disputes** with a **Resolve** button.
+3. Go to **Step 3 · Verify** → the **"What the mediator learns after a report"** column now shows the selective disclosure: just the two revealed fields + the dispute reason.
+4. Go back to **Step 2** → the dispute appears under **Open Disputes** with a **Resolve** button.
 5. Click **Resolve** → choose a ruling (proposer or accepter) → confirm.
    - The dispute is archived.
    - A terminal `SettlementReceipt` records the binding outcome.
+
+> 💡 **Note on the mediator:** The demo uses a single Canton identity that can act as multiple parties (via different name prefixes on the same key). The mediator party (`Observer::*`) is a genuinely distinct party from the actor (`cancore::*`) — Canton treats different prefixes as separate parties with separate validator views. This is what makes the Privacy Lab meaningful: the mediator's node really does have a separate, empty view until a dispute triggers selective disclosure.
 
 ---
 
