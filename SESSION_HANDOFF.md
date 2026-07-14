@@ -1,12 +1,70 @@
 # Session Handoff — CantonVault Hackathon
-## Última actualización: 2026-07-14 (GETs con datos reales vía KV + UX on-ledger para jurado)
+## Última actualización: 2026-07-14 (todo funcional + UX pendiente de rediseño profundo)
 
 > **LEER ESTO PRIMERO** al iniciar la próxima sesión.
 > Estado verificado en vivo, en la DevNet y vía CLI de Cloudflare (wrangler + API).
 
 ---
 
-## ✅ ESTADO ACTUAL (verificado 2026-07-14, offset 4329300+)
+## 🔴 PRIORIDAD #1 — Rediseño profundo de diseño + UX (próxima sesión)
+
+**El backend y la lógica están 100% completos y funcionando. El problema es
+visual: el texto no se puede leer porque las letras tienen el mismo color
+que los fondos (contraste insuficiente en el tema oscuro).**
+
+Esto NO es algo de cambiar un color puntual. Requiere un **sistema de diseño
+completo**: paleta de colores con contraste verificado (WCAG AA mínimo),
+jerarquía tipográfica clara, y revisión de cada componente. El jurado necesita
+poder LEER el demo sin esfuerzo.
+
+### Qué está mal (diagnóstico de esta sesión)
+- **Texto muted (`--text-muted: #a1a1aa`) sobre fondos glass/surface (`#18181b`,
+  `rgba(24,24,27,0.65)`)**: contraste ~3:1, por debajo del mínimo WCAG AA (4.5:1).
+  Los `form-text`, labels, descripciones y badges secondary desaparecen.
+- **Texto `text-muted` sobre `bg-surface bg-opacity-50`**: aún peor, el fondo es
+  translúcido sobre `--bg-base: #09090b`, dando ~2.5:1.
+- **Cards de commitments/proposals**: `bg-surface bg-opacity-50` + texto muted =
+  ilegible. Las party IDs, amounts, descripciones se pierden.
+- **Privacy Lab**: las 3 columnas con texto muted sobre glass translúcido.
+- **El banner de ayuda que añadimos esta sesión** hereda `text-muted` y también
+  se ve mal — el contenido llega pero la capa visual lo oculta.
+- **Los `form-text` de ayuda que añadimos** usan `text-muted` → ilegibles.
+
+### Qué SÍ funciona y NO hay que romper
+- La lógica: KV, mutations, GETs, optimistic updates, toasts con CID+offset.
+- La arquitectura: Pages Functions + Canton DevNet + Splice Validator API.
+- El lifecycle: create→accept→fulfill→dispute→resolve verificado E2E.
+- Los tooltips `title` en botones (esos sí se leen, son nativos del navegador).
+
+### Plan sugerido para la próxima sesión
+1. **Definir paleta con contraste WCAG AA verificado** (mínimo 4.5:1 para texto
+   normal, 3:1 para texto grande). Subir `--text-muted` de `#a1a1aa` a algo como
+   `#d4d4d8` o `#e4e4e7`. Ajustar `--text-secondary` si hace falta.
+2. **Auditar cada superficie** (`--bg-surface`, `--bg-glass`, `bg-surface bg-opacity-*`)
+   y garantizar que el texto sobre ellas tiene contraste suficiente.
+3. **Sistema de diseño**: definir tokens semánticos (`--text-on-glass`,
+   `--text-on-surface`, `--text-on-primary`) en vez de usar `text-muted` global.
+4. **Probar con un contrast checker** cada combinación fondo/texto antes de deployar.
+5. **Revisar `theme.css` y `App.css`** — ahí están TODOS los estilos. Las clases
+   `cv-*` están en `App.css`, las utility/bootstrap overrides en `theme.css`.
+
+### Archivos clave para el rediseño
+```
+cn-quickstart/quickstart/frontend/src/
+├── theme.css              # ← PALETA principal: --text-muted, --bg-surface, --bg-glass
+├── App.css                # ← clases cv-* (stepper, vault-header, balance, empty states)
+├── views/VaultView.tsx    # ← 850 líneas, usa text-muted y bg-surface por todos lados
+├── views/landing.css      # landing page
+├── views/login.css        # login page
+└── components/
+    ├── Header.tsx         # balance badge, nav
+    ├── ToastNotification.tsx
+    └── vault/VaultActionModals.tsx  # modales usan text-muted
+```
+
+---
+
+## ✅ ESTADO ACTUAL (verificado 2026-07-14, offset 4330164)
 
 | Componente | Estado | Evidencia |
 |---|---|---|
@@ -16,8 +74,9 @@
 | **Balance CC REAL** | ✅ De la red | `/api/vault/balance` → **31,433,860+ CC** vía Splice Validator API |
 | **GETs con datos reales** | ✅ VÍA KV | Los 5 GET leen del KV index — proposals/commitments/receipts visibles |
 | **resolve.js bug** | ✅ ARREGLADO | Busca DisputeCase en KV (antes en ACS que devolvía [] → siempre 404) |
-| **UX on-ledger para jurado** | ✅ HECHO | Toasts con CID+offset, botón copiar CID, empty states accionables |
+| **UX on-ledger para jurado** | ✅ Funcional, ⚠️ contraste malo | Toasts/tooltips/ayuda en campos funcionan PERO texto ilegible (contraste insuficiente) |
 | **Docs jurado** | ✅ LISTAS | README actualizado + DEMO.md guía paso a paso |
+| **Sistema de diseño** | 🔴 PENDIENTE | **Prioridad #1 próxima sesión** — ver arriba |
 | **Party del demo** | ✅ `cancore::*` | Writes funcionan + tiene CC del faucet |
 | **Lifecycle on-ledger** | ✅ create→accept→fulfill | Verificado E2E con persistencia KV |
 | **Git↔Cloudflare** | ✅ CONECTADO | `Git Provider: Yes`, build config corregida |
