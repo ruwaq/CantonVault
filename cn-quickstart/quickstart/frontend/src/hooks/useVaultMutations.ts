@@ -120,10 +120,24 @@ export function useVaultMutations() {
             wrap(
                 null,
                 'Creating proposal',
-                () => vaultApi.post('/proposals', input),
+                async () => {
+                    const res = await vaultApi.post('/proposals', input);
+                    // Optimistic update: KV is eventually consistent (up to 60s
+                    // cross-datacenter), so the immediate SWR revalidation may
+                    // not see the new proposal yet. Insert it into the cache now
+                    // from the response payload; the background revalidation will
+                    // reconcile once KV replicates.
+                    await mutate(K.proposals, (current: unknown) => {
+                        const list = (current ?? []) as Array<{ contractId: string; payload: Record<string, unknown> }>;
+                        const cid = res.data?.contractId;
+                        if (!cid || list.some((p) => p.contractId === cid)) return list;
+                        return [{ contractId: cid, payload: { ...input } }, ...list];
+                    }, { revalidate: false });
+                    return res;
+                },
                 [K.proposals, K.commitments],
             ),
-        [wrap],
+        [wrap, mutate],
     );
 
     const acceptProposal = useCallback(
@@ -131,10 +145,19 @@ export function useVaultMutations() {
             wrap(
                 contractId,
                 'Accepting proposal',
-                () => vaultApi.post(`/proposals/${contractId}/accept`),
+                async () => {
+                    const res = await vaultApi.post(`/proposals/${contractId}/accept`);
+                    // Optimistic: remove the proposal from the pending list
+                    // immediately. KV eventual consistency can delay the GET.
+                    await mutate(K.proposals, (current: unknown) => {
+                        const list = (current ?? []) as Array<{ contractId: string }>;
+                        return list.filter((p) => p.contractId !== contractId);
+                    }, { revalidate: false });
+                    return res;
+                },
                 [K.proposals, K.commitments],
             ),
-        [wrap],
+        [wrap, mutate],
     );
 
     const rejectProposal = useCallback(
@@ -142,10 +165,17 @@ export function useVaultMutations() {
             wrap(
                 contractId,
                 'Rejecting proposal',
-                () => vaultApi.post(`/proposals/${contractId}/reject`),
+                async () => {
+                    const res = await vaultApi.post(`/proposals/${contractId}/reject`);
+                    await mutate(K.proposals, (current: unknown) => {
+                        const list = (current ?? []) as Array<{ contractId: string }>;
+                        return list.filter((p) => p.contractId !== contractId);
+                    }, { revalidate: false });
+                    return res;
+                },
                 [K.proposals],
             ),
-        [wrap],
+        [wrap, mutate],
     );
 
     const fulfillCommitment = useCallback(
@@ -153,10 +183,18 @@ export function useVaultMutations() {
             wrap(
                 contractId,
                 'Fulfilling commitment',
-                () => vaultApi.post(`/commitments/${contractId}/fulfill`, input),
+                async () => {
+                    const res = await vaultApi.post(`/commitments/${contractId}/fulfill`, input);
+                    // Optimistic: move the commitment out of the active list.
+                    await mutate(K.commitments, (current: unknown) => {
+                        const list = (current ?? []) as Array<{ contractId: string }>;
+                        return list.filter((c) => c.contractId !== contractId);
+                    }, { revalidate: false });
+                    return res;
+                },
                 [K.commitments, K.receipts, K.balance],
             ),
-        [wrap],
+        [wrap, mutate],
     );
 
     const raiseDispute = useCallback(
@@ -164,10 +202,18 @@ export function useVaultMutations() {
             wrap(
                 contractId,
                 'Raising dispute',
-                () => vaultApi.post(`/commitments/${contractId}/raise-dispute`, { reason }),
+                async () => {
+                    const res = await vaultApi.post(`/commitments/${contractId}/raise-dispute`, { reason });
+                    // Optimistic: the commitment leaves the active list (now disputed).
+                    await mutate(K.commitments, (current: unknown) => {
+                        const list = (current ?? []) as Array<{ contractId: string }>;
+                        return list.filter((c) => c.contractId !== contractId);
+                    }, { revalidate: false });
+                    return res;
+                },
                 [K.commitments, K.disputes, K.disclosures],
             ),
-        [wrap],
+        [wrap, mutate],
     );
 
     const resolveDispute = useCallback(
@@ -175,14 +221,21 @@ export function useVaultMutations() {
             wrap(
                 contractId,
                 'Resolving dispute',
-                () =>
-                    vaultApi.post(`/commitments/${contractId}/resolve`, {
+                async () => {
+                    const res = await vaultApi.post(`/commitments/${contractId}/resolve`, {
                         ruling,
                         allocationContractId: allocationContractId?.trim() || undefined,
-                    }),
+                    });
+                    // Optimistic: the dispute leaves the open list.
+                    await mutate(K.disputes, (current: unknown) => {
+                        const list = (current ?? []) as Array<{ contractId: string; payload: { commitmentRef?: string } }>;
+                        return list.filter((d) => d.payload?.commitmentRef !== contractId);
+                    }, { revalidate: false });
+                    return res;
+                },
                 [K.commitments, K.disputes, K.disclosures, K.receipts, K.balance],
             ),
-        [wrap],
+        [wrap, mutate],
     );
 
     const refundCommitment = useCallback(
@@ -190,10 +243,17 @@ export function useVaultMutations() {
             wrap(
                 contractId,
                 'Refunding commitment',
-                () => vaultApi.post(`/commitments/${contractId}/refund`, input),
+                async () => {
+                    const res = await vaultApi.post(`/commitments/${contractId}/refund`, input);
+                    await mutate(K.commitments, (current: unknown) => {
+                        const list = (current ?? []) as Array<{ contractId: string }>;
+                        return list.filter((c) => c.contractId !== contractId);
+                    }, { revalidate: false });
+                    return res;
+                },
                 [K.commitments, K.receipts, K.balance],
             ),
-        [wrap],
+        [wrap, mutate],
     );
 
     return {
