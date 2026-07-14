@@ -1,7 +1,7 @@
 // Copyright (c) 2026, CantonVault Hackathon. All rights reserved.
 // SPDX-License-Identifier: 0BSD
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { PartyDescriptor } from '../../../stores/vaultStore';
 import type { Workflow } from '../../../types';
 import { copy } from '../../../lib/copy';
@@ -49,20 +49,33 @@ interface ProposeWizardProps {
  * these micro 4-dot progress indicators (below).
  */
 const ProposeWizard: React.FC<ProposeWizardProps> = ({ parties, onSubmit, submitting }) => {
-  const defaultAccepter = parties.find((p) => p.role === 'accepter')?.partyId ?? '';
-  const defaultMediator = parties.find((p) => p.role === 'thirdParty')?.partyId ?? '';
-
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
   const [data, setData] = useState<WizardData>({
     description: '',
     amount: '',
     currency: 'CC',
-    accepter: defaultAccepter,
-    thirdParty: defaultMediator,
+    accepter: '',
+    thirdParty: '',
     workflow: 'supply-chain-finance',
     deadlineSeconds: 3600,
   });
+
+  // Parties load asynchronously via SWR (they're empty on first render).
+  // When they arrive, pre-select the defaults so the "Next" button on screen 3
+  // isn't stuck disabled — and so the submitted proposal carries real party IDs.
+  useEffect(() => {
+    if (data.accepter || data.thirdParty) return; // user already picked / typed
+    const acc = parties.find((p) => p.role === 'accepter')?.partyId;
+    const med = parties.find((p) => p.role === 'thirdParty')?.partyId;
+    if (acc || med) {
+      setData((d) => ({
+        ...d,
+        accepter: d.accepter || acc || '',
+        thirdParty: d.thirdParty || med || '',
+      }));
+    }
+  }, [parties, data.accepter, data.thirdParty]);
 
   const set = <K extends keyof WizardData>(key: K, value: WizardData[K]) =>
     setData((d) => ({ ...d, [key]: value }));
