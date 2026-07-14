@@ -70,6 +70,9 @@ export function FulfillModal({ show, commitment, onClose, onConfirm }: FulfillMo
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                 />
+                <div className="form-text small text-muted">
+                    Free-text proof of delivery (e.g. "Shipment confirmed", "Services rendered"). Stored permanently on the Settlement Receipt.
+                </div>
             </div>
 
             <div className="mb-3">
@@ -81,8 +84,8 @@ export function FulfillModal({ show, commitment, onClose, onConfirm }: FulfillMo
                     value={allocationContractId}
                     onChange={(e) => setAllocationContractId(e.target.value)}
                 />
-                <div className="form-text small">
-                    The accepter confirms delivery and the protocol atomically transfers Canton Coin from accepter to proposer.
+                <div className="form-text small text-muted">
+                    The on-ledger Canton Coin allocation that authorizes the atomic transfer. In production the accepter must pre-approve a transfer; in this demo (realSettlementRequired = false) the symbolic path is used. Leave a value like <code>#0:1</code> if unsure.
                 </div>
             </div>
         </Modal>
@@ -136,6 +139,9 @@ export function RefundModal({ show, commitment, onClose, onConfirm }: RefundModa
                 value={allocationContractId}
                 onChange={(e) => setAllocationContractId(e.target.value)}
             />
+            <div className="form-text small text-muted mt-1">
+                The on-ledger reverse allocation authorizing Canton Coin to flow back. Only works <strong>after the deadline has expired</strong> — the Daml contract enforces this. Leave <code>#0:2</code> if unsure.
+            </div>
         </Modal>
     );
 }
@@ -177,6 +183,9 @@ export function DisputeModal({ show, commitment, onClose, onConfirm }: DisputeMo
                 onChange={(e) => setReason(e.target.value)}
                 autoFocus
             />
+            <div className="form-text small text-muted mt-1">
+                Why you're escalating. This text <strong>is</strong> visible to the arbitrator and gets recorded in the DisclosedRecord on-ledger. Be specific — the arbitrator rules based on this.
+            </div>
         </Modal>
     );
 }
@@ -234,6 +243,9 @@ export function ResolveModal({ show, contractId, onClose, onConfirm }: ResolveMo
                 <label className="form-check-label small" htmlFor="resolve-proposer">
                     Rule for proposer and execute settlement
                 </label>
+                <div className="form-text small text-muted mt-0 mb-1">
+                    Canton Coin flows to the proposer (the original supplier). Requires an allocation to authorize the transfer.
+                </div>
             </div>
             <div className="form-check mb-3">
                 <input
@@ -246,6 +258,9 @@ export function ResolveModal({ show, contractId, onClose, onConfirm }: ResolveMo
                 <label className="form-check-label small" htmlFor="resolve-accepter">
                     Rule for accepter without payout
                 </label>
+                <div className="form-text small text-muted mt-0">
+                    No Canton Coin moves. The accepter keeps their funds — use when the claim is unfounded.
+                </div>
             </div>
             {ruling === 'proposer' ? (
                 <>
@@ -257,6 +272,9 @@ export function ResolveModal({ show, contractId, onClose, onConfirm }: ResolveMo
                         value={allocationContractId}
                         onChange={(e) => setAllocationContractId(e.target.value)}
                     />
+                    <div className="form-text small text-muted mt-1">
+                        The on-ledger allocation authorizing the payout to the proposer. Leave <code>#0:3</code> if unsure.
+                    </div>
                 </>
             ) : null}
         </Modal>

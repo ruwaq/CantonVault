@@ -84,8 +84,8 @@ const BalanceBadge: React.FC = () => {
     }
     return (
         <span className="cv-balance">
-            <span className="badge bg-success me-1">CC</span>
-            {balance.toFixed(2)}
+            <span className="badge bg-success me-2">CC</span>
+            {balance.toLocaleString('en-US', { maximumFractionDigits: 2 })}
         </span>
     );
 };

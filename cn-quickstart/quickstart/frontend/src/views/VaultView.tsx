@@ -342,21 +342,24 @@ const ProposeStep: React.FC<ProposeStepProps> = ({
                                 <button className="btn btn-sm btn-outline-light" onClick={() => { setAccepterMode('select'); setForm(f => ({ ...f, accepter: '' })); }}>List</button>
                             </div>
                         ) : (
-                            <PartySelect 
-                                value={form.accepter} 
-                                onChange={(v) => { 
-                                    if (v === '__custom') { 
-                                        setAccepterMode('custom'); 
-                                        setForm(f => ({ ...f, accepter: '' })); 
-                                    } else { 
-                                        setForm({ ...form, accepter: v }); 
-                                    } 
-                                }} 
-                                parties={parties} 
-                                role="accepter" 
-                                placeholder="an accepter" 
+                            <PartySelect
+                                value={form.accepter}
+                                onChange={(v) => {
+                                    if (v === '__custom') {
+                                        setAccepterMode('custom');
+                                        setForm(f => ({ ...f, accepter: '' }));
+                                    } else {
+                                        setForm({ ...form, accepter: v });
+                                    }
+                                }}
+                                parties={parties}
+                                role="accepter"
+                                placeholder="an accepter"
                             />
                         )}
+                        <div className="form-text text-muted small mt-1.5">
+                            Who signs and pays. On <strong>Fulfill</strong>, Canton Coin moves <em>from</em> the accepter <em>to</em> the proposer. Leave default for the demo (same party plays all roles).
+                        </div>
                     </div>
 
                     <div className="mb-3">
@@ -370,42 +373,53 @@ const ProposeStep: React.FC<ProposeStepProps> = ({
                                 <button className="btn btn-sm btn-outline-light" onClick={() => { setThirdPartyMode('select'); setForm(f => ({ ...f, thirdParty: '' })); }}>List</button>
                             </div>
                         ) : (
-                            <PartySelect 
-                                value={form.thirdParty} 
-                                onChange={(v) => { 
-                                    if (v === '__custom') { 
-                                        setThirdPartyMode('custom'); 
-                                        setForm(f => ({ ...f, thirdParty: '' })); 
-                                    } else { 
-                                        setForm({ ...form, thirdParty: v }); 
-                                    } 
-                                }} 
-                                parties={parties} 
-                                role="thirdParty" 
-                                placeholder="a third party" 
+                            <PartySelect
+                                value={form.thirdParty}
+                                onChange={(v) => {
+                                    if (v === '__custom') {
+                                        setThirdPartyMode('custom');
+                                        setForm(f => ({ ...f, thirdParty: '' }));
+                                    } else {
+                                        setForm({ ...form, thirdParty: v });
+                                    }
+                                }}
+                                parties={parties}
+                                role="thirdParty"
+                                placeholder="a third party"
                             />
                         )}
+                        <div className="form-text text-muted small mt-1.5">
+                            The arbitrator's node <strong>physically receives zero data</strong> until you raise a dispute. Then they see only the amount + description. Leave default for the demo.
+                        </div>
                     </div>
 
                     <div className="row g-2 mb-3">
                         <div className="col-7">
                             <label className="form-label small text-muted">Amount</label>
                             <input className="form-control form-control-sm" type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="5000" />
+                            <div className="form-text text-muted small mt-1.5">Canton Coin (CC) to commit. This is settled atomically on Fulfill.</div>
                         </div>
                         <div className="col-5">
                             <label className="form-label small text-muted">Currency</label>
                             <input className="form-control form-control-sm text-center" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} />
+                            <div className="form-text text-muted small mt-1.5">CC = Canton Coin. Leave as-is.</div>
                         </div>
                     </div>
 
                     <div className="mb-3">
                         <label className="form-label small text-muted">Description (Deal context)</label>
                         <input className="form-control form-control-sm" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Invoice INV-2026-001" />
+                        <div className="form-text text-muted small mt-1.5">
+                            A short label for the deal. <strong>This is one of only two fields revealed to the arbitrator</strong> if you dispute (the other is the amount).
+                        </div>
                     </div>
 
                     <div className="mb-4">
                         <label className="form-label small text-muted">Deadline (expiry in seconds)</label>
                         <input className="form-control form-control-sm" type="number" value={form.deadlineSeconds} onChange={(e) => setForm({ ...form, deadlineSeconds: e.target.value })} />
+                        <div className="form-text text-muted small mt-1.5">
+                            How long the accepter has to Fulfill. After this expires, <strong>Refund</strong> becomes available. Default 3600s = 1 hour.
+                        </div>
                     </div>
 
                     <button className="btn btn-primary btn-sm w-100 py-2 fw-semibold" onClick={onSubmit} disabled={disabled}>
@@ -463,19 +477,21 @@ const ProposeStep: React.FC<ProposeStepProps> = ({
                                                 </div>
                                             </div>
                                             <div className="d-flex gap-2">
-                                                <button 
-                                                    className="btn btn-success btn-sm px-3 py-1.5 fw-semibold" 
-                                                    onClick={() => onAccept(p.contractId)} 
+                                                <button
+                                                    className="btn btn-success btn-sm px-3 py-1.5 fw-semibold"
+                                                    onClick={() => onAccept(p.contractId)}
                                                     disabled={pendingAction?.cid === p.contractId}
+                                                    title="Accept — sign the proposal and convert it into an active CommitmentContract on-ledger. Moves the deal to Step 2 where it can be fulfilled, disputed, or refunded."
                                                 >
-                                                    {pendingAction?.cid === p.contractId && pendingAction?.action === 'accept' ? 'Accepting...' : 'Accept'}
+                                                    {pendingAction?.cid === p.contractId && pendingAction?.action === 'accept' ? 'Accepting…' : '✓ Accept'}
                                                 </button>
-                                                <button 
-                                                    className="btn btn-outline-danger btn-sm px-3 py-1.5 fw-semibold" 
-                                                    onClick={() => onReject(p.contractId)} 
+                                                <button
+                                                    className="btn btn-outline-danger btn-sm px-3 py-1.5 fw-semibold"
+                                                    onClick={() => onReject(p.contractId)}
                                                     disabled={pendingAction?.cid === p.contractId}
+                                                    title="Reject — archive the proposal permanently. Terminal action; the proposal is consumed and cannot be accepted later."
                                                 >
-                                                    {pendingAction?.cid === p.contractId && pendingAction?.action === 'reject' ? 'Rejecting...' : 'Reject'}
+                                                    {pendingAction?.cid === p.contractId && pendingAction?.action === 'reject' ? 'Rejecting…' : '✕ Reject'}
                                                 </button>
                                             </div>
                                         </div>
@@ -521,6 +537,16 @@ const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, on
                         </h5>
                         {commitments.length > 0 && <span className="badge bg-warning text-dark px-2">{commitments.length} active</span>}
                     </div>
+                    {commitments.length > 0 && (
+                        <div className="px-3 pt-2">
+                            <div className="alert alert-light small mb-0 bg-white bg-opacity-5 border-0 py-2">
+                                <strong>How commitments work:</strong> Each active commitment can end in one of three ways —{' '}
+                                <span className="text-success fw-semibold">Fulfill</span> (settle the Canton Coin),{' '}
+                                <span className="text-warning fw-semibold">Dispute</span> (escalate to the arbitrator with selective disclosure), or{' '}
+                                <span className="text-muted fw-semibold">Refund</span> (return funds after deadline). Hover any button for details.
+                            </div>
+                        </div>
+                    )}
                     <div className="card-body pt-3">
                         {commitments.length === 0 ? (
                             <div className="text-center py-5 text-muted cv-empty">
@@ -556,26 +582,29 @@ const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, on
                                                         </div>
                                                     </div>
                                                     <div className="d-flex gap-1.5 flex-wrap">
-                                                        <button 
-                                                            className="btn btn-outline-primary btn-sm px-2.5 py-1 fw-medium" 
-                                                            onClick={() => onFulfill(c)} 
+                                                        <button
+                                                            className="btn btn-outline-primary btn-sm px-2.5 py-1 fw-medium"
+                                                            onClick={() => onFulfill(c)}
                                                             disabled={disputed || pendingAction?.cid === c.contractId}
+                                                            title="Fulfill — the accepter confirms delivery. Canton Coin is atomically transferred (accepter → proposer) and a Settlement Receipt is created. This is the normal happy-path settlement."
                                                         >
-                                                            {isFulfilling ? 'Fulfilling...' : 'Fulfill'}
+                                                            {isFulfilling ? 'Fulfilling…' : '✓ Fulfill'}
                                                         </button>
-                                                        <button 
-                                                            className="btn btn-warning btn-sm px-2.5 py-1 fw-semibold text-dark" 
-                                                            onClick={() => onDispute(c)} 
+                                                        <button
+                                                            className="btn btn-warning btn-sm px-2.5 py-1 fw-semibold text-dark"
+                                                            onClick={() => onDispute(c)}
                                                             disabled={disputed || pendingAction?.cid === c.contractId}
+                                                            title="Dispute — escalate to the third-party arbitrator. Reveals ONLY the amount + description (selective disclosure). The commitment is archived and a DisputeCase is opened for the arbitrator to resolve."
                                                         >
-                                                            {isDisputing ? 'Disputing...' : 'Dispute'}
+                                                            {isDisputing ? 'Disputing…' : '⚠ Dispute'}
                                                         </button>
-                                                        <button 
-                                                            className="btn btn-outline-secondary btn-sm px-2.5 py-1 fw-medium" 
-                                                            onClick={() => onRefund(c)} 
+                                                        <button
+                                                            className="btn btn-outline-secondary btn-sm px-2.5 py-1 fw-medium"
+                                                            onClick={() => onRefund(c)}
                                                             disabled={pendingAction?.cid === c.contractId}
+                                                            title="Refund — close out an unfulfilled commitment after its deadline has passed. Canton Coin returns to the accepter. Only works once the deadline has expired."
                                                         >
-                                                            {isRefunding ? 'Refunding...' : 'Refund'}
+                                                            {isRefunding ? 'Refunding…' : '↩ Refund'}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -641,12 +670,13 @@ const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, on
                                                             Reason: <em className="text-warning-light">"{d.payload.reason}"</em>
                                                         </div>
                                                     </div>
-                                                    <button 
-                                                        className="btn btn-primary btn-sm px-3 py-1.5 fw-semibold" 
-                                                        onClick={() => onResolve(d.payload.commitmentRef)} 
+                                                    <button
+                                                        className="btn btn-primary btn-sm px-3 py-1.5 fw-semibold"
+                                                        onClick={() => onResolve(d.payload.commitmentRef)}
                                                         disabled={pendingAction?.cid === d.payload.commitmentRef}
+                                                        title="Resolve — as the arbitrator (third party), issue a binding ruling in favor of the proposer or accepter. Archives the dispute and creates a terminal Settlement Receipt."
                                                     >
-                                                        {isResolving ? 'Resolving...' : 'Resolve'}
+                                                        {isResolving ? 'Resolving…' : '⚖ Resolve'}
                                                     </button>
                                                 </div>
                                                 <div className="xsmall text-muted border-top border-secondary border-opacity-10 pt-2 mt-2">
@@ -679,6 +709,16 @@ const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitme
 
     return (
         <div>
+            {/* Explanation banner */}
+            <div className="alert alert-light mb-4 bg-white bg-opacity-5 border-0 py-3">
+                <h6 className="fw-bold text-white mb-2">🛡️ Privacy Lab — what you're seeing</h6>
+                <p className="small text-muted mb-0">
+                    The same commitment, viewed from <strong>three different validator nodes</strong>. Canton's sub-transaction privacy means the arbitrator's node
+                    <strong className="text-success"> physically never receives</strong> the commitment data — it's not encrypted-and-hidden, it's <em>not sent at all</em>.
+                    Column 2 is empty by design, not by bug. Raise a dispute in Step 2 to see the arbitrator receive only the fields they need (amount + description) via selective disclosure.
+                </p>
+            </div>
+
             {/* Viewpoint Selector */}
             {commitments.length > 1 && (
                 <div className="card glass-panel mb-4 py-2 px-3">
