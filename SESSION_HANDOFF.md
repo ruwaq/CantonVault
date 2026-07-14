@@ -125,10 +125,20 @@ R2 buckets:    0 (no habilitado)
 
 ### URLs
 - **Producción:** https://canton-vault.pages.dev
-- **Repo GitHub:** https://github.com/ruwaq/CantonVault
-- **Repo GitLab:** https://gitlab.com/PrometeoDev/cantonvault
+- **Repo GitHub (principal, origina el auto-deploy):** https://github.com/ruwaq/CantonVault
+- **Repo GitLab (mirror opcional):** https://gitlab.com/PrometeoDev/cantonvault
 - **Dashboard CF:** https://dash.cloudflare.com (prometeodev7@gmail.com)
 - **Account ID CF:** `5ff44740cbb7e02fbfaceb1295d2e68f`
+
+### ⚠️ Remotes git (corregido 2026-07-14)
+Cloudflare escucha **GitHub**, NO GitLab. Por eso:
+- `origin` → **github.com/ruwaq/CantonVault** (upstream de `main`, `git push` a secas va aquí → dispara auto-deploy CF) ✅
+- `gitlab` → gitlab.com/PrometeoDev/cantonvault (mirror; push explícito `git push gitlab main` solo si se quiere sincronizar)
+
+**NUNCA empujar solo a GitLab esperando un deploy** — CF no lo ve. El deploy
+solo ocurre tras `git push origin main` (→ GitHub). Si el auto-deploy falla,
+desplegar manualmente: `cd cn-quickstart/quickstart/frontend && npx wrangler
+pages deploy dist --project-name canton-vault --branch main --commit-dirty=true`.
 
 ---
 
@@ -511,8 +521,8 @@ curl -s "https://api.validator.devnet.sandbox.fivenorth.io/api/validator/v0/wall
 ## 🔗 Links importantes
 
 - **Producción:** https://canton-vault.pages.dev
-- **Repo GitHub:** https://github.com/ruwaq/CantonVault
-- **Repo GitLab:** https://gitlab.com/PrometeoDev/cantonvault
+- **Repo GitHub (principal, dispara auto-deploy CF):** https://github.com/ruwaq/CantonVault
+- **Repo GitLab (mirror opcional):** https://gitlab.com/PrometeoDev/cantonvault
 - **Faucet CC:** https://stakely.io/faucet/canton-devnet
 - **Dashboard CF:** https://dash.cloudflare.com (prometeodev7@gmail.com)
 - **Hackathon:** Build on Canton (deadline 19 jul)
