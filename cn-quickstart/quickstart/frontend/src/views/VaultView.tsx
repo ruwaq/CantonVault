@@ -16,6 +16,7 @@ import {
 } from '../types';
 import { DisputeModal, FulfillModal, RefundModal, ResolveModal } from '../components/vault/VaultActionModals';
 import { shortParty } from '../utils/party';
+import { copy } from '../lib/copy';
 
 type Step = 'propose' | 'act' | 'settle';
 
@@ -315,9 +316,9 @@ const ProposeStep: React.FC<ProposeStepProps> = ({
             <div className="card glass-panel h-100">
                 <div className="card-header bg-transparent border-bottom border-secondary border-opacity-20 pb-3">
                     <h5 className="mb-0 fw-bold d-flex align-items-center gap-2">
-                        <span>📝</span> Draft Commitment Proposal
+                        <span>📝</span> {copy.proposeHeader}
                     </h5>
-                    <span className="text-muted small">Only proposer and counterparty will see this draft</span>
+                    <span className="text-on-glass small">{copy.proposeSubheader}</span>
                 </div>
                 <div className="card-body pt-3">
                     <div className="mb-3">
@@ -426,9 +427,9 @@ const ProposeStep: React.FC<ProposeStepProps> = ({
                         {disabled ? (
                             <>
                                 <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                Deploying contract...
+                                {copy.creatingContract}
                             </>
-                        ) : 'Submit Private Proposal'}
+                        ) : copy.submitProposal}
                     </button>
                 </div>
             </div>
@@ -483,7 +484,7 @@ const ProposeStep: React.FC<ProposeStepProps> = ({
                                                     disabled={pendingAction?.cid === p.contractId}
                                                     title="Accept — sign the proposal and convert it into an active CommitmentContract on-ledger. Moves the deal to Step 2 where it can be fulfilled, disputed, or refunded."
                                                 >
-                                                    {pendingAction?.cid === p.contractId && pendingAction?.action === 'accept' ? 'Accepting…' : '✓ Accept'}
+                                                    {pendingAction?.cid === p.contractId && pendingAction?.action === 'accept' ? 'Accepting…' : copy.accept}
                                                 </button>
                                                 <button
                                                     className="btn btn-outline-danger btn-sm px-3 py-1.5 fw-semibold"
@@ -491,7 +492,7 @@ const ProposeStep: React.FC<ProposeStepProps> = ({
                                                     disabled={pendingAction?.cid === p.contractId}
                                                     title="Reject — archive the proposal permanently. Terminal action; the proposal is consumed and cannot be accepted later."
                                                 >
-                                                    {pendingAction?.cid === p.contractId && pendingAction?.action === 'reject' ? 'Rejecting…' : '✕ Reject'}
+                                                    {pendingAction?.cid === p.contractId && pendingAction?.action === 'reject' ? 'Rejecting…' : copy.reject}
                                                 </button>
                                             </div>
                                         </div>
@@ -503,7 +504,7 @@ const ProposeStep: React.FC<ProposeStepProps> = ({
 
                     {myParty && (
                         <div className="alert alert-light small mt-4 mb-0 bg-white bg-opacity-5 border-0">
-                            <strong>Emergent Privacy Explained:</strong> Proposing a commitment publishes a contract visible only to you (proposer) and the accepter. The arbitrator's ledger node receives <strong>literally zero</strong> data. This is proven cryptographically on step 3.
+                            <strong>Why this is private:</strong> Proposing a commitment publishes a contract visible only to you (proposer) and the accepter. The arbitrator's ledger node receives <strong>literally zero</strong> data. This is proven cryptographically on step 3.
                         </div>
                     )}
                 </div>
@@ -572,9 +573,9 @@ const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, on
                                                         <h6 className="fw-bold text-white mb-1 d-flex align-items-center gap-2 flex-wrap">
                                                             {c.payload.description}
                                                             {disputed ? (
-                                                                <span className="badge bg-danger">In Dispute</span>
+                                                                <span className="badge bg-danger">{copy.statusDisputed}</span>
                                                             ) : (
-                                                                <span className="badge bg-success">Active Ledger State</span>
+                                                                <span className="badge bg-success">{copy.statusActive}</span>
                                                             )}
                                                         </h6>
                                                         <div className="text-muted small">
@@ -588,7 +589,7 @@ const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, on
                                                             disabled={disputed || pendingAction?.cid === c.contractId}
                                                             title="Fulfill — the accepter confirms delivery. Canton Coin is atomically transferred (accepter → proposer) and a Settlement Receipt is created. This is the normal happy-path settlement."
                                                         >
-                                                            {isFulfilling ? 'Fulfilling…' : '✓ Fulfill'}
+                                                            {isFulfilling ? 'Fulfilling…' : copy.fulfill}
                                                         </button>
                                                         <button
                                                             className="btn btn-warning btn-sm px-2.5 py-1 fw-semibold text-dark"
@@ -596,7 +597,7 @@ const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, on
                                                             disabled={disputed || pendingAction?.cid === c.contractId}
                                                             title="Dispute — escalate to the third-party arbitrator. Reveals ONLY the amount + description (selective disclosure). The commitment is archived and a DisputeCase is opened for the arbitrator to resolve."
                                                         >
-                                                            {isDisputing ? 'Disputing…' : '⚠ Dispute'}
+                                                            {isDisputing ? 'Disputing…' : copy.dispute}
                                                         </button>
                                                         <button
                                                             className="btn btn-outline-secondary btn-sm px-2.5 py-1 fw-medium"
@@ -604,7 +605,7 @@ const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, on
                                                             disabled={pendingAction?.cid === c.contractId}
                                                             title="Refund — close out an unfulfilled commitment after its deadline has passed. Canton Coin returns to the accepter. Only works once the deadline has expired."
                                                         >
-                                                            {isRefunding ? 'Refunding…' : '↩ Refund'}
+                                                            {isRefunding ? 'Refunding…' : copy.refund}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -676,7 +677,7 @@ const ActStep: React.FC<ActStepProps> = ({ commitments, onFulfill, onDispute, on
                                                         disabled={pendingAction?.cid === d.payload.commitmentRef}
                                                         title="Resolve — as the arbitrator (third party), issue a binding ruling in favor of the proposer or accepter. Archives the dispute and creates a terminal Settlement Receipt."
                                                     >
-                                                        {isResolving ? 'Resolving…' : '⚖ Resolve'}
+                                                        {isResolving ? 'Resolving…' : copy.resolve}
                                                     </button>
                                                 </div>
                                                 <div className="xsmall text-muted border-top border-secondary border-opacity-10 pt-2 mt-2">
@@ -742,7 +743,7 @@ const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitme
                     <div className="card h-100 border-success border-opacity-20 glass-panel">
                         <div className="card-header bg-success bg-opacity-5 border-bottom border-success border-opacity-10 pb-3 d-flex justify-content-between align-items-center">
                             <span className="text-success fw-bold d-flex align-items-center gap-2">
-                                <span>🤝</span> Stakeholders View
+                                <span>🤝</span> {copy.privacyCol1Title}
                             </span>
                             <span className="badge bg-success bg-opacity-20 text-success">Full Visibility</span>
                         </div>
@@ -779,7 +780,7 @@ const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitme
                     <div className="card h-100 border-danger border-opacity-20 glass-panel">
                         <div className="card-header bg-danger bg-opacity-5 border-bottom border-danger border-opacity-10 pb-3 d-flex justify-content-between align-items-center">
                             <span className="text-danger fw-bold d-flex align-items-center gap-2">
-                                <span>🔒</span> Arbitrator (Pre-Dispute)
+                                <span>🔒</span> {copy.privacyCol2Title}
                             </span>
                             <span className="badge bg-danger bg-opacity-20 text-danger">Zero Knowledge</span>
                         </div>
@@ -806,7 +807,7 @@ const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitme
                     <div className="card h-100 border-warning border-opacity-20 glass-panel">
                         <div className="card-header bg-warning bg-opacity-5 border-bottom border-warning border-opacity-10 pb-3 d-flex justify-content-between align-items-center">
                             <span className="text-warning fw-bold d-flex align-items-center gap-2">
-                                <span>🏛️</span> Arbitrator (Disclosed)
+                                <span>🏛️</span> {copy.privacyCol3Title}
                             </span>
                             <span className="badge bg-warning bg-opacity-20 text-warning">Selective Disclosure</span>
                         </div>
@@ -852,7 +853,7 @@ const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitme
             <div className="card glass-panel border-success border-opacity-10 mt-4">
                 <div className="card-header bg-transparent border-bottom border-secondary border-opacity-20 pb-3 d-flex justify-content-between align-items-center">
                     <h5 className="mb-0 fw-bold d-flex align-items-center gap-2 text-success">
-                        <span>🧾</span> Canton Coin Settlement Receipts
+                        <span>🧾</span> {copy.receiptsTitle}
                     </h5>
                     {receipts.length > 0 && <span className="badge bg-success px-2">{receipts.length} settled</span>}
                 </div>
@@ -872,7 +873,7 @@ const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitme
                                                 <strong className="text-success font-monospace">{r.payload.amount} {r.payload.currency}</strong>
                                                 <span className="text-white small">settled ({r.payload.outcome})</span>
                                                 <span className={`badge px-2 py-0.5 xsmall ${r.payload.settlementExecuted ? 'bg-success bg-opacity-25 text-success' : 'bg-secondary bg-opacity-25 text-muted'}`}>
-                                                    {r.payload.settlementExecuted ? 'Atomic Settlement Executed' : 'Recorded Outcome Only'}
+                                                    {r.payload.settlementExecuted ? copy.receiptSettled : 'Recorded outcome only'}
                                                 </span>
                                             </div>
                                             <div className="text-muted xsmall">

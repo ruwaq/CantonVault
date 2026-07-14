@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import Modal from '../Modal';
 import type { Commitment } from '../../types';
 import { shortParty } from '../../utils/party';
+import { copy } from '../../lib/copy';
 
 interface FulfillModalProps {
     show: boolean;
@@ -40,10 +41,10 @@ export function FulfillModal({ show, commitment, onClose, onConfirm }: FulfillMo
     return (
         <Modal
             show={show}
-            title={<>Fulfill commitment &middot; {commitment.description}</>}
+            title={<>{copy.fulfill} &middot; {commitment.description}</>}
             onClose={onClose}
             onConfirm={handleConfirm}
-            confirmButtonLabel="Fulfill"
+            confirmButtonLabel={copy.fulfill}
             confirmButtonClassName="btn-primary"
             confirmButtonDisabled={!allocationContractId.trim()}
             size="lg"
@@ -59,7 +60,7 @@ export function FulfillModal({ show, commitment, onClose, onConfirm }: FulfillMo
 
             <div className="mb-3">
                 <div className="alert alert-info small mb-0">
-                    Production mode requires a real Canton Coin allocation. The payer is the <strong>accepter</strong>; the receiver is the <strong>proposer</strong>.
+                    The payer is the <strong>accepter</strong>; the receiver is the <strong>proposer</strong>. Canton Coin moves atomically when you confirm.
                 </div>
             </div>
 
@@ -76,7 +77,7 @@ export function FulfillModal({ show, commitment, onClose, onConfirm }: FulfillMo
             </div>
 
             <div className="mb-3">
-                <label className="form-label small">Allocation contract id</label>
+                <label className="form-label small">Funds approved to send</label>
                 <input
                     className="form-control form-control-sm"
                     style={{ fontSize: '0.75rem' }}
@@ -85,7 +86,7 @@ export function FulfillModal({ show, commitment, onClose, onConfirm }: FulfillMo
                     onChange={(e) => setAllocationContractId(e.target.value)}
                 />
                 <div className="form-text small text-muted">
-                    The on-ledger Canton Coin allocation that authorizes the atomic transfer. In production the accepter must pre-approve a transfer; in this demo (realSettlementRequired = false) the symbolic path is used. Leave a value like <code>#0:1</code> if unsure.
+                    The on-ledger Canton Coin allocation that authorizes the transfer. Leave a value like <code>#0:1</code> if unsure.
                 </div>
             </div>
         </Modal>
