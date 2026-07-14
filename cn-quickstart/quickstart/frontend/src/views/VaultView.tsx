@@ -7,6 +7,7 @@ import { useToast } from '../stores/toastStore';
 import { useVaultStore } from '../stores/vaultStore';
 import { type Commitment, type VaultContract } from '../types';
 import { DisputeModal, FulfillModal, RefundModal, ResolveModal } from '../components/vault/VaultActionModals';
+import ConfirmModal from '../components/vault/ConfirmModal';
 import VaultHeader from '../components/vault/VaultHeader';
 import Stepper, { type Step } from '../components/vault/Stepper';
 import ProposeWizard from '../components/vault/propose/ProposeWizard';
@@ -20,8 +21,8 @@ import { copy } from '../lib/copy';
 const ProposalsList: React.FC<{
     proposals: VaultContract<{ description: string; amount: number; currency: string; workflow: string }>[];
     myParty: string;
-    onAccept: (id: string) => Promise<unknown>;
-    onReject: (id: string) => Promise<unknown>;
+    onAccept: (id: string) => void;
+    onReject: (id: string) => void | Promise<unknown>;
     pendingAction: { cid: string; action: string } | null;
 }> = ({ proposals, myParty, onAccept, onReject, pendingAction }) => (
     <div className="card glass-panel h-100">
@@ -97,6 +98,7 @@ const VaultView: React.FC = () => {
     const [creating, setCreating] = useState(false);
 
     // ── Modal state ──
+    const [acceptTarget, setAcceptTarget] = useState<string | null>(null);
     const [fulfillTarget, setFulfillTarget] = useState<VaultContract<Commitment> | null>(null);
     const [disputeTarget, setDisputeTarget] = useState<VaultContract<Commitment> | null>(null);
     const [refundTarget, setRefundTarget] = useState<VaultContract<Commitment> | null>(null);
@@ -145,7 +147,7 @@ const VaultView: React.FC = () => {
                             <ProposalsList
                                 proposals={vault.proposals}
                                 myParty={myParty}
-                                onAccept={vault.acceptProposal}
+                                onAccept={(id) => setAcceptTarget(id)}
                                 onReject={vault.rejectProposal}
                                 pendingAction={vault.pendingAction}
                             />
@@ -171,6 +173,22 @@ const VaultView: React.FC = () => {
                     />
                 )}
             </div>
+
+            {/* Accept confirmation (beneficial friction before irreversible action) */}
+            <ConfirmModal
+                show={acceptTarget !== null}
+                title={copy.accept}
+                body="This signs the proposal and creates an active commitment on-ledger. The deal moves to Step 2 (Act), where it can be confirmed, reported, or refunded. This cannot be undone."
+                confirmLabel={copy.accept}
+                variant="success"
+                disabled={vault.pendingAction?.cid === acceptTarget}
+                onConfirm={async () => {
+                    const target = acceptTarget;
+                    setAcceptTarget(null);
+                    if (target) await vault.acceptProposal(target);
+                }}
+                onCancel={() => setAcceptTarget(null)}
+            />
 
             {/* Action Modals */}
             <FulfillModal
