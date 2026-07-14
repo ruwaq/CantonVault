@@ -1,22 +1,33 @@
 # Session Handoff — CantonVault Hackathon
-## Última actualización: 2026-07-14 (deploy vivo + backend network-ready)
+## Última actualización: 2026-07-14 (limpieza Cloudflare + estado verificado vía CLI)
 
 > **LEER ESTO PRIMERO** al iniciar la próxima sesión.
-> Estado verificado en vivo y en la DevNet, no teórico.
+> Estado verificado en vivo, en la DevNet y vía CLI de Cloudflare (wrangler + API).
 
 ---
 
-## ✅ ESTADO ACTUAL (verificado 2026-07-14)
+## ✅ ESTADO ACTUAL (verificado 2026-07-14, offset 4324511)
 
 | Componente | Estado | Evidencia |
 |---|---|---|
 | **Deploy Cloudflare** | ✅ VIVO | `canton-vault.pages.dev` sirve `index-BTnWW1jD.js` |
 | **Bundle en producción** | ✅ El nuevo (con SWR fix) | NO es el viejo `D3J2nJuV.js` del bucle |
-| **Backend Pages Functions** | ✅ Deployadas | `/api/health` → Canton 3.5.8, offset 4323190 |
+| **Backend Pages Functions** | ✅ Deployadas | `/api/health` → Canton 3.5.8, offset 4324511 |
 | **Party del demo** | ✅ `cancore::*` | Writes funcionan en DevNet (corregido) |
 | **Lifecycle on-ledger** | ✅ create→accept→fulfill | Verificado E2E, offsets reales avanzan |
-| **Código local** | ✅ Commits limpios | 4 commits adelante de origin/main |
-| **Git push** | ⏳ PENDIENTE | Ver tarea 🔴 abajo |
+| **Git push** | ✅ HECHO | `de047e7` (HEAD) está en `github/main` y `origin/main` (gitlab) |
+| **Limpieza Cloudflare** | ✅ HECHA | 3 Workers residuales eliminados (ver abajo) |
+
+### Cuenta de Cloudflare — estado limpio (verificado vía API + wrangler)
+```
+Projects Pages: 1  → canton-vault (canton-vault.pages.dev)  [Git Provider: No]
+Worker scripts: 1  → canton-vault (subyacente del Pages project, has_assets: true)
+KV namespaces: 0
+D1 databases:  0
+R2 buckets:    0 (no habilitado)
+```
+Antes había 4 Worker scripts; se eliminaron 3 residuales que no servían tráfico
+(`cantonvault`, `cantonvault-backend`, `frontend` — todos 404, sin routes ni domains).
 
 ### URLs
 - **Producción:** https://canton-vault.pages.dev
@@ -48,21 +59,13 @@ No había CI/CD. El handoff marcaba "conectar Git" como tarea 🔴 pero no se hi
 
 ### URGENTE — Lo debe hacer el usuario (necesita dashboard/terminal)
 
-**1. Hacer `git push` (4 commits sin subir)**
-```bash
-cd "/Users/munay/dev/Build on Canton Hackathon"
-git push origin main
-```
-Commits sin push:
-- `2e92a14` fix(backend): correct party ID + Canton 3.5 command format — network-ready
-- `e906d16` feat(backend): implement vault ledger reads + mutations in Pages Functions
-- `00ca7ab` docs: session handoff — post-SWR refactor + Cloudflare incident resolution
-- `ca7a51e` fix(frontend): SWR refactor — eliminate infinite poll loop + fix Pages deploy
-
-**2. Conectar GitHub al proyecto `canton-vault` en Cloudflare**
+**1. Conectar GitHub al proyecto `canton-vault` en Cloudflare**
 Para que cada `git push` auto-deploye y esto no vuelva a pasar.
-- Dashboard CF → Workers & Pages → `canton-vault` → Settings → Connect to Git
+Verificado vía wrangler: `Git Provider: No` (NO está conectado).
+- URL directa: https://dash.cloudflare.com/5ff44740cbb7e02fbfaceb1295d2e68f/pages/view/canton-vault → Settings → Builds & deployments → Connect to Git
+- Account ID: `5ff44740cbb7e02fbfaceb1295d2e68f`
 - Seleccionar `ruwaq/CantonVault`
+- **No se puede hacer desde wrangler CLI** — es un flow OAuth Cloudflare↔GitHub, solo desde el dashboard.
 - **Build settings CRÍTICOS:**
 
 | Campo | Valor |
@@ -73,10 +76,20 @@ Para que cada `git push` auto-deploye y esto no vuelva a pasar.
 | Build output directory | `cn-quickstart/quickstart/frontend/dist` |
 | Root directory | `/` (repo root) |
 
-**3. Faucet Canton Coin (CC) si querés settlement real**
-- La party demo (`cancore::*`) tiene balance CC: 0
+**2. Faucet Canton Coin (CC) si querés settlement real**
+- La party demo (`cancore::*`) tiene balance CC: 0 (verificado on-ledger vía ACS query)
 - Recargar en: https://stakely.io/faucet/canton-devnet
+- **La dirección a poner en el faucet es la party:**
+  `cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8`
+- Pasos del faucet: entrar dirección → captcha → **tweet público con el request ID** (obligatorio) → esperar verificación → recibir 1 CC
+- ⚠️ Necesita cuenta de Twitter/X pública para el paso del tweet
 - Sin CC, las acciones Fulfill/Refund usan settlement simbólico (funciona pero no mueve CC real)
+- ⚠️ **NOTA sobre el display:** el endpoint `/api/vault/balance` está hardcoded a `balance: 0`
+  en tres backends (`functions/api/vault/balance.js`, `backend-ts`, `backend-worker`).
+  Recargar CC hace que el settlement sea real on-ledger, **pero el display del header
+  seguirá mostrando 0.00** hasta que se implemente una consulta real.
+  Además, el sandbox no divulga holdings vía ACS (0 contracts visibles), así que leer
+  el balance real requeriría transaction history offset-based, no ACS.
 
 ### NICE-TO-HAVE — Mejoras de demo
 
@@ -276,7 +289,12 @@ cd cn-quickstart/quickstart/frontend && npx wrangler whoami
 
 - **Deadline:** Domingo 19 julio medianoche
 - **Días restantes:** ~5
-- **Prioridad:** `git push` + conectar Git en CF → demo listo
+- **Prioridad:** conectar Git en CF + faucet CC → demo listo
+
+### ✅ Tareas resueltas desde el último handoff
+- `git push` — HECHO. `de047e7` en `github/main` y `origin/main`.
+- Limpieza Cloudflare — HECHA. 3 Workers residuales eliminados.
+  Queda 1 Pages project + 1 Worker subyacente (lo mínimo necesario).
 
 ---
 

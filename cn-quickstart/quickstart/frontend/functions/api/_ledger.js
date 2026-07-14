@@ -2,6 +2,11 @@
 // Uses global scope to cache tokens across warm invocations.
 
 const LEDGER_API = 'https://ledger-api.validator.devnet.sandbox.fivenorth.io';
+// Splice Validator REST API — the only path that returns the REAL on-ledger Canton
+// Coin (Amulet) balance for this m2m party. The JSON Ledger API ACS endpoint does not
+// divulge Amulet holdings to the shared-validator m2m user (privacy of multi-tenant
+// sandbox), so the balance must be read from the Validator wallet endpoint instead.
+const VALIDATOR_API = 'https://api.validator.devnet.sandbox.fivenorth.io';
 const AUTH_URL = 'https://auth.sandbox.fivenorth.io/application/o/token/';
 const CLIENT_ID = 'validator-devnet-m2m';
 const CLIENT_SECRET =
@@ -158,4 +163,23 @@ export async function queryActiveContracts(templateIds) {
   }));
 }
 
-export { LEDGER_API, PARTY, SYNCHRONIZER_ID, PKG };
+// Query the REAL on-ledger Canton Coin (Amulet) balance via the Splice Validator
+// REST API. The JSON Ledger API ACS does not divulge Amulet holdings to the shared
+// validator m2m user; the Validator wallet endpoint is the authoritative source.
+// Returns { unlocked, locked, round } or null if unreachable.
+export async function walletBalance(party = PARTY) {
+  const token = await getToken();
+  const url = `${VALIDATOR_API}/api/validator/v0/wallet/balance?party=${encodeURIComponent(party)}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`Validator wallet balance failed: ${res.status}`);
+  const data = await res.json();
+  return {
+    unlocked: data.effective_unlocked_qty ?? '0',
+    locked: data.effective_locked_qty ?? '0',
+    round: data.round ?? 0,
+  };
+}
+
+export { LEDGER_API, VALIDATOR_API, PARTY, SYNCHRONIZER_ID, PKG };
