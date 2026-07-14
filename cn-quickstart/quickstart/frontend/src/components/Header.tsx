@@ -31,7 +31,7 @@ const AuthenticatedLinks: React.FC = () => {
     const location = useLocation();
 
     if (loading || user === null) {
-        return <span className="navbar-text text-muted small ms-3">Connecting…</span>;
+        return <span className="navbar-text text-on-glass small ms-3">Connecting…</span>;
     }
 
     const links = [
@@ -60,7 +60,7 @@ const AuthenticatedLinks: React.FC = () => {
 const UserSection: React.FC = () => {
     const { user, loading, logout } = useUserStore();
 
-    if (loading) return <div className="ms-3 text-muted small">Loading...</div>;
+    if (loading) return <div className="ms-3 text-on-glass small">Loading...</div>;
     if (user === null) return null;
 
     return (
@@ -80,7 +80,7 @@ const BalanceBadge: React.FC = () => {
     const { balance } = useVaultStore();
 
     if (balance === null || balance === undefined) {
-        return <span className="nav-link text-muted small">CC: —</span>;
+        return <span className="nav-link text-on-glass small">CC: —</span>;
     }
     return (
         <span className="cv-balance">
