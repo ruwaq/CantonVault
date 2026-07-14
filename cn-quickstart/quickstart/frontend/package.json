@@ -7,6 +7,7 @@
     "gen:openapi": "npx --yes openapicmd typegen --client ../common/openapi.yaml >| src/openapi.d.ts",
     "dev": "vite",
     "build": "npm run gen:openapi && tsc -b --noEmit && vite build && npm run copy:functions",
+    "build:ci": "tsc -b --noEmit && vite build && npm run copy:functions",
     "copy:functions": "cp -R functions dist/functions",
     "lint": "eslint .",
     "preview": "npm run build && wrangler pages dev dist --compatibility-flags nodejs_compat",
