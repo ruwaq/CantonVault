@@ -36,7 +36,6 @@ const App: React.FC = () => {
                                     <Routes>
                                         <Route path="/home" element={<Navigate to="/vault" replace />} />
                                         <Route path="/vault" element={<VaultView />} />
-                                        <Route path="/licenses" element={<Navigate to="/vault" replace />} />
                                         <Route path="*" element={
                                             <div className="text-center mt-5">
                                                 <h3 className="text-white">Page not found</h3>

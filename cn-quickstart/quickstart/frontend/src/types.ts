@@ -1,16 +1,3 @@
-import type { Metadata } from './openapi';
-
-export type AppInstallStatus = 'REQUEST' | 'INSTALL';
-
-export interface AppInstallUnified {
-    status: AppInstallStatus;
-    contractId: string;
-    provider: string;
-    user: string;
-    meta: Metadata;
-    numLicensesCreated: number;
-}
-
 // ── CantonVault domain types ────────────────────────────────────────────────
 // These mirror the Daml templates in daml/licensing/daml/Vault/ and the Java
 // bindings returned by CommitmentController. The backend serializes Party fields
