@@ -1,73 +1,68 @@
 # Session Handoff — CantonVault Hackathon
-## Última actualización: 2026-07-14 (network-ready: party + lifecycle corregidos)
+## Última actualización: 2026-07-14 (deploy vivo + backend network-ready)
 
 > **LEER ESTO PRIMERO** al iniciar la próxima sesión.
-> Contiene el estado exacto, el incidente de Cloudflare, y qué queda por hacer.
+> Estado verificado en vivo y en la DevNet, no teórico.
 
 ---
 
-## 🚨 INCIDENTE CRÍTICO DE ESTA SESIÓN (resuelto)
+## ✅ ESTADO ACTUAL (verificado 2026-07-14)
 
-### Qué pasó
-Cloudflare **pausó** el proyecto `canton-vault` por exceso de tráfico (450k requests contra límite de 100k/día). Causa raíz: un bucle infinito en el frontend.
-
-**El bucle:**
-```
-VaultView montaba → useEffect llamaba fetchUser()
-  → fetchUser hacía setLoading(true)
-    → RequireAuth veía loading=true → DESMONTABA VaultView
-      → fetchUser resolvía → setLoading(false)
-        → RequireAuth REMONTABA VaultView → ∞
-```
-Cada iteración: ~100ms. Combinado con polling de 6 endpoints cada 5s = ~70 req/min por tab abierto.
-
-### Cómo se resolvió
-1. **Refactor completo a SWR** (stale-while-revalidate): cero polling en background
-2. **Eliminado el plugin `@cloudflare/vite-plugin`** que rompía las Pages Functions
-3. **Deploy command corregido**: `wrangler deploy` → `wrangler pages deploy`
-4. **Verificado E2E**: 0 peticiones en background tras la carga inicial
-
-### Estado de la cuota
-```
-Requests today: 450,957 / 100,000 (AGOTADA)
-```
-- El fix funciona desde ya (detiene nuevos requests)
-- La cuota se resetea a medianoche UTC — ya pasaron múltiples resets desde el incidente (13 jul)
-- **Si CF "sigue sin reiniciar los límites" → NO es cuota, es estado del proyecto**:
-  1. Dashboard CF → `canton-vault` → ¿dice "Paused"? Buscar botón "Resume/Enable"
-  2. Workers duplicados (`frontend`, `cantonvault-backend`, `cantonvault`) generando tráfico residual → borrar
-  3. Pestañas del navegador aún golpeando la URL vieja → cerrarlas
-
----
-
-## 🎯 Estado actual (verificado)
-
-| Componente | Estado | Detalle |
+| Componente | Estado | Evidencia |
 |---|---|---|
-| **Código frontend** | ✅ Refactorizado | SWR + sin polling, bundle 272KB (−30%) |
-| **Pages Functions** | ✅ Funcionan | 12 endpoints en `functions/api/` |
-| **Commit + push GitHub** | ✅ `ca7a51e` | https://github.com/ruwaq/CantonVault |
-| **E2E contra DevNet** | ✅ Verificado | Lifecycle completo create→accept→fulfill (offset 4311527) |
-| **Deploy Cloudflare** | ⏳ PENDIENTE | Cuota agotada hoy;Git integration sin configurar |
-| **URL pública** | ⏸️ Pausada | `canton-vault.pages.dev` (hasta reset de cuota) |
+| **Deploy Cloudflare** | ✅ VIVO | `canton-vault.pages.dev` sirve `index-BTnWW1jD.js` |
+| **Bundle en producción** | ✅ El nuevo (con SWR fix) | NO es el viejo `D3J2nJuV.js` del bucle |
+| **Backend Pages Functions** | ✅ Deployadas | `/api/health` → Canton 3.5.8, offset 4323190 |
+| **Party del demo** | ✅ `cancore::*` | Writes funcionan en DevNet (corregido) |
+| **Lifecycle on-ledger** | ✅ create→accept→fulfill | Verificado E2E, offsets reales avanzan |
+| **Código local** | ✅ Commits limpios | 4 commits adelante de origin/main |
+| **Git push** | ⏳ PENDIENTE | Ver tarea 🔴 abajo |
 
-### Commits de esta sesión
-
-```
-ca7a51e fix(frontend): SWR refactor — eliminate infinite poll loop + fix Pages deploy
-1747dd8 docs: session handoff — full state summary for next session  ← obsoleto, ver este archivo
-308c6f8 feat(backend): Cloudflare Pages Functions bridging frontend to Canton DevNet
-```
+### URLs
+- **Producción:** https://canton-vault.pages.dev
+- **Preview último deploy:** https://b2066573.canton-vault.pages.dev
+- **Repo:** https://github.com/ruwaq/CantonVault
+- **Dashboard CF:** https://dash.cloudflare.com (prometeodev7@gmail.com)
 
 ---
 
-## 📋 LO QUE FALTA (en orden de prioridad)
+## 🚨 EL INCIDENTE DE CLOUDFLARE (resuelto dos veces)
 
-### 🔴 URGENTE — Antes del deploy (lo debe hacer el usuario)
+### Original (13 jul) — bucle infinito
+Frontend viejo hacía ~70 req/min por pestaña (useEffect→fetchUser→loading→unmount→remount→∞).
+**Fix:** refactor SWR (commit `ca7a51e`), 0 polling en background.
 
-**1. Conectar GitHub al proyecto `canton-vault` en Cloudflare dashboard**
-- Ir a: dash.cloudflare.com → Workers & Pages → `canton-vault` → Settings
-- Connect to Git → seleccionar `ruwaq/CantonVault`
+### Recurrencia (14 jul) — deploy nunca actualizado
+El fix del SWR **estuvo en el repo pero NUNCA se deployó**. El sitio vivo seguía
+sirviendo `index-D3J2nJuV.js` (versión vieja con bucle). Cualquier pestaña abierta
+disparaba la fuga otra vez.
+**Fix:** deploy manual este día → `canton-vault.pages.dev` ahora sirve `index-BTnWW1jD.js`.
+
+### Por qué recurrió (lección)
+No había CI/CD. El handoff marcaba "conectar Git" como tarea 🔴 pero no se hizo.
+**Sin Git conectado, cada cambio requiere deploy manual.**
+
+---
+
+## 🔴 LO QUE FALTA (en orden de prioridad)
+
+### URGENTE — Lo debe hacer el usuario (necesita dashboard/terminal)
+
+**1. Hacer `git push` (4 commits sin subir)**
+```bash
+cd "/Users/munay/dev/Build on Canton Hackathon"
+git push origin main
+```
+Commits sin push:
+- `2e92a14` fix(backend): correct party ID + Canton 3.5 command format — network-ready
+- `e906d16` feat(backend): implement vault ledger reads + mutations in Pages Functions
+- `00ca7ab` docs: session handoff — post-SWR refactor + Cloudflare incident resolution
+- `ca7a51e` fix(frontend): SWR refactor — eliminate infinite poll loop + fix Pages deploy
+
+**2. Conectar GitHub al proyecto `canton-vault` en Cloudflare**
+Para que cada `git push` auto-deploye y esto no vuelva a pasar.
+- Dashboard CF → Workers & Pages → `canton-vault` → Settings → Connect to Git
+- Seleccionar `ruwaq/CantonVault`
 - **Build settings CRÍTICOS:**
 
 | Campo | Valor |
@@ -78,68 +73,57 @@ ca7a51e fix(frontend): SWR refactor — eliminate infinite poll loop + fix Pages
 | Build output directory | `cn-quickstart/quickstart/frontend/dist` |
 | Root directory | `/` (repo root) |
 
-**2. Borrar los 3 Workers duplicados** del dashboard CF:
-- `frontend` (el que generó los 450k requests)
-- `cantonvault-backend`
-- `cantonvault`
-- **Dejar SOLO `canton-vault`** (Pages, con la URL pública)
-
-### 🟡 IMPORTANTE — Cuando la cuota se resetee (mañana)
-
-**3. Verificar deploy automático**
-- Tras conectar Git, cada push a `main` debe auto-deploy
-- Verificar que `/api/health` devuelve JSON (no HTML)
-- Si devuelve HTML → el build command está mal configurado
-
-**4. Faucet Canton Coin (CC)**
-- La party demo tiene balance CC: 0
+**3. Faucet Canton Coin (CC) si querés settlement real**
+- La party demo (`cancore::*`) tiene balance CC: 0
 - Recargar en: https://stakely.io/faucet/canton-devnet
-- Sin CC, las acciones Fulfill/Refund fallarán (require settlement real)
+- Sin CC, las acciones Fulfill/Refund usan settlement simbólico (funciona pero no mueve CC real)
 
-### 🟢 NICE-TO-HAVE — Para mejorar el demo
+### NICE-TO-HAVE — Mejoras de demo
 
-**5. ✅ Implementar endpoints faltantes de Pages Functions — HECHO (14 jul)**
-Los 5 GET ahora leen el Active Contract Set real del ledger DevNet:
-- `functions/api/vault/proposals.js` (GET) → query `Vault.CommitmentProposal:CommitmentProposal`
-- `functions/api/vault/commitments.js` → query `Vault.CommitmentContract:CommitmentContract`
-- `functions/api/vault/receipts.js` → query `Vault.SettlementReceipt:SettlementReceipt`
-- `functions/api/vault/disclosures.js` → query `Vault.Disclosable:DisclosedRecord`
-- `functions/api/vault/dispute-cases.js` → query `Vault.CommitmentContract:DisputeCase`
+**4. Pull de los GET endpoints (limitación del sandbox)**
+Los 5 GET (`/proposals`, `/commitments`, `/receipts`, `/disclosures`, `/dispute-cases`)
+leen el ACS pero devuelven `[]` en este shared validator: los contracts creados por
+el m2m user **no son legibles vía ACS** (privacy/divulgence del entorno multi-tenant).
+**Las mutations funcionan** porque el frontend trackea los contractIds via las
+transaction responses. El demo fluye: create → accept → fulfill.
+Para mostrar listas reales, haría falta un ledger offset-based tx history o
+almacenar los contractIds en KV/D1.
 
-Verificación E2E local (wrangler pages dev contra DevNet): todos devuelven HTTP 200 con Canton 3.5.7.
+**5. Monitorear cuota de Cloudflare**
+Free = 100k req/día. Con SWR (revalidateOnFocus, 0 polling) es imposible superar
+esto. Si vuelve a subir raro, revisar pestañas abiertas del navegador.
 
-**6. ✅ Implementar mutations faltantes — HECHO (14 jul)**
-Las 6 mutations ahora operan on-ledger vía ExerciseCommand (formato Canton 3.5):
-- `POST /api/vault/proposals/[id]/accept` → `AcceptProposal`
-- `POST /api/vault/proposals/[id]/reject` → `RejectProposal`
-- `POST /api/vault/commitments/[id]/fulfill` → `Fulfill` (symbolic, allocationCid null)
-- `POST /api/vault/commitments/[id]/raise-dispute` → `RaiseDispute`
-- `POST /api/vault/commitments/[id]/refund` → `Refund`
-- `POST /api/vault/commitments/[id]/resolve` → `ResolveDispute` sobre DisputeCase derivado
+---
 
-Helpers nuevos en `_ledger.js`: `submitExercise()` + `queryActiveContracts()`.
+## 🐛 DEBUGGING DE ESTA SESIÓN — Lecciones técnicas
 
-**⚠️ ROOT CAUSE del 403 — RESUELTO (14 jul, tarde):**
-El 403 "security-sensitive error" **no** era rate-limiting ni restricción temporal del validator. Era **party ID equivocado en la config**.
+### Bug 1: Party ID equivocada (403 "security-sensitive error")
+**Síntoma:** writes devolvían 403, reads funcionaban. Racionalicé como "rate-limiting".
+**Root cause real:** El shared validator reasignó los `CanActAs` rights de user 6
+entre 13-14 jul. La config usaba `5nsandbox-devnet-2::*` (stale en `primaryParty`),
+pero los rights reales son sobre `cancore::*` y 18 otros prefijos (mismo hash suffix).
+**Fix:** toda la config ahora usa `cancore::1220a14ca128...`.
+**Lección:** si algo falla, **investiga la causa raíz**, no asumas "problema externo".
 
-- La config usaba `5nsandbox-devnet-2::1220a14ca128...` (party que user 6 tenía en su `primaryParty`, registro stale)
-- Pero los `CanActAs` rights reales de user 6 son sobre `cancore::*` y 18 otros prefijos (mismo hash suffix)
-- Entre el 13 y 14 jul el shared validator **reasignó los rights** de user 6: quitó `5nsandbox-devnet-2::` y dejó `cancore::*`
-- **Fix:** toda la config ahora usa `cancore::1220a14ca128...`. Verificado: writes funcionan (create → accept → fulfill completo en DevNet, offset 4311527).
+### Bug 2: contractId falso (tx hash ≠ contractId)
+**Síntoma:** los exercises fallaban con "missing contract_id".
+**Root cause:** `submit-and-wait` devuelve solo `{updateId, completionOffset}`.
+El `updateId` es el tx hash, NO un contractId. El código lo devolvía como contractId.
+**Fix:** cambiado a `submit-and-wait-for-transaction` que devuelve el
+`CreatedEvent.contractId` real (104-char hex).
 
-**Causas raíz encontradas y fixeadas (debugging sistemático):**
-1. **Party equivocada** → cambiada a `cancore::*` en `_ledger.js`, `cli/src/types.ts`, `backend-ts/src/types.ts`, `scripts/devnet-create-contract.sh`, `backend-worker/src/index.ts`
-2. **contractId equivocado** → `submit-and-wait` devuelve solo `{updateId, completionOffset}`. El `updateId` es el tx hash, NO un contractId usable. Cambiado a `submit-and-wait-for-transaction` que devuelve el `CreatedEvent.contractId` real (104-char hex)
-3. **Formato Canton 3.5** → el wrapper del body es `{commands:{...}, transactionShape}` (no flat); el campo del argumento del choice es `choiceArgument` (no `argument`)
+### Bug 3: Formato Canton 3.5 JSON Ledger API
+**Síntoma:** errores 400 "Missing required field".
+**Root cause:** dos cambios del formato Canton 3.5 vs lo que usaba el código:
+- El body wrapper es `{commands:{...}, transactionShape}` (no flat con `transactionFormat`)
+- El campo del choice argument es `choiceArgument` (no `argument`)
 
-**Verificación E2E en la red Canton (no local):**
-- `create` → proposal contractId real, offset avanza ✅
-- `accept` → CommitmentProposal archived, CommitmentContract created ✅
-- `fulfill` → CommitmentContract archived (terminal), SettlementReceipt created ✅
-- Vía CLI y vía Pages Functions — ambos caminos probados
-
-**Limitación conocida del sandbox (NO bloquea el demo):**
-Los contracts creados por el m2m user **no son legibles** vía `/v2/state/active-contracts` en este shared validator (privacy/divulgence del entorno multi-tenant). Los 5 GET endpoints devuelven `[]`. Pero las mutations funcionan porque el frontend trackea los contractIds via las transaction responses (create → guarda cid → accept/fulfill usa ese cid). El demo fluye completo.
+### Cómo se descubrieron (método)
+El debugging sistemático reveló los 3 bugs contrastando:
+- El script `devnet-create-contract.sh` (que funcionó el 13 jul) → fallaba el 14 jul
+- Token JWT decodificado → válido, scope correcto
+- `/v2/users/6/rights` → rights reales sobre `cancore::*`, no `5nsandbox-devnet-2::*`
+- Test directo: write con `cancore::` → 200 ✅; con `5nsandbox-devnet-2::` → 403 ❌
 
 ---
 
@@ -155,26 +139,14 @@ src/
 │   ├── useVaultData.ts         # useProposals(), useCommitments(), etc. — SWR lectura
 │   └── useVaultMutations.ts    # createProposal(), acceptProposal(), etc. — SWR mutate
 ├── stores/
-│   ├── userStore.tsx           # FACADE thin sobre useAuth (mantiene API useUserStore)
+│   ├── userStore.tsx           # FACADE thin sobre useAuth
 │   ├── vaultStore.tsx          # FACADE thin sobre useVaultData+Mutations
-│   ├── vaultApi.ts             # axios instance (baseURL /api/vault) — USADO por mutations
-│   └── toastStore.tsx          # notificaciones (sin cambios)
-├── views/
-│   ├── VaultView.tsx           # UI principal (sin polling manual, SWR gestiona)
-│   ├── LoginView.tsx           # usa useLoginLinks() SWR
-│   └── LandingView.tsx         # landing page estática
-└── components/
-    ├── Header.tsx              # BalanceBadge usa useVaultStore()
-    ├── RequireAuth.tsx         # guard de auth
-    └── ToastNotification.tsx
-```
-
-### Claves SWR (deben coincidir entre hooks)
-```ts
-['user'], ['login-links'],
-['vault', 'proposals'], ['vault', 'commitments'], ['vault', 'receipts'],
-['vault', 'disclosures'], ['vault', 'disputes'], ['vault', 'balance'],
-['vault', 'parties']
+│   ├── vaultApi.ts             # axios instance (baseURL /api/vault)
+│   └── toastStore.tsx          # notificaciones
+└── views/
+    ├── VaultView.tsx           # UI principal (sin polling manual, SWR gestiona)
+    ├── LoginView.tsx           # usa useLoginLinks() SWR
+    └── LandingView.tsx         # landing page estática
 ```
 
 ### Config SWR (crítica para no pausar Cloudflare)
@@ -193,35 +165,62 @@ src/
 
 ## 🔑 Endpoints del backend (Pages Functions)
 
-### Funcionales (leen/escriben DevNet real)
+### Funcionales — operan on-ledger en Canton DevNet
 | Endpoint | Método | Estado |
 |---|---|---|
 | `/api/health` | GET | ✅ DevNet health + versión Canton |
-| `/api/authenticated-user` | GET | ✅ Party demo + ledger offset |
+| `/api/authenticated-user` | GET | ✅ Party demo `cancore::*` + ledger offset |
 | `/api/vault/parties` | GET | ✅ 3 roles (Proposer/Accepter/Third Party) |
-| `/api/vault/proposals` | POST | ✅ **Crea contratos on-ledger** |
+| `/api/vault/proposals` | POST | ✅ **Crea CommitmentProposal on-ledger**, devuelve contractId real |
+| `/api/vault/proposals` | GET | ✅ Lee ACS (devuelve [] en sandbox por divulgence) |
+| `/api/vault/commitments` | GET | ✅ Lee ACS |
+| `/api/vault/receipts` | GET | ✅ Lee ACS |
+| `/api/vault/disclosures` | GET | ✅ Lee ACS |
+| `/api/vault/dispute-cases` | GET | ✅ Lee ACS |
+| `/api/vault/balance` | GET | ⚠️ Hardcoded `balance: 0` |
 | `/api/login-links` | GET | ✅ Demo link |
 | `/api/logout` | POST | ✅ Stub (cosmético) |
 
-### Funcionales — leen ACS real del ledger DevNet (verificado 14 jul)
-| Endpoint | Método | Estado |
+### Mutations on-ledger (verificadas en Canton DevNet, Canton 3.5.8)
+| Endpoint | Método | Choice Daml |
 |---|---|---|
-| `/api/vault/proposals` | GET | ✅ Lee CommitmentProposal del ACS |
-| `/api/vault/commitments` | GET | ✅ Lee CommitmentContract del ACS |
-| `/api/vault/receipts` | GET | ✅ Lee SettlementReceipt del ACS |
-| `/api/vault/disclosures` | GET | ✅ Lee DisclosedRecord del ACS |
-| `/api/vault/dispute-cases` | GET | ✅ Lee DisputeCase del ACS |
-| `/api/vault/balance` | GET | ⚠️ Hardcoded `balance: 0` (no hay balance CC real) |
+| `/api/vault/proposals/[id]/accept` | POST | AcceptProposal ✅ verificado |
+| `/api/vault/proposals/[id]/reject` | POST | RejectProposal |
+| `/api/vault/commitments/[id]/fulfill` | POST | Fulfill ✅ verificado → SettlementReceipt |
+| `/api/vault/commitments/[id]/raise-dispute` | POST | RaiseDispute |
+| `/api/vault/commitments/[id]/refund` | POST | Refund |
+| `/api/vault/commitments/[id]/resolve` | POST | ResolveDispute sobre DisputeCase (busca commitmentRef) |
 
-### Mutations on-ledger (verificadas en Canton DevNet, offset 4311527)
-| Endpoint | Método | Estado |
-|---|---|---|
-| `/api/vault/proposals/[id]/accept` | POST | ✅ AcceptProposal (accept verificado on-ledger) |
-| `/api/vault/proposals/[id]/reject` | POST | ✅ RejectProposal |
-| `/api/vault/commitments/[id]/fulfill` | POST | ✅ Fulfill symbolic (fulfill verificado → SettlementReceipt) |
-| `/api/vault/commitments/[id]/raise-dispute` | POST | ✅ RaiseDispute |
-| `/api/vault/commitments/[id]/refund` | POST | ✅ Refund |
-| `/api/vault/commitments/[id]/resolve` | POST | ✅ ResolveDispute sobre DisputeCase |
+### Evidencia de lifecycle completo en DevNet (2026-07-14)
+```
+create  → proposal contractId 00473c60…  offset 4311501
+accept  → CommitmentProposal archived, CommitmentContract created  offset 4311525
+fulfill → CommitmentContract archived (terminal), SettlementReceipt created
+```
+
+---
+
+## 🔧 Configuración técnica clave
+
+### Party del demo
+```
+cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8
+```
+Cambió de `5nsandbox-devnet-2::*` (13 jul) a `cancore::*` (14 jul) porque el shared
+validator reasignó los rights de user 6. Si las writes vuelven a dar 403, verificar
+`/v2/users/6/rights` para ver qué parties tienen `CanActAs`.
+
+### Formato Canton 3.5 JSON Ledger API (verificado)
+- **Create/exercise:** `POST /v2/commands/submit-and-wait-for-transaction`
+- **Body wrapper:** `{commands: {applicationId, commandId, actAs, readAs, commands: [...], transactionShape: "CURRENT_LEDGER_END"}, workflowId}`
+- **ExerciseCommand:** campo del argumento = `choiceArgument` (no `argument`)
+- **Response:** `transaction.events[]` con `CreatedEvent.contractId` (el cid real, 104-char)
+- **ACS query:** `POST /v2/state/active-contracts` con `{filter:{filtersByParty:{<party>:{identifierFilter:{templateIds:[...]}}}}}`
+
+### Helpers compartidos (`functions/api/_ledger.js`)
+- `submitCreate(template, args)` → `{updateId, completionOffset, contractId}`
+- `submitExercise(template, cid, choice, arg)` → `{updateId, completionOffset, contractId}`
+- `queryActiveContracts(templateIds)` → `[{contractId, payload}]`
 
 ---
 
@@ -231,46 +230,60 @@ src/
 # Desarrollo local (Vite dev server, proxies /api al backend local)
 cd cn-quickstart/quickstart/frontend && npm run dev
 
-# Preview contra DevNet REAL (wrangler pages dev)
-cd cn-quickstart/quickstart/frontend && npm run preview
+# Preview contra DevNet REAL (wrangler pages dev, NO toca cuota de CF)
+cd cn-quickstart/quickstart/frontend && npm run build
+npx wrangler pages dev dist --compatibility-flags nodejs_compat --port 8790
 
 # Build producción
 cd cn-quickstart/quickstart/frontend && npm run build
 
-# Deploy manual a Cloudflare
-cd cn-quickstart/quickstart/frontend && npm run deploy
+# Deploy manual a Cloudflare (alternativa si no hay Git conectado)
+cd cn-quickstart/quickstart/frontend && npx wrangler pages deploy dist --project-name canton-vault --branch main
 
-# Typecheck
-cd cn-quickstart/quickstart/frontend && npx tsc -b --noEmit
+# CLI contra DevNet (propose/accept/fulfill/dispute/refund)
+cd cli && npx tsc && node dist/index.js status
+node dist/index.js propose -a 5000 -d "description"
+node dist/index.js accept <contractId>
 
-# Limpiar cache wrangler stale (si falla wrangler dev)
-rm -rf cn-quickstart/quickstart/frontend/.wrangler/deploy/config.json
+# Verificar qué versión está en vivo
+curl -s https://canton-vault.pages.dev/ | grep -oE 'index-[A-Za-z0-9_]+\.js'
+curl -s https://canton-vault.pages.dev/api/health
+
+# Ver estado de autenticación de wrangler
+cd cn-quickstart/quickstart/frontend && npx wrangler whoami
 ```
 
 ---
 
 ## ⚠️ Lecciones aprendidas (NO repetir)
 
-1. **NUNCA llamar `fetchUser()` o cualquier función que flifique `loading=true` desde un componente hijo de `RequireAuth`** → causa bucle infinito de mount/unmount
-2. **NUNCA usar polling con `setInterval` o `setTimeout` recursivo en serverless** → agota cuota rapidísimo
-3. **`wrangler deploy` NO sirve Pages Functions** → usar `wrangler pages deploy`
-4. **`@cloudflare/vite-plugin` es para Workers, no Pages** → causa que `/api/*` caiga al SPA fallback
-5. **Cloudflare Free = 100k req/día** → con SWR (focus-only revalidation) es imposible superar esto
+1. **NUNCA dejar un deploy sin actualizar** — si hay un fix en el repo, deployarlo
+   inmediatamente o conectar Git para auto-deploy. Un sitio vivo con versión vieja
+   puede recurrir el incidente de cuota.
+2. **NUNCA asumir "problema externo" sin investigar** — el 403 del validator era
+   party ID equivocada, no rate-limiting. Investigar causa raíz siempre.
+3. **`submit-and-wait` ≠ `submit-and-wait-for-transaction`** — el primero no devuelve
+   contractIds. Usar el segundo siempre que necesites el cid creado.
+4. **El campo es `choiceArgument`** en Canton 3.5, no `argument`.
+5. **Cloudflare Free = 100k req/día** — con SWR (focus-only) es imposible superar esto,
+   siempre que el deploy esté actualizado.
+6. **El sandbox no divulga contracts creados por m2m vía ACS** — los GET devuelven []
+   pero las mutations funcionan. No es un bug, es privacy del entorno multi-tenant.
 
 ---
 
 ## 📅 Timeline del hackathon
 
-- **Deadline extendido:** Domingo 19 julio medianoche
-- **Días restantes:** ~6
-- **Prioridad:** conectar Git + reset de cuota → deploy vivo → implementar endpoints stub → pulir demo
+- **Deadline:** Domingo 19 julio medianoche
+- **Días restantes:** ~5
+- **Prioridad:** `git push` + conectar Git en CF → demo listo
 
 ---
 
 ## 🔗 Links importantes
 
+- **Producción:** https://canton-vault.pages.dev
 - **Repo:** https://github.com/ruwaq/CantonVault
-- **Demo URL:** https://canton-vault.pages.dev (pausada hasta reset cuota)
 - **Faucet CC:** https://stakely.io/faucet/canton-devnet
-- **Dashboard CF:** https://dash.cloudflare.com (cuenta: prometeodev7@gmail.com)
+- **Dashboard CF:** https://dash.cloudflare.com (prometeodev7@gmail.com)
 - **Hackathon:** Build on Canton (deadline 19 jul)
