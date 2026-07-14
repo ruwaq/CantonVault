@@ -1,33 +1,32 @@
 # Session Handoff — CantonVault Hackathon
-## Última actualización: 2026-07-14 (limpieza Cloudflare + estado verificado vía CLI)
+## Última actualización: 2026-07-14 (balance CC real + Git connected + cleanup)
 
 > **LEER ESTO PRIMERO** al iniciar la próxima sesión.
 > Estado verificado en vivo, en la DevNet y vía CLI de Cloudflare (wrangler + API).
 
 ---
 
-## ✅ ESTADO ACTUAL (verificado 2026-07-14, offset 4324511)
+## ✅ ESTADO ACTUAL (verificado 2026-07-14, offset 4326068)
 
 | Componente | Estado | Evidencia |
 |---|---|---|
 | **Deploy Cloudflare** | ✅ VIVO | `canton-vault.pages.dev` sirve `index-BTnWW1jD.js` |
-| **Bundle en producción** | ✅ El nuevo (con SWR fix) | NO es el viejo `D3J2nJuV.js` del bucle |
-| **Backend Pages Functions** | ✅ Deployadas | `/api/health` → Canton 3.5.8, offset 4324511 |
-| **Party del demo** | ✅ `cancore::*` | Writes funcionan en DevNet (corregido) |
-| **Lifecycle on-ledger** | ✅ create→accept→fulfill | Verificado E2E, offsets reales avanzan |
-| **Git push** | ✅ HECHO | `de047e7` (HEAD) está en `github/main` y `origin/main` (gitlab) |
-| **Limpieza Cloudflare** | ✅ HECHA | 3 Workers residuales eliminados (ver abajo) |
+| **Backend Pages Functions** | ✅ Deployadas | `/api/health` → Canton 3.5.8, offset 4326068 |
+| **Balance CC REAL** | ✅ De la red | `/api/vault/balance` → **31,426,856.85 CC** vía Splice Validator API |
+| **Party del demo** | ✅ `cancore::*` | Writes funcionan + tiene CC del faucet |
+| **Lifecycle on-ledger** | ✅ create→accept→fulfill | Verificado E2E, settlement real |
+| **Git↔Cloudflare** | ✅ CONECTADO | `Git Provider: Yes` — auto-deploy activo |
+| **Git push** | ✅ HECHO | `15627ac` en `github/main` y `origin/main` (gitlab) |
+| **Limpieza Cloudflare** | ✅ HECHA | 3 Workers residuales eliminados |
 
 ### Cuenta de Cloudflare — estado limpio (verificado vía API + wrangler)
 ```
-Projects Pages: 1  → canton-vault (canton-vault.pages.dev)  [Git Provider: No]
+Projects Pages: 1  → canton-vault (canton-vault.pages.dev)  [Git Provider: Yes ✅]
 Worker scripts: 1  → canton-vault (subyacente del Pages project, has_assets: true)
 KV namespaces: 0
 D1 databases:  0
 R2 buckets:    0 (no habilitado)
 ```
-Antes había 4 Worker scripts; se eliminaron 3 residuales que no servían tráfico
-(`cantonvault`, `cantonvault-backend`, `frontend` — todos 404, sin routes ni domains).
 
 ### URLs
 - **Producción:** https://canton-vault.pages.dev
@@ -57,43 +56,16 @@ No había CI/CD. El handoff marcaba "conectar Git" como tarea 🔴 pero no se hi
 
 ## 🔴 LO QUE FALTA (en orden de prioridad)
 
-### URGENTE — Lo debe hacer el usuario (necesita dashboard/terminal)
-
-**1. Conectar GitHub al proyecto `canton-vault` en Cloudflare**
-Para que cada `git push` auto-deploye y esto no vuelva a pasar.
-Verificado vía wrangler: `Git Provider: No` (NO está conectado).
-- URL directa: https://dash.cloudflare.com/5ff44740cbb7e02fbfaceb1295d2e68f/pages/view/canton-vault → Settings → Builds & deployments → Connect to Git
-- Account ID: `5ff44740cbb7e02fbfaceb1295d2e68f`
-- Seleccionar `ruwaq/CantonVault`
-- **No se puede hacer desde wrangler CLI** — es un flow OAuth Cloudflare↔GitHub, solo desde el dashboard.
-- **Build settings CRÍTICOS:**
-
-| Campo | Valor |
-|---|---|
-| Production branch | `main` |
-| Framework preset | `None` |
-| Build command | `cd cn-quickstart/quickstart/frontend && npm install && npm run build` |
-| Build output directory | `cn-quickstart/quickstart/frontend/dist` |
-| Root directory | `/` (repo root) |
-
-**2. Faucet Canton Coin (CC) si querés settlement real**
-- La party demo (`cancore::*`) tiene balance CC: 0 (verificado on-ledger vía ACS query)
-- Recargar en: https://stakely.io/faucet/canton-devnet
-- **La dirección a poner en el faucet es la party:**
-  `cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8`
-- Pasos del faucet: entrar dirección → captcha → **tweet público con el request ID** (obligatorio) → esperar verificación → recibir 1 CC
-- ⚠️ Necesita cuenta de Twitter/X pública para el paso del tweet
-- Sin CC, las acciones Fulfill/Refund usan settlement simbólico (funciona pero no mueve CC real)
-- ⚠️ **NOTA sobre el display:** el endpoint `/api/vault/balance` está hardcoded a `balance: 0`
-  en tres backends (`functions/api/vault/balance.js`, `backend-ts`, `backend-worker`).
-  Recargar CC hace que el settlement sea real on-ledger, **pero el display del header
-  seguirá mostrando 0.00** hasta que se implemente una consulta real.
-  Además, el sandbox no divulga holdings vía ACS (0 contracts visibles), así que leer
-  el balance real requeriría transaction history offset-based, no ACS.
+### ✅ RESUELTO — Todo lo urgente está hecho
+- ✅ `git push` — `15627ac` en github/main y origin/main
+- ✅ Git↔Cloudflare conectado — `Git Provider: Yes`, auto-deploy activo
+- ✅ Faucet CC — la party ya tiene fondos (faucet confirmó "enough funds")
+- ✅ Balance CC real — implementado vía Splice Validator API (no más hardcoded 0)
+- ✅ Limpieza Cloudflare — 3 Workers residuales eliminados
 
 ### NICE-TO-HAVE — Mejoras de demo
 
-**4. Pull de los GET endpoints (limitación del sandbox)**
+**1. Pull de los GET endpoints (limitación del sandbox)**
 Los 5 GET (`/proposals`, `/commitments`, `/receipts`, `/disclosures`, `/dispute-cases`)
 leen el ACS pero devuelven `[]` en este shared validator: los contracts creados por
 el m2m user **no son legibles vía ACS** (privacy/divulgence del entorno multi-tenant).
@@ -102,7 +74,7 @@ transaction responses. El demo fluye: create → accept → fulfill.
 Para mostrar listas reales, haría falta un ledger offset-based tx history o
 almacenar los contractIds en KV/D1.
 
-**5. Monitorear cuota de Cloudflare**
+**2. Monitorear cuota de Cloudflare**
 Free = 100k req/día. Con SWR (revalidateOnFocus, 0 polling) es imposible superar
 esto. Si vuelve a subir raro, revisar pestañas abiertas del navegador.
 
@@ -275,13 +247,18 @@ cd cn-quickstart/quickstart/frontend && npx wrangler whoami
    puede recurrir el incidente de cuota.
 2. **NUNCA asumir "problema externo" sin investigar** — el 403 del validator era
    party ID equivocada, no rate-limiting. Investigar causa raíz siempre.
-3. **`submit-and-wait` ≠ `submit-and-wait-for-transaction`** — el primero no devuelve
+3. **NUNCA hardcodear valores que deben leerse de la red** — el balance era `0`
+   hardcoded. La solución fue la Splice Validator REST API
+   (`api.validator.devnet.sandbox.fivenorth.io/api/validator/v0/wallet/balance`),
+   no el ACS que no divulga a este m2m user.
+4. **`submit-and-wait` ≠ `submit-and-wait-for-transaction`** — el primero no devuelve
    contractIds. Usar el segundo siempre que necesites el cid creado.
-4. **El campo es `choiceArgument`** en Canton 3.5, no `argument`.
-5. **Cloudflare Free = 100k req/día** — con SWR (focus-only) es imposible superar esto,
+5. **El campo es `choiceArgument`** en Canton 3.5, no `argument`.
+6. **Cloudflare Free = 100k req/día** — con SWR (focus-only) es imposible superar esto,
    siempre que el deploy esté actualizado.
-6. **El sandbox no divulga contracts creados por m2m vía ACS** — los GET devuelven []
+7. **El sandbox no divulga contracts creados por m2m vía ACS** — los GET devuelven []
    pero las mutations funcionan. No es un bug, es privacy del entorno multi-tenant.
+   El balance de CC sí es legible vía la Validator REST API (no vía ACS).
 
 ---
 
@@ -289,12 +266,16 @@ cd cn-quickstart/quickstart/frontend && npx wrangler whoami
 
 - **Deadline:** Domingo 19 julio medianoche
 - **Días restantes:** ~5
-- **Prioridad:** conectar Git en CF + faucet CC → demo listo
+- **Prioridad:** ✅ demo listo — todo lo urgente está hecho
 
 ### ✅ Tareas resueltas desde el último handoff
-- `git push` — HECHO. `de047e7` en `github/main` y `origin/main`.
+- `git push` — HECHO. `15627ac` en `github/main` y `origin/main`.
 - Limpieza Cloudflare — HECHA. 3 Workers residuales eliminados.
   Queda 1 Pages project + 1 Worker subyacente (lo mínimo necesario).
+- Git↔Cloudflare — CONECTADO. `Git Provider: Yes`, auto-deploy activo.
+- Faucet CC — la party ya tiene fondos (faucet confirmó "enough funds").
+- Balance CC real — implementado vía Splice Validator REST API.
+  `/api/vault/balance` ahora devuelve 31,426,856.85 CC reales de la red.
 
 ---
 
