@@ -98,40 +98,43 @@ sequenceDiagram
 
 ## 🛠️ Technology Stack & Architecture
 
-CantonVault is architected to support institutional volumes, dividing heavy multi-party state machine processing from low-latency query operations.
+CantonVault's live demo runs entirely on serverless edge infrastructure talking directly to the Canton Network DevNet — no Spring Boot gateway, no Postgres, no Docker required to evaluate.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                   CantonVault Architecture               │
+│                CantonVault Live Demo Architecture         │
 ├──────────────────────────────────────────────────────────┤
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐   │
-│  │ Frontend     │    │ Backend     │    │ Daml Layer   │   │
-│  │ (Vite+React) │───▶│ (SpringBoot)│───▶│ (5 templates)│   │
-│  │ VaultView.tsx │    │ /vault/*    │    │ gRPC Ledger  │   │
-│  └─────────────┘    └──────┬──────┘    └──────┬──────┘   │
-│                            │                   │         │
-│                   ┌────────▼────────┐  ┌──────▼──────┐   │
-│                   │ Token Registry  │  │ PQS          │   │
-│                   │ (Splice Amulet) │  │ (PostgreSQL) │   │
-│                   └────────┬────────┘  └─────────────┘   │
-│                            │                             │
-│                   ┌────────▼─────────────────────────┐   │
-│                   │ Canton Network (Validator Node)   │   │
-│                   │ ┌───────┐ ┌───────┐ ┌──────────┐ │   │
-│                   │ │Party A│ │Party B│ │Arbitrator│ │   │
-│                   │ │(full) │ │(full) │ │(none*)   │ │   │
-│                   │ └───────┘ └───────┘ └──────────┘ │   │
-│                   │ *until dispute/disclosure        │   │
-│                   └───────────────────────────────────┘   │
+│                                                           │
+│   ┌───────────────────────────────────────────┐          │
+│   │  React 18 + Vite + TypeScript (SPA)        │          │
+│   │  SWR (focus revalidation, zero polling)    │          │
+│   │  VaultView · Privacy Lab · 3-step wizard   │          │
+│   └───────────────────┬───────────────────────┘          │
+│                       │ /api/*                            │
+│   ┌───────────────────▼───────────────────────┐          │
+│   │  Cloudflare Pages Functions (edge)         │          │
+│   │  functions/api/vault/* → Canton JSON       │          │
+│   │  Ledger API v2 + Splice Validator REST     │          │
+│   │  KV index of contractIds (VAULT_KV)        │          │
+│   └───────────────────┬───────────────────────┘          │
+│                       │ HTTPS + OAuth2 m2m                │
+│   ┌───────────────────▼───────────────────────┐          │
+│   │  Canton Network DevNet (Fivenorth Sandbox) │          │
+│   │  ┌─────────┐ ┌─────────┐ ┌─────────────┐  │          │
+│   │  │Party A  │ │Party B  │ │Arbitrator   │  │          │
+│   │  │(signer) │ │(signer) │ │(blind until │  │          │
+│   │  │         │ │         │ │ dispute)    │  │          │
+│   │  └─────────┘ └─────────┘ └─────────────┘  │          │
+│   └───────────────────────────────────────────┘          │
 └──────────────────────────────────────────────────────────┘
 ```
 
 *   **Smart Contracts**: **Daml 3.x** compiled to DAR. Native Canton multi-party workflows.
-*   **Settlement Integration**: **Splice Amulet Token Standard**. Atomic payments in Canton Coin.
-*   **Backend Services**: **Spring Boot 3.4 + Java 21** communicating over gRPC Ledger API v2.
-*   **Read Replica Integration**: **Postgres Query Service (PQS)** querying the local participant node projection table, bypasses slow ledger lookups for fast React dashboard updates.
-*   **Frontend**: **React 18 + Vite + TypeScript** featuring a split-screen "Privacy Lab" sandbox.
-*   **Local Infrastructure**: **Docker Compose** orchestrating splice services, Postgres DBs, and local Canton participants.
+*   **Settlement Integration**: **Splice Amulet Token Standard**. Atomic payments in Canton Coin (Amulet).
+*   **Edge Backend**: **Cloudflare Pages Functions** bridging the Canton JSON Ledger API v2 (commands + ACS) and the Splice Validator REST API (balance). OAuth2 m2m tokens cached across warm invocations.
+*   **Contract Index**: **Cloudflare KV** (`VAULT_KV`) — the shared sandbox validator does not divulge our contracts via the Active Contract Set (privacy of the multi-tenant environment), so we maintain a local append-only index keyed by contractId. Every create/exercise writes `{cid, kind, payload, status}`; the GET endpoints read from here filtered by lifecycle status.
+*   **Frontend**: **React 18 + Vite + TypeScript + SWR** featuring a 3-step wizard (Propose → Act → Privacy Lab) and split-screen selective-disclosure sandbox.
+*   **Data fetching**: SWR with `revalidateOnFocus` only — zero background polling. This is load-bearing: an earlier polling version exhausted the Cloudflare Free 100k/day quota in hours.
 
 ---
 
@@ -159,35 +162,55 @@ To help judges and builders navigate the project workspace:
 
 ```text
 cantonvault/
-├── README.md                          # Hackathon Presentation and Pitch
+├── README.md                          # Hackathon Presentation and Pitch (this file)
+├── DEMO.md                            # Step-by-step jury demo guide
 ├── LICENSE                            # MIT License
 ├── SECURITY.md                        # Production Audit and Vulnerability Disclosures
-├── HANDOFF.md                         # Detailed developer handoff and technical log
-├── presentation_deck.md               # 7-Slide Pitch deck content mapped to Yanapa template
+├── SESSION_HANDOFF.md                 # Developer handoff + technical debugging log
 ├── cli/                               # CantonVault TypeScript CLI for DevNet interaction
-│   └── src/index.ts                   # CLI entrypoint (deploy, status, propose, package check)
+│   └── src/index.ts                   # CLI entrypoint (status, propose, accept, fulfill, …)
 └── cn-quickstart/
     └── quickstart/                    # Main application code (cloned from upstream)
-        ├── run-localnet.sh            # Wrapper docker compose script (fixes path spaces)
-        ├── compose.yaml               # Docker compose network layout (Canton + Splice + Postgres)
         ├── daml/
         │   └── licensing/             # Daml contract models (Commitment, Disclosable, Settlement)
         ├── daml/licensing-tests/      # 12/12 passing unit tests for privacy and settlement
-        ├── backend/                   # Spring Boot 3.4 Java API Gateway (/api/vault/*)
-        └── frontend/                  # React 18 / TypeScript Web Console and Privacy Lab
+        └── frontend/                  # ← LIVE DEMO — deployed to canton-vault.pages.dev
+            ├── functions/api/         # Cloudflare Pages Functions (serverless edge backend)
+            │   ├── _ledger.js         # Canton Ledger API client + KV index helpers
+            │   └── vault/             # /api/vault/* endpoints (create, accept, fulfill, …)
+            ├── src/                   # React 18 / TypeScript Web Console and Privacy Lab
+            └── wrangler.jsonc         # Cloudflare config (KV binding, nodejs_compat)
 ```
 
 ---
 
 ## ✅ Canton Network DevNet Deployment Proof
 
-CantonVault smart contracts are compiled, vetted, and **actively deployed on-ledger** on the official Canton Network DevNet.
+CantonVault smart contracts are compiled, vetted, and **actively deployed on-ledger** on the official Canton Network DevNet. The live demo is continuously deployed via Git → Cloudflare auto-build.
 
-### DevNet Connection Profile
+> **🌐 Live demo: https://canton-vault.pages.dev** — every `git push` to `main` triggers an automatic build + deploy.
+
+### DevNet Connection Profile (verified live)
 *   **Ledger API Endpoint**: `https://ledger-api.validator.devnet.sandbox.fivenorth.io/`
+*   **Validator REST API**: `https://api.validator.devnet.sandbox.fivenorth.io/` (balance source)
 *   **Auth Mechanism**: OAuth2 Client Credentials (`validator-devnet-m2m`)
-*   **Synchronizer Network**: Canton Network DevNet (splice v0.6.12, Canton 3.5.7)
+*   **Canton Version**: 3.5.8
 *   **Active Party ID**: `cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8`
+*   **Live Canton Coin balance**: **31,433,860+ CC** (read from the Splice Validator wallet endpoint, grows over time from Amulet holding rewards)
+
+### Verify it yourself (no auth needed)
+```bash
+# Backend health — confirms Canton 3.5.8 + current ledger offset
+curl -s https://canton-vault.pages.dev/api/health
+# → {"status":"ok","cantonVersion":"3.5.8","ledgerOffset":4327615}
+
+# Real on-ledger Canton Coin balance (from Splice Validator REST API)
+curl -s https://canton-vault.pages.dev/api/vault/balance
+# → {"balance":31433860.95,"locked":0,"round":52809,"party":"cancore::..."}
+
+# Active proposals (from the KV contract index)
+curl -s https://canton-vault.pages.dev/api/vault/proposals
+```
 
 ### On-Ledger Tx Proofs (July 2026)
 We successfully processed **52,500 CC (Canton Coins)** across all three workflow scenarios:
@@ -196,7 +219,7 @@ We successfully processed **52,500 CC (Canton Coins)** across all three workflow
 |---|---|---|---|---|
 | 1 | supply-chain-finance | 5,000 CC | `1220c521048ebd4392a67d331a0cb6cebbc1beb03aed7da2b34ba1e40b4cedfec9f9` | 4297574 |
 | 2 | supply-chain-finance | 7,500 CC | `12207d01a2205c3b578ff9fecf0fdefbb14cd9ba8f75f61eb6f5c652e0209e483113` | 4297626 |
-| 3 | supply-chain-finance | 12,000 CC | `1220e723952e21684661ac7f0a6fcf0db66e570866d062bf34ba938d23ab2090ce01` | 4297881 |
+| 3 | supply-chain-finance | 12,000 CC | `1220e723952221684661ac7f0a6fcf0db66e570866d062bf34ba938d23ab2090ce01` | 4297881 |
 | 4 | invoice-financing | 3,000 CC | `12202b830f37bcab5a0a234565bc6acd328e8eea979d6b71967068d2430cffb89678` | 4298442 |
 | 5 | otc-block-trade | 25,000 CC | `12204b7cf00a72988934e883439f48da8df2d0497435f2d9e6df87b7826aebb7d27c` | 4298435 |
 
@@ -204,44 +227,32 @@ We successfully processed **52,500 CC (Canton Coins)** across all three workflow
 
 ## ⚡ Quick Start
 
-### Prerequisites
-*   Daml SDK 3.4.11 (`~/.daml/bin/daml`)
-*   Java 21 & Node.js 20+
-*   Docker Desktop running
+### Try the live demo (fastest)
+Just open **https://canton-vault.pages.dev** — no setup required. See [`DEMO.md`](./DEMO.md) for the guided 90-second walkthrough.
 
-### 1. Clone and Build Contracts
+### Run locally (for development)
 ```bash
-git clone https://gitlab.com/PrometeoDev/cantonvault.git
-cd cantonvault/cn-quickstart/quickstart
-
-# Compile Daml contracts
-~/.daml/bin/daml build --package-root daml/licensing
-```
-
-### 2. Run Local Network & Services
-We provide a helper script to avoid docker compose path-escaping bugs when spaces are present in the directory name:
-```bash
-# Start Splice LocalNet + Canton + Backend Spring Boot + Postgres
-./run-localnet.sh up
-```
-
-### 3. Launch Frontend Web UI
-```bash
-cd frontend
+git clone https://github.com/ruwaq/CantonVault.git
+cd CantonVault/cn-quickstart/quickstart/frontend
 npm install
-npm run dev
-# Opens at http://app-provider.localhost:5173
+npm run dev          # Vite dev server on :5173 (proxies /api to local or DevNet)
 ```
-*Auto-connect is enabled.* Head to the **CantonVault** tab to access the Privacy Lab.
 
-### 4. Running Tests
+The dev server talks to the same Canton Network DevNet as the live demo, so you can create real on-ledger commitments from your machine.
+
+### Deploy your own copy
+The frontend deploys to Cloudflare Pages with Git auto-build (every push to `main`):
+```bash
+cd cn-quickstart/quickstart/frontend
+npm run build:ci && npx wrangler pages deploy dist --project-name canton-vault --branch main
+```
+Requires `VAULT_KV` KV namespace bound (see `wrangler.jsonc`) and `nodejs_compat` flag.
+
+### Running Daml tests
 To verify privacy boundary enforcement and DvP script execution:
 ```bash
 # Run Daml unit and scenario tests (12/12 passing)
 ~/.daml/bin/daml test --package-root daml/licensing-tests
-
-# Compile Java Backend
-./gradlew :backend:compileJava
 ```
 
 ---

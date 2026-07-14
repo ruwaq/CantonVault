@@ -1,30 +1,33 @@
 # Session Handoff — CantonVault Hackathon
-## Última actualización: 2026-07-14 (auto-deploy CI/CD funcionando + balance CC real)
+## Última actualización: 2026-07-14 (GETs con datos reales vía KV + UX on-ledger para jurado)
 
 > **LEER ESTO PRIMERO** al iniciar la próxima sesión.
 > Estado verificado en vivo, en la DevNet y vía CLI de Cloudflare (wrangler + API).
 
 ---
 
-## ✅ ESTADO ACTUAL (verificado 2026-07-14, offset 4326592)
+## ✅ ESTADO ACTUAL (verificado 2026-07-14, offset 4329300+)
 
 | Componente | Estado | Evidencia |
 |---|---|---|
 | **Producción** | ✅ VIVO | `canton-vault.pages.dev` HTTP 200 |
 | **Auto-deploy CI/CD** | ✅ FUNCIONANDO | Cada `git push` a `main` → build + functions + deploy automático |
 | **Backend Pages Functions** | ✅ Deployadas + detectadas | `/api/health` → Canton 3.5.8 |
-| **Balance CC REAL** | ✅ De la red | `/api/vault/balance` → **31,428,468.76 CC** vía Splice Validator API |
+| **Balance CC REAL** | ✅ De la red | `/api/vault/balance` → **31,433,860+ CC** vía Splice Validator API |
+| **GETs con datos reales** | ✅ VÍA KV | Los 5 GET leen del KV index — proposals/commitments/receipts visibles |
+| **resolve.js bug** | ✅ ARREGLADO | Busca DisputeCase en KV (antes en ACS que devolvía [] → siempre 404) |
+| **UX on-ledger para jurado** | ✅ HECHO | Toasts con CID+offset, botón copiar CID, empty states accionables |
+| **Docs jurado** | ✅ LISTAS | README actualizado + DEMO.md guía paso a paso |
 | **Party del demo** | ✅ `cancore::*` | Writes funcionan + tiene CC del faucet |
-| **Lifecycle on-ledger** | ✅ create→accept→fulfill | Verificado E2E, settlement real |
+| **Lifecycle on-ledger** | ✅ create→accept→fulfill | Verificado E2E con persistencia KV |
 | **Git↔Cloudflare** | ✅ CONECTADO | `Git Provider: Yes`, build config corregida |
-| **Git push** | ✅ SINCRONIZADO | `66024c6` en local, github/main y origin/main |
-| **Limpieza Cloudflare** | ✅ HECHA | 3 Workers residuales eliminados, queda 1 Pages project |
+| **KV namespace** | ✅ BINDEADO | `VAULT_KV` (id `8c756265442a41bc8f57632075790a50`) en production + preview |
 
 ### Cuenta de Cloudflare — estado limpio (verificado vía API + wrangler)
 ```
 Projects Pages: 1  → canton-vault (canton-vault.pages.dev)  [Git Provider: Yes ✅]
 Worker scripts: 1  → canton-vault (subyacente del Pages project, has_assets: true)
-KV namespaces: 0
+KV namespaces: 1  → VAULT_KV (id: 8c756265442a41bc8f57632075790a50)  ← índice de contractIds
 D1 databases:  0
 R2 buckets:    0 (no habilitado)
 ```
@@ -82,30 +85,36 @@ Implementado en `functions/api/_ledger.js` → `walletBalance()` y usado por
 
 ---
 
-## 🔴 LO QUE FALTA (nice-to-have, nada urgente)
+## 🔴 LO QUE FALTA (nada urgente — el demo está completo)
 
-### ✅ TODO LO URGENTE ESTÁ RESUELTO
-- ✅ `git push` — `66024c6` en github/main y origin/main
+### ✅ TODO RESUELTO
+- ✅ `git push` — sincronizado con github/main y origin/main
 - ✅ Git↔Cloudflare conectado — `Git Provider: Yes`, auto-deploy activo
 - ✅ Build config corregida — functions detectadas, `nodejs_compat` activo
 - ✅ Faucet CC — la party ya tiene fondos (faucet confirmó "enough funds")
 - ✅ Balance CC real — implementado vía Splice Validator API (no más hardcoded 0)
 - ✅ Limpieza Cloudflare — 3 Workers residuales eliminados
+- ✅ **GETs con datos reales** — índice KV de contractIds (los 5 GET ya devuelven datos)
+- ✅ **resolve.js bug** — ahora busca DisputeCase en KV (no en ACS que devolvía [])
+- ✅ **UX on-ledger** — toasts con CID+offset, botón copiar CID, empty states accionables
+- ✅ **Docs jurado** — README actualizado (sin Spring Boot) + DEMO.md guía paso a paso
 
-### NICE-TO-HAVE — Mejoras de demo
+### NICE-TO-HAVE — Solo si sobra tiempo antes del deadline (19 jul)
 
-**1. Pull de los GET endpoints (limitación del sandbox)**
-Los 5 GET (`/proposals`, `/commitments`, `/receipts`, `/disclosures`, `/dispute-cases`)
-leen el ACS pero devuelven `[]` en este shared validator: los contracts creados por
-el m2m user **no son legibles vía ACS** (privacy/divulgence del entorno multi-tenant).
-**Las mutations funcionan** porque el frontend trackea los contractIds via las
-transaction responses. El demo fluye: create → accept → fulfill.
-Para mostrar listas reales, haría falta un ledger offset-based tx history o
-almacenar los contractIds en KV/D1.
+**1. Monitorear cuota de Cloudflare**
+Free = 100k req/día + 1k writes/día KV + 100k reads/día KV. Con SWR
+(revalidateOnFocus, 0 polling) es imposible superar esto. El demo usa ~5 writes
++ ~30 reads por sesión de jurado. Si vuelve a subir raro, revisar pestañas
+abiertas del navegador.
 
-**2. Monitorear cuota de Cloudflare**
-Free = 100k req/día. Con SWR (revalidateOnFocus, 0 polling) es imposible superar
-esto. Si vuelve a subir raro, revisar pestañas abiertas del navegador.
+**2. Capturas de pantalla para el README**
+Tomar screenshots del demo en los 3 steps (propose, act, privacy lab) y del
+toast de éxito con CID+offset. Añadir al README como evidencia visual.
+
+**3. Seed inicial de datos de demo**
+El KV arranca vacío. Para que el jurado vea listas pobladas de inmediato al
+abrir el demo, se podría crear 1-2 proposals de ejemplo via CLI/endpoint tras
+cada limpieza. Opcional — el DEMO.md guía al jurado a crear su propia propuesta.
 
 ---
 
@@ -160,6 +169,53 @@ También se agregó `build:ci` al package.json que omite `gen:openapi` (cuya rut
 relativa `../common/openapi.yaml` rompe en el entorno de CF).
 **Lección:** `root_dir` determina dónde busca CF las `functions/`. Si tu proyecto
 está anidado, debe apuntar al directorio del frontend.
+
+### Bug 6: GET endpoints devuelven [] (ACS no divulga contracts del m2m user)
+**Síntoma:** los 5 GET (`/proposals`, `/commitments`, `/receipts`,
+`/disclosures`, `/dispute-cases`) siempre devolvían `[]`. El demo se veía vacío.
+**Investigación:**
+- ACS con `templateIds` (`Vault.CommitmentProposal:CommitmentProposal`) → []
+- `/v2/updates` → ERROR 201 elements (demasiado ruido de HTLC ajenos del sandbox)
+- `/v2/commands/completions` → 90 resultados, todos `htlc-*` ajenos, nuestras
+  `cv-*` quedan fuera del límite de elementos del sandbox
+**Solución:** Cloudflare KV (`VAULT_KV`) como índice local append-only de
+contractIds. Las 7 mutations escriben `{cid, kind, payload, status}` al crear/ejercer.
+Los 5 GET leen de KV filtrando por estado. `kvListAsContracts` mapea el formato
+KV al `RawContractEnvelope` del frontend (sin cambios en el frontend de lectura).
+**Lección:** cuando el ACS no divulga y el tx history está saturado, un índice
+KV local es la solución pragmática. El estado del contract se trackea en el
+índice (pending/active/fulfilled/etc.), actualizado por cada mutation.
+
+### Bug 7: resolve.js siempre 404 (buscaba DisputeCase en ACS vacío)
+**Síntoma:** `POST /commitments/:id/resolve` devolvía 404 "No active DisputeCase".
+**Root cause:** resolve.js buscaba el DisputeCase vía `queryActiveContracts`
+(ACS), que devuelve [] en el sandbox. El DisputeCase existía on-ledger pero no
+era legible vía ACS.
+**Fix:** resolve.js ahora busca en KV: `kvList(env, 'dispute', ['open'])` y
+filtra por `sourceCid === commitmentId`. raise-dispute.js guarda el DisputeCase
+en KV con `sourceCid` apuntando al commitment original.
+**Lección:** nunca depender de ACS para lookups de contracts en el sandbox.
+Usar el índice KV con links (`sourceCid`) entre contracts derivados.
+
+### Bug 8: Binding KV no se aplica con `wrangler pages deploy`
+**Síntoma:** tras añadir `kv_namespaces` a `wrangler.jsonc` y redeployar, el
+endpoint devolvía `"KV namespace VAULT_KV not bound"`.
+**Root cause:** `wrangler pages deploy` **ignora** el `wrangler.jsonc` para
+Pages (WARNING: "missing pages_build_output_dir"). El binding debe configurarse
+en el proyecto de Pages vía la API de Cloudflare.
+**Fix vía API PATCH:**
+```
+PATCH /accounts/{id}/pages/projects/canton-vault
+{ "deployment_configs": { "production": { "kv_namespaces": {
+    "VAULT_KV": { "namespace_id": "8c756265442a41bc8f57632075790a50" }
+} } } }
+```
+**CRÍTICO:** `kv_namespaces` es un **objeto** (mapa binding→namespace), NO un
+array. `{ "VAULT_KV": {"namespace_id":"..."} }`, no `[{"binding":"VAULT_KV",...}]`.
+Si mandas array → error 8000006 "Request body is incorrect".
+**Lección:** para Pages, los bindings se configuran vía API en
+`deployment_configs`, no en el wrangler.jsonc local (este solo aplica para
+`wrangler dev` local).
 
 ---
 
@@ -328,6 +384,17 @@ curl -s "https://api.validator.devnet.sandbox.fivenorth.io/api/validator/v0/wall
    Con root_dir vacío, CF no encuentra las Pages Functions.
 9. **`gen:openapi` usa rutas relativas que rompen en CI** — usar `build:ci` (sin
    regenerar types) para el auto-deploy. Los types ya están commiteados.
+10. **Cuando el ACS no divulga Y el tx history está saturado, usar KV** — el
+    sandbox multi-tenant no divulga contracts del m2m user vía ACS, y el
+    `/v2/updates` tiene límite de 200 elementos saturado de HTLC ajenos. La
+    solución es un índice KV local: las mutations escriben `{cid, kind, payload,
+    status}`, los GET leen filtrando por estado. `sourceCid` linkea contracts
+    derivados (receipt→commitment, dispute→commitment).
+11. **Para Pages, los bindings van en `deployment_configs` vía API, no en
+    wrangler.jsonc** — `wrangler pages deploy` ignora el wrangler.jsonc local
+    (requiere `pages_build_output_dir` que es otro flujo). El binding KV se
+    configura con `PATCH /accounts/{id}/pages/projects/{name}` usando
+    `kv_namespaces` como **objeto** `{BINDING: {namespace_id}}`, no como array.
 
 ---
 
