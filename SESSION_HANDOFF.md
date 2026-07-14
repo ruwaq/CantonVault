@@ -1,23 +1,24 @@
 # Session Handoff — CantonVault Hackathon
-## Última actualización: 2026-07-14 (balance CC real + Git connected + cleanup)
+## Última actualización: 2026-07-14 (auto-deploy CI/CD funcionando + balance CC real)
 
 > **LEER ESTO PRIMERO** al iniciar la próxima sesión.
 > Estado verificado en vivo, en la DevNet y vía CLI de Cloudflare (wrangler + API).
 
 ---
 
-## ✅ ESTADO ACTUAL (verificado 2026-07-14, offset 4326068)
+## ✅ ESTADO ACTUAL (verificado 2026-07-14, offset 4326592)
 
 | Componente | Estado | Evidencia |
 |---|---|---|
-| **Deploy Cloudflare** | ✅ VIVO | `canton-vault.pages.dev` sirve `index-BTnWW1jD.js` |
-| **Backend Pages Functions** | ✅ Deployadas | `/api/health` → Canton 3.5.8, offset 4326068 |
-| **Balance CC REAL** | ✅ De la red | `/api/vault/balance` → **31,426,856.85 CC** vía Splice Validator API |
+| **Producción** | ✅ VIVO | `canton-vault.pages.dev` HTTP 200 |
+| **Auto-deploy CI/CD** | ✅ FUNCIONANDO | Cada `git push` a `main` → build + functions + deploy automático |
+| **Backend Pages Functions** | ✅ Deployadas + detectadas | `/api/health` → Canton 3.5.8 |
+| **Balance CC REAL** | ✅ De la red | `/api/vault/balance` → **31,428,468.76 CC** vía Splice Validator API |
 | **Party del demo** | ✅ `cancore::*` | Writes funcionan + tiene CC del faucet |
 | **Lifecycle on-ledger** | ✅ create→accept→fulfill | Verificado E2E, settlement real |
-| **Git↔Cloudflare** | ✅ CONECTADO | `Git Provider: Yes` — auto-deploy activo |
-| **Git push** | ✅ HECHO | `15627ac` en `github/main` y `origin/main` (gitlab) |
-| **Limpieza Cloudflare** | ✅ HECHA | 3 Workers residuales eliminados |
+| **Git↔Cloudflare** | ✅ CONECTADO | `Git Provider: Yes`, build config corregida |
+| **Git push** | ✅ SINCRONIZADO | `66024c6` en local, github/main y origin/main |
+| **Limpieza Cloudflare** | ✅ HECHA | 3 Workers residuales eliminados, queda 1 Pages project |
 
 ### Cuenta de Cloudflare — estado limpio (verificado vía API + wrangler)
 ```
@@ -30,35 +31,63 @@ R2 buckets:    0 (no habilitado)
 
 ### URLs
 - **Producción:** https://canton-vault.pages.dev
-- **Preview último deploy:** https://b2066573.canton-vault.pages.dev
-- **Repo:** https://github.com/ruwaq/CantonVault
+- **Repo GitHub:** https://github.com/ruwaq/CantonVault
+- **Repo GitLab:** https://gitlab.com/PrometeoDev/cantonvault
 - **Dashboard CF:** https://dash.cloudflare.com (prometeodev7@gmail.com)
+- **Account ID CF:** `5ff44740cbb7e02fbfaceb1295d2e68f`
 
 ---
 
-## 🚨 EL INCIDENTE DE CLOUDFLARE (resuelto dos veces)
+## 🔧 Build config de Cloudflare (lo que costo encontrar)
 
-### Original (13 jul) — bucle infinito
-Frontend viejo hacía ~70 req/min por pestaña (useEffect→fetchUser→loading→unmount→remount→∞).
-**Fix:** refactor SWR (commit `ca7a51e`), 0 polling en background.
+El auto-deploy desde Git **NO funcionaba** al principio porque la build config estaba
+vacía. Estos son los valores correctos (configurados vía API PATCH):
 
-### Recurrencia (14 jul) — deploy nunca actualizado
-El fix del SWR **estuvo en el repo pero NUNCA se deployó**. El sitio vivo seguía
-sirviendo `index-D3J2nJuV.js` (versión vieja con bucle). Cualquier pestaña abierta
-disparaba la fuga otra vez.
-**Fix:** deploy manual este día → `canton-vault.pages.dev` ahora sirve `index-BTnWW1jD.js`.
+| Campo | Valor | Por qué |
+|---|---|---|
+| `root_dir` | `cn-quickstart/quickstart/frontend` | Cloudflare busca `functions/` relativo al root_dir. Si está vacío, busca en `/` del repo y no la encuentra. |
+| `build_command` | `npm install && npm run build:ci` | Sin `cd` (ya entra al root_dir). Usa `build:ci` que omite `gen:openapi`. |
+| `destination_dir` | `dist` | Output del vite build dentro del root_dir. |
+| `compatibility_flags` | `["nodejs_compat"]` | Necesario para que las Pages Functions usen `fetch` y APIs de Node. |
 
-### Por qué recurrió (lección)
-No había CI/CD. El handoff marcaba "conectar Git" como tarea 🔴 pero no se hizo.
-**Sin Git conectado, cada cambio requiere deploy manual.**
+### El script `build:ci` vs `build`
+- `build` (local): `gen:openapi && tsc && vite build && copy:functions` — regenera types desde `../common/openapi.yaml`
+- `build:ci` (Cloudflare): `tsc && vite build && copy:functions` — omite `gen:openapi` porque usa ruta relativa que no existe en el entorno de CF. Los types ya están commiteados en `src/openapi.d.ts`.
+
+**Log clave de éxito:** `Found Functions directory at /functions. Uploading.` + `✨ Compiled Worker successfully`
 
 ---
 
-## 🔴 LO QUE FALTA (en orden de prioridad)
+## 🔑 Cómo consultar el balance de CC (Splice Validator API)
 
-### ✅ RESUELTO — Todo lo urgente está hecho
-- ✅ `git push` — `15627ac` en github/main y origin/main
+El JSON Ledger API (`ledger-api.validator...`) **NO divulga** los holdings de Amulet
+al m2m user del sandbox multi-tenant. ACS devuelve siempre 0. La solución es la
+**Splice Validator REST API**, que es la fuente autoritativa:
+
+```
+GET https://api.validator.devnet.sandbox.fivenorth.io/api/validator/v0/wallet/balance?party=<PARTY>
+Authorization: Bearer <token m2m>
+```
+```json
+{
+  "round": 52805,
+  "effective_unlocked_qty": "31428468.764181837",
+  "effective_locked_qty": "0.0000000000",
+  "total_holding_fees": "0.0001455392"
+}
+```
+
+Implementado en `functions/api/_ledger.js` → `walletBalance()` y usado por
+`functions/api/vault/balance.js`.
+
+---
+
+## 🔴 LO QUE FALTA (nice-to-have, nada urgente)
+
+### ✅ TODO LO URGENTE ESTÁ RESUELTO
+- ✅ `git push` — `66024c6` en github/main y origin/main
 - ✅ Git↔Cloudflare conectado — `Git Provider: Yes`, auto-deploy activo
+- ✅ Build config corregida — functions detectadas, `nodejs_compat` activo
 - ✅ Faucet CC — la party ya tiene fondos (faucet confirmó "enough funds")
 - ✅ Balance CC real — implementado vía Splice Validator API (no más hardcoded 0)
 - ✅ Limpieza Cloudflare — 3 Workers residuales eliminados
@@ -103,12 +132,34 @@ El `updateId` es el tx hash, NO un contractId. El código lo devolvía como cont
 - El body wrapper es `{commands:{...}, transactionShape}` (no flat con `transactionFormat`)
 - El campo del choice argument es `choiceArgument` (no `argument`)
 
-### Cómo se descubrieron (método)
-El debugging sistemático reveló los 3 bugs contrastando:
-- El script `devnet-create-contract.sh` (que funcionó el 13 jul) → fallaba el 14 jul
-- Token JWT decodificado → válido, scope correcto
-- `/v2/users/6/rights` → rights reales sobre `cancore::*`, no `5nsandbox-devnet-2::*`
-- Test directo: write con `cancore::` → 200 ✅; con `5nsandbox-devnet-2::` → 403 ❌
+### Bug 4: Balance hardcoded a 0 (esta sesión)
+**Síntoma:** `/api/vault/balance` siempre devolvía `balance: 0` en 3 backends.
+**Investigación exhaustiva:**
+- ACS con `templateIds` (`Splice.Api.Token.HoldingV1:Holding`) → 0 (es interface, no template)
+- ACS con `interfaceIds` (`#splice-api-token-holding-v1:...`) → 0 (sandbox no divulga)
+- ACS con template concreto (`#splice-amulet:Splice.Amulet:Amulet`) → 0 (mismo)
+- `/v2/updates` (transaction history) → funciona pero pega límite de 200 elementos
+  (la party `cancore::` es testigo de cientos de contracts HTLC ajenos en cada offset)
+- `/v2/commands/completions` → funciona, muestra 2 transfers de faucet, pero sin montos
+**Solución:** Splice Validator REST API (`api.validator.devnet.sandbox.fivenorth.io`)
+tiene `/api/validator/v0/wallet/balance` que devuelve el balance real sin ACS.
+**Lección:** cuando ACS no divulga, la Validator REST API sí puede.
+
+### Bug 5: Auto-deploy no incluía Pages Functions (esta sesión)
+**Síntoma:** cada `git push` rompía `/api/*` (devolvía el HTML del SPA en vez de JSON).
+**Root cause:** `build_config` estaba vacía en Cloudflare. Con `root_dir=""`, CF
+buscaba `functions/` en la raíz del repo y no la encontraba.
+**Fix vía API PATCH:**
+```
+root_dir = "cn-quickstart/quickstart/frontend"
+build_command = "npm install && npm run build:ci"
+destination_dir = "dist"
+compatibility_flags = ["nodejs_compat"]
+```
+También se agregó `build:ci` al package.json que omite `gen:openapi` (cuya ruta
+relativa `../common/openapi.yaml` rompe en el entorno de CF).
+**Lección:** `root_dir` determina dónde busca CF las `functions/`. Si tu proyecto
+está anidado, debe apuntar al directorio del frontend.
 
 ---
 
@@ -132,6 +183,28 @@ src/
     ├── VaultView.tsx           # UI principal (sin polling manual, SWR gestiona)
     ├── LoginView.tsx           # usa useLoginLinks() SWR
     └── LandingView.tsx         # landing page estática
+
+functions/api/                   # Pages Functions (Cloudflare)
+├── _ledger.js                   # Helpers: getToken, ledgerPost, submitCreate,
+│                                #   submitExercise, queryActiveContracts, walletBalance
+├── health.js                    # GET /api/health
+├── authenticated-user.js        # GET /api/authenticated-user
+├── login-links.js               # GET /api/login-links
+├── logout.js                    # POST /api/logout
+└── vault/
+    ├── balance.js               # GET /api/vault/balance → CC real vía Validator API
+    ├── parties.js               # GET /api/vault/parties
+    ├── proposals.js             # GET (ACS) / POST (create on-ledger)
+    ├── proposals/[id]/accept.js # POST → AcceptProposal
+    ├── proposals/[id]/reject.js # POST → RejectProposal
+    ├── commitments.js           # GET (ACS)
+    ├── commitments/[id]/fulfill.js     # POST → Fulfill
+    ├── commitments/[id]/raise-dispute.js  # POST → RaiseDispute
+    ├── commitments/[id]/refund.js   # POST → Refund
+    ├── commitments/[id]/resolve.js # POST → ResolveDispute
+    ├── receipts.js              # GET (ACS)
+    ├── disclosures.js           # GET (ACS)
+    └── dispute-cases.js         # GET (ACS)
 ```
 
 ### Config SWR (crítica para no pausar Cloudflare)
@@ -148,43 +221,6 @@ src/
 
 ---
 
-## 🔑 Endpoints del backend (Pages Functions)
-
-### Funcionales — operan on-ledger en Canton DevNet
-| Endpoint | Método | Estado |
-|---|---|---|
-| `/api/health` | GET | ✅ DevNet health + versión Canton |
-| `/api/authenticated-user` | GET | ✅ Party demo `cancore::*` + ledger offset |
-| `/api/vault/parties` | GET | ✅ 3 roles (Proposer/Accepter/Third Party) |
-| `/api/vault/proposals` | POST | ✅ **Crea CommitmentProposal on-ledger**, devuelve contractId real |
-| `/api/vault/proposals` | GET | ✅ Lee ACS (devuelve [] en sandbox por divulgence) |
-| `/api/vault/commitments` | GET | ✅ Lee ACS |
-| `/api/vault/receipts` | GET | ✅ Lee ACS |
-| `/api/vault/disclosures` | GET | ✅ Lee ACS |
-| `/api/vault/dispute-cases` | GET | ✅ Lee ACS |
-| `/api/vault/balance` | GET | ⚠️ Hardcoded `balance: 0` |
-| `/api/login-links` | GET | ✅ Demo link |
-| `/api/logout` | POST | ✅ Stub (cosmético) |
-
-### Mutations on-ledger (verificadas en Canton DevNet, Canton 3.5.8)
-| Endpoint | Método | Choice Daml |
-|---|---|---|
-| `/api/vault/proposals/[id]/accept` | POST | AcceptProposal ✅ verificado |
-| `/api/vault/proposals/[id]/reject` | POST | RejectProposal |
-| `/api/vault/commitments/[id]/fulfill` | POST | Fulfill ✅ verificado → SettlementReceipt |
-| `/api/vault/commitments/[id]/raise-dispute` | POST | RaiseDispute |
-| `/api/vault/commitments/[id]/refund` | POST | Refund |
-| `/api/vault/commitments/[id]/resolve` | POST | ResolveDispute sobre DisputeCase (busca commitmentRef) |
-
-### Evidencia de lifecycle completo en DevNet (2026-07-14)
-```
-create  → proposal contractId 00473c60…  offset 4311501
-accept  → CommitmentProposal archived, CommitmentContract created  offset 4311525
-fulfill → CommitmentContract archived (terminal), SettlementReceipt created
-```
-
----
-
 ## 🔧 Configuración técnica clave
 
 ### Party del demo
@@ -195,6 +231,16 @@ Cambió de `5nsandbox-devnet-2::*` (13 jul) a `cancore::*` (14 jul) porque el sh
 validator reasignó los rights de user 6. Si las writes vuelven a dar 403, verificar
 `/v2/users/6/rights` para ver qué parties tienen `CanActAs`.
 
+### APIs del Canton DevNet (Fivenorth Sandbox)
+- **JSON Ledger API:** `https://ledger-api.validator.devnet.sandbox.fivenorth.io`
+  - Commands: `POST /v2/commands/submit-and-wait-for-transaction`
+  - ACS: `POST /v2/state/active-contracts` (no divulga a m2m user)
+  - Ledger end: `GET /v2/state/ledger-end`
+- **Splice Validator REST API:** `https://api.validator.devnet.sandbox.fivenorth.io`
+  - Balance: `GET /api/validator/v0/wallet/balance?party=<PARTY>` ✅ SÍ divulga
+- **Auth:** `https://auth.sandbox.fivenorth.io/application/o/token/`
+  - client_id: `validator-devnet-m2m`
+
 ### Formato Canton 3.5 JSON Ledger API (verificado)
 - **Create/exercise:** `POST /v2/commands/submit-and-wait-for-transaction`
 - **Body wrapper:** `{commands: {applicationId, commandId, actAs, readAs, commands: [...], transactionShape: "CURRENT_LEDGER_END"}, workflowId}`
@@ -203,9 +249,13 @@ validator reasignó los rights de user 6. Si las writes vuelven a dar 403, verif
 - **ACS query:** `POST /v2/state/active-contracts` con `{filter:{filtersByParty:{<party>:{identifierFilter:{templateIds:[...]}}}}}`
 
 ### Helpers compartidos (`functions/api/_ledger.js`)
+- `getToken()` → token m2m cacheado
+- `ledgerGet(path)` / `ledgerPost(path, payload)` → wrappers HTTP
+- `ledgerEnd()` → offset actual del ledger
 - `submitCreate(template, args)` → `{updateId, completionOffset, contractId}`
 - `submitExercise(template, cid, choice, arg)` → `{updateId, completionOffset, contractId}`
-- `queryActiveContracts(templateIds)` → `[{contractId, payload}]`
+- `queryActiveContracts(templateIds)` → `[{contractId, payload}]` (devuelve [] en sandbox)
+- `walletBalance(party)` → `{unlocked, locked, round}` ← balance CC REAL
 
 ---
 
@@ -215,27 +265,41 @@ validator reasignó los rights de user 6. Si las writes vuelven a dar 403, verif
 # Desarrollo local (Vite dev server, proxies /api al backend local)
 cd cn-quickstart/quickstart/frontend && npm run dev
 
-# Preview contra DevNet REAL (wrangler pages dev, NO toca cuota de CF)
-cd cn-quickstart/quickstart/frontend && npm run build
-npx wrangler pages dev dist --compatibility-flags nodejs_compat --port 8790
-
-# Build producción
+# Build producción (local, con gen:openapi)
 cd cn-quickstart/quickstart/frontend && npm run build
 
-# Deploy manual a Cloudflare (alternativa si no hay Git conectado)
-cd cn-quickstart/quickstart/frontend && npx wrangler pages deploy dist --project-name canton-vault --branch main
+# Build para CI/Cloudflare (sin gen:openapi)
+cd cn-quickstart/quickstart/frontend && npm run build:ci
+
+# Deploy manual a Cloudflare (alternativa si auto-deploy falla)
+cd cn-quickstart/quickstart/frontend && npm run build:ci && \
+  npx wrangler pages deploy dist --project-name canton-vault --branch main --commit-dirty=true
+
+# Auto-deploy: simplemente git push
+git push origin main  # → dispara build en CF automáticamente
+
+# Verificar qué versión está en vivo
+curl -s https://canton-vault.pages.dev/api/health
+curl -s https://canton-vault.pages.dev/api/vault/balance
+
+# Listar deployments
+cd cn-quickstart/quickstart/frontend && npx wrangler pages deployment list --project-name canton-vault
+
+# Ver estado de autenticación de wrangler
+cd cn-quickstart/quickstart/frontend && npx wrangler whoami
 
 # CLI contra DevNet (propose/accept/fulfill/dispute/refund)
 cd cli && npx tsc && node dist/index.js status
 node dist/index.js propose -a 5000 -d "description"
 node dist/index.js accept <contractId>
 
-# Verificar qué versión está en vivo
-curl -s https://canton-vault.pages.dev/ | grep -oE 'index-[A-Za-z0-9_]+\.js'
-curl -s https://canton-vault.pages.dev/api/health
-
-# Ver estado de autenticación de wrangler
-cd cn-quickstart/quickstart/frontend && npx wrangler whoami
+# Consultar balance CC real directo (sin el backend)
+TOKEN=$(curl -s -X POST 'https://auth.sandbox.fivenorth.io/application/o/token/' \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'grant_type=client_credentials&client_id=validator-devnet-m2m&client_secret=r69FQmevLRwEgMB8NnKaSDHPewTOSx7Yy5jucsqAlmsAaJc3DlggedCz4tyyonl4W2WoOVzkUIjy8dHTlc16AOJQzx02QzJylAUG56oLTCoVCJUUK40vRv9CqQEY3fjn&audience=validator-devnet-m2m&scope=daml_ledger_api' \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+curl -s "https://api.validator.devnet.sandbox.fivenorth.io/api/validator/v0/wallet/balance?party=cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ---
@@ -259,6 +323,11 @@ cd cn-quickstart/quickstart/frontend && npx wrangler whoami
 7. **El sandbox no divulga contracts creados por m2m vía ACS** — los GET devuelven []
    pero las mutations funcionan. No es un bug, es privacy del entorno multi-tenant.
    El balance de CC sí es legible vía la Validator REST API (no vía ACS).
+8. **`root_dir` de Cloudflare determina dónde busca `functions/`** — si tu proyecto
+   está anidado (`cn-quickstart/quickstart/frontend`), el root_dir debe apuntar ahí.
+   Con root_dir vacío, CF no encuentra las Pages Functions.
+9. **`gen:openapi` usa rutas relativas que rompen en CI** — usar `build:ci` (sin
+   regenerar types) para el auto-deploy. Los types ya están commiteados.
 
 ---
 
@@ -268,21 +337,24 @@ cd cn-quickstart/quickstart/frontend && npx wrangler whoami
 - **Días restantes:** ~5
 - **Prioridad:** ✅ demo listo — todo lo urgente está hecho
 
-### ✅ Tareas resueltas desde el último handoff
-- `git push` — HECHO. `15627ac` en `github/main` y `origin/main`.
+### ✅ Tareas resueltas (histórico)
+- `git push` — HECHO. `66024c6` en `github/main` y `origin/main`.
 - Limpieza Cloudflare — HECHA. 3 Workers residuales eliminados.
   Queda 1 Pages project + 1 Worker subyacente (lo mínimo necesario).
 - Git↔Cloudflare — CONECTADO. `Git Provider: Yes`, auto-deploy activo.
+- Build config CF — CORREGIDA. root_dir + build:ci + nodejs_compat.
+  Funciones detectadas y compiladas en cada auto-deploy.
 - Faucet CC — la party ya tiene fondos (faucet confirmó "enough funds").
 - Balance CC real — implementado vía Splice Validator REST API.
-  `/api/vault/balance` ahora devuelve 31,426,856.85 CC reales de la red.
+  `/api/vault/balance` ahora devuelve 31,428,468.76 CC reales de la red.
 
 ---
 
 ## 🔗 Links importantes
 
 - **Producción:** https://canton-vault.pages.dev
-- **Repo:** https://github.com/ruwaq/CantonVault
+- **Repo GitHub:** https://github.com/ruwaq/CantonVault
+- **Repo GitLab:** https://gitlab.com/PrometeoDev/cantonvault
 - **Faucet CC:** https://stakely.io/faucet/canton-devnet
 - **Dashboard CF:** https://dash.cloudflare.com (prometeodev7@gmail.com)
 - **Hackathon:** Build on Canton (deadline 19 jul)
