@@ -1,16 +1,45 @@
 # Session Handoff — CantonVault Hackathon
-## Última actualización: 2026-07-14 (todo funcional + UX pendiente de rediseño profundo)
+## Última actualización: 2026-07-14 (todo funcional + spec de rediseño UX APROBADO)
 
 > **LEER ESTO PRIMERO** al iniciar la próxima sesión.
 > Estado verificado en vivo, en la DevNet y vía CLI de Cloudflare (wrangler + API).
 
 ---
 
-## 🔴 PRIORIDAD #1 — Rediseño profundo de diseño + UX (próxima sesión)
+## 🔴 PRIORIDAD #1 — Rediseño UX (SPEC APROBADO, listo para implementar)
+
+> ### ⚡ EMPEZAR AQUÍ → `docs/superpowers/specs/2026-07-14-ux-redesign-design.md`
+>
+> El spec de rediseño (667 líneas, auto-contenido) ya está aprobado por el
+> usuario. **No requiere más brainstorming.** Próximo paso: invocar
+> `writing-plans` para convertir las 8 fases en plan de implementación, luego
+> empezar por Fase 0 (limpieza de 470 líneas de código muerto).
 
 **El backend y la lógica están 100% completos y funcionando. El problema es
 visual: el texto no se puede leer porque las letras tienen el mismo color
 que los fondos (contraste insuficiente en el tema oscuro).**
+
+### Resumen del diseño aprobado (ver spec para detalle completo)
+
+3 decisiones resueltas en sesión de brainstorming + 2 investigaciones UX 2026:
+
+| Decisión | Elección | Por qué |
+|---|---|---|
+| Alcance | **Full redesign + refactor** | Resultado profesional nivel ganador |
+| Paleta | **Indigo eléctrico pulido (#6366f1) + WCAG AA** | Coherente, arregla bug de contraste |
+| Flujo Propose | **Wizard 4 pantallas (1 decisión c/u)** | "Como un niño podría usarla" |
+
+**El rediseño cubre 6 áreas** (ver spec secciones 4-9):
+1. Design tokens semánticos de 3 capas (arregla contraste de raíz)
+2. Refactor: `VaultView.tsx` 898 líneas → ~120 + componentes modulares
+3. Traducción de ~30 strings jerga→humano (`lib/copy.ts`)
+4. Wizard 1-decisión-por-pantalla (Cash App / TurboTax style)
+5. Privacy Lab humanizado (sin pseudoterminal, afirmación de valor)
+6. Cards status-first + `TechnicalDetails` colapsable (satisface novato + jurado)
+
+**Lo que NO se toca:** `stores/*`, `hooks/*`, `lib/fetcher.ts`,
+`lib/vaultNormalizers.ts`, SWR config, mutations con optimistic updates,
+todo el backend `functions/api/*`. El refactor es puramente de presentación.
 
 Esto NO es algo de cambiar un color puntual. Requiere un **sistema de diseño
 completo**: paleta de colores con contraste verificado (WCAG AA mínimo),
@@ -36,30 +65,33 @@ poder LEER el demo sin esfuerzo.
 - El lifecycle: create→accept→fulfill→dispute→resolve verificado E2E.
 - Los tooltips `title` en botones (esos sí se leen, son nativos del navegador).
 
-### Plan sugerido para la próxima sesión
-1. **Definir paleta con contraste WCAG AA verificado** (mínimo 4.5:1 para texto
-   normal, 3:1 para texto grande). Subir `--text-muted` de `#a1a1aa` a algo como
-   `#d4d4d8` o `#e4e4e7`. Ajustar `--text-secondary` si hace falta.
-2. **Auditar cada superficie** (`--bg-surface`, `--bg-glass`, `bg-surface bg-opacity-*`)
-   y garantizar que el texto sobre ellas tiene contraste suficiente.
-3. **Sistema de diseño**: definir tokens semánticos (`--text-on-glass`,
-   `--text-on-surface`, `--text-on-primary`) en vez de usar `text-muted` global.
-4. **Probar con un contrast checker** cada combinación fondo/texto antes de deployar.
-5. **Revisar `theme.css` y `App.css`** — ahí están TODOS los estilos. Las clases
-   `cv-*` están en `App.css`, las utility/bootstrap overrides en `theme.css`.
+### Plan detallado (APROBADO)
+**Todo el plan está en `docs/superpowers/specs/2026-07-14-ux-redesign-design.md`**
+(667 líneas, auto-contenido). No duplicar aquí — leer el spec.
 
-### Archivos clave para el rediseño
+**Resumen de las 8 fases** (cada una = un commit deployable):
+0. **Limpieza** — borrar 470 líneas código muerto (License*, DurationInput)
+1. **Design tokens** — WCAG AA + glass 0.85 (arregla bug de contraste)
+2. **Copy humano** — `lib/copy.ts` con ~30 strings traducidos
+3. **Refactor componentes** — VaultView 898→~120 + extractos modulares
+4. **Wizard ProposeStep** — 4 pantallas 1-decisión-por-pantalla
+5. **Privacy Lab humanizado** — sin pseudoterminal, afirmación de valor
+6. **Confirmaciones + microinteracciones** — fricción beneficiosa
+7. **Pulido final** — auditoría visual + screenshots
+
+**2 decisiones pendientes** (confirmar al iniciar Fase 2):
+- Idioma: ¿inglés plain (default) o español?
+- ¿Visual companion del brainstorming para mockups?
+
+### Archivos clave para el rediseño (ver spec Sección 5 para estructura target)
 ```
 cn-quickstart/quickstart/frontend/src/
-├── theme.css              # ← PALETA principal: --text-muted, --bg-surface, --bg-glass
-├── App.css                # ← clases cv-* (stepper, vault-header, balance, empty states)
-├── views/VaultView.tsx    # ← 850 líneas, usa text-muted y bg-surface por todos lados
-├── views/landing.css      # landing page
-├── views/login.css        # login page
-└── components/
-    ├── Header.tsx         # balance badge, nav
-    ├── ToastNotification.tsx
-    └── vault/VaultActionModals.tsx  # modales usan text-muted
+├── theme.css → styles/tokens.css + base.css   # ← REESTRUCTURAR: paleta WCAG AA
+├── App.css → styles/vault.css                  # ← clases cv-* (migrar tokens)
+├── views/VaultView.tsx (898 líneas)            # ← REFACTORIZAR → ~120 + componentes/
+├── lib/copy.ts                                 # ← NUEVO: diccionario microcopy humano
+├── components/vault/                            # ← NUEVOS: Wizard, Cards, TechnicalDetails
+└── (stores/, hooks/, lib/ — INTOCABLES, funcionan)
 ```
 
 ---
