@@ -13,6 +13,13 @@ const CLIENT_SECRET =
   'r69FQmevLRwEgMB8NnKaSDHPewTOSx7Yy5jucsqAlmsAaJc3DlggedCz4tyyonl4W2WoOVzkUIjy8dHTlc16AOJQzx02QzJylAUG56oLTCoVCJUUK40vRv9CqQEY3fjn';
 const PARTY =
   'cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
+// The mediator must be a DISTINCT party from the actor for the DisclosedRecord
+// template precondition (`ensure discloser /= observer`). Same hash, different
+// prefix → Canton treats them as separate parties (separate validator views),
+// which is exactly what makes the Privacy Lab demo meaningful: the mediator's
+// node genuinely has a separate view. The m2m user has CanActAs rights on both.
+const MEDIATOR_PARTY =
+  'Observer::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
 const SYNCHRONIZER_ID =
   'wallet::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
 const PKG = 'cantonvault-contracts';
@@ -274,4 +281,4 @@ export async function kvListAsContracts(env, kind, statuses) {
   });
 }
 
-export { LEDGER_API, VALIDATOR_API, PARTY, SYNCHRONIZER_ID, PKG };
+export { LEDGER_API, VALIDATOR_API, PARTY, MEDIATOR_PARTY, SYNCHRONIZER_ID, PKG };
