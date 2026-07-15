@@ -16,7 +16,7 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(135deg, var(--bg-base) 0%, #15131f 50%, #1a1633 100%);
+  background: linear-gradient(135deg, var(--bg-base) 0%, var(--gradient-login-start) 50%, var(--gradient-login-end) 100%);
 }
 
 .cv-login-bg::after {
@@ -53,7 +53,7 @@
   font-weight: 800;
   letter-spacing: -0.02em;
   margin: 0;
-  background: linear-gradient(180deg, #fff, var(--text-body));
+  background: linear-gradient(180deg, var(--white), var(--text-body));
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -67,7 +67,7 @@
 }
 
 .cv-login-enter {
-  background: #fff;
+  background: var(--white);
   color: var(--bg-base);
   font-size: 1.2rem;
   font-weight: 700;
@@ -92,7 +92,7 @@
 }
 
 .cv-login-error {
-  color: #ffd7d7;
+  color: var(--status-danger-light);
   background: var(--status-danger-bg);
   border: 1px solid rgba(239, 68, 68, 0.35);
   border-radius: var(--radius-md);

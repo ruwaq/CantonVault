@@ -45,7 +45,7 @@
 }
 
 .cv-brand-accent {
-  color: #D4A35B;
+  color: var(--brand-gold);
 }
 
 .cv-nav-link {
@@ -103,7 +103,7 @@
   font-weight: 800;
   letter-spacing: -0.03em;
   margin: 0;
-  background: linear-gradient(135deg, #fff 0%, var(--text-body) 100%);
+  background: linear-gradient(135deg, var(--white) 0%, var(--text-body) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -122,8 +122,8 @@
   background: rgba(255, 255, 255, 0.06);
   padding: 0.15rem 0.45rem;
   border-radius: 4px;
-  color: #c7d2fe;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: var(--accent-light);
+  font-family: var(--font-mono);
   font-size: 0.8rem;
 }
 
@@ -224,6 +224,15 @@
   height: 1px;
   background: rgba(255, 255, 255, 0.1);
   margin: 0 0.5rem;
+}
+
+/* ── Wizard progress dots ── */
+.cv-wizard-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  transition: background var(--transition-fast);
 }
 
 /* ── Empty states ── */

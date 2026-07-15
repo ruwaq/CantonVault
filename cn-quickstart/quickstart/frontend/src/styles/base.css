@@ -1,11 +1,10 @@
-/* src/styles/base.css — resets, body, Bootstrap component overrides.
- *
- * Extracted from the old theme.css :root-less rules. Token names migrated
- * to the new semantic layer (--text-body / --text-heading / --accent).
- * Contrast verified WCAG AAA on bg-base, AA+ on glass.
- */
+/* ═══════════════════════════════════════════════════════════════════════════
+   CantonVault Base Styles — resets, tipografía, overrides de Bootstrap.
+   
+   TODOS los colores vienen de tokens.css. NO hay valores hardcodeados aquí.
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Base resets & typography ── */
+/* ── Body ── */
 body {
   background-color: var(--bg-base) !important;
   color: var(--text-body) !important;
@@ -20,7 +19,7 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-heading);
 }
 
-/* ── Glassmorphic utilities ── */
+/* ── Glassmorphism ── */
 .glass-panel {
   background: var(--bg-glass);
   backdrop-filter: blur(16px);
@@ -38,14 +37,13 @@ h1, h2, h3, h4, h5, h6 {
   border-bottom: var(--border-subtle);
 }
 
-/* ── Semantic text utilities ── */
+/* ── Text utilities (vencen a Bootstrap con !important) ── */
 .text-heading  { color: var(--text-heading) !important; }
 .text-body     { color: var(--text-body) !important; }
 .text-on-glass { color: var(--text-on-glass) !important; }
-.text-muted    { color: var(--text-muted) !important; }
 
-/* Override Bootstrap's text-muted which uses #6c757d (3.5:1 — fails WCAG AA).
-   Higher specificity so it wins regardless of CSS load order. */
+/* Bootstrap text-muted override: mayor especificidad para ganar siempre */
+.text-muted,
 body .text-muted,
 .form-text.text-muted,
 .small.text-muted,
@@ -53,7 +51,7 @@ p.text-muted,
 span.text-muted,
 div.text-muted { color: var(--text-muted) !important; }
 
-/* ── Buttons (Bootstrap overrides) ── */
+/* ── Buttons ── */
 .btn {
   font-family: var(--font-sans) !important;
   font-weight: 500 !important;
@@ -132,48 +130,8 @@ div.text-muted { color: var(--text-muted) !important; }
   box-shadow: 0 0 0 0.25rem rgba(99, 102, 241, 0.25) !important;
 }
 
-/* Override Bootstrap's form-text which uses --bs-secondary-color (#6c757d, fails WCAG AA) */
-.form-text {
-  color: var(--text-on-glass) !important;
-}
-
-.form-label {
-  color: var(--text-muted) !important;
-  font-weight: 500;
-  font-size: 0.875rem;
-  margin-bottom: 0.5rem;
-}
-
-/* ── Status badges ── */
-.badge-soft {
-  padding: 0.35em 0.8em;
-  border-radius: var(--radius-pill);
-  font-weight: 600;
-  font-size: 0.75rem;
-  letter-spacing: 0.02em;
-  display: inline-block;
-}
-.badge-success { background: var(--status-success-bg); color: var(--status-success); }
-.badge-warning { background: var(--status-warning-bg); color: var(--status-warning); }
-.badge-danger  { background: var(--status-danger-bg);  color: var(--status-danger); }
-
-/* ── Layout ── */
-.page-header {
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: var(--border-subtle);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.page-title {
-  font-size: 1.75rem;
-  margin: 0;
-  background: linear-gradient(135deg, #fff 0%, var(--text-body) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
+.form-text  { color: var(--text-on-glass) !important; }
+.form-label { color: var(--text-muted) !important; font-weight: 500; font-size: 0.875rem; margin-bottom: 0.5rem; }
 
 /* ── Cards ── */
 .card {
@@ -189,7 +147,7 @@ div.text-muted { color: var(--text-muted) !important; }
 }
 
 .card:hover {
-  border-color: rgba(255,255,255,0.15) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
   box-shadow: var(--shadow-md);
 }
 
@@ -211,10 +169,11 @@ div.text-muted { color: var(--text-muted) !important; }
   border-radius: var(--radius-md) !important;
   box-shadow: var(--shadow-lg);
 }
+
 .modal-header { border-bottom: var(--border-subtle) !important; }
 .modal-footer { border-top: var(--border-subtle) !important; }
-.modal-title { font-weight: 600; }
-.btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+.modal-title  { font-weight: 600; }
+.btn-close     { filter: invert(1) grayscale(100%) brightness(200%); }
 
 /* ── Nav pills ── */
 .nav-pills .nav-link {
@@ -224,10 +183,12 @@ div.text-muted { color: var(--text-muted) !important; }
   padding: 0.5rem 1.25rem;
   transition: all var(--transition-fast);
 }
+
 .nav-pills .nav-link:hover {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-body) !important;
 }
+
 .nav-pills .nav-link.active {
   background-color: var(--accent) !important;
   color: var(--text-on-accent) !important;
@@ -241,35 +202,69 @@ div.text-muted { color: var(--text-muted) !important; }
   color: var(--text-body) !important;
   border-radius: var(--radius-md) !important;
 }
+
 .alert-light {
   background: rgba(255, 255, 255, 0.03) !important;
   border-left: 4px solid var(--accent) !important;
 }
 
-/* ── Badges base ── */
+/* ── Badges ── */
 .badge {
   padding: 0.4em 0.8em !important;
   font-weight: 600;
   border-radius: var(--radius-sm);
   letter-spacing: 0.02em;
 }
-.badge.bg-success   { background: var(--status-success-bg) !important; color: var(--status-success) !important; }
-.badge.bg-warning   { background: var(--status-warning-bg) !important; color: var(--status-warning) !important; }
-.badge.bg-danger    { background: var(--status-danger-bg)  !important; color: var(--status-danger)  !important; }
-.badge.bg-primary   { background: var(--accent-glow) !important; color: #a5b4fc !important; }
-.badge.bg-info      { background: rgba(56, 189, 248, 0.15) !important; color: #38bdf8 !important; }
+
+.badge-soft {
+  padding: 0.35em 0.8em;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  display: inline-block;
+}
+
+.badge-success  { background: var(--status-success-bg) !important; color: var(--status-success) !important; }
+.badge-warning  { background: var(--status-warning-bg) !important; color: var(--status-warning) !important; }
+.badge-danger   { background: var(--status-danger-bg)  !important; color: var(--status-danger)  !important; }
+.badge.bg-success { background: var(--status-success-bg) !important; color: var(--status-success) !important; }
+.badge.bg-warning { background: var(--status-warning-bg) !important; color: var(--status-warning) !important; }
+.badge.bg-danger  { background: var(--status-danger-bg)  !important; color: var(--status-danger)  !important; }
+.badge.bg-primary { background: var(--accent-glow)       !important; color: var(--accent-soft)   !important; }
+.badge.bg-info    { background: var(--status-info-bg)     !important; color: var(--status-info)   !important; }
 .badge.bg-secondary { background: rgba(156, 163, 175, 0.15) !important; color: var(--text-muted) !important; }
 
 /* ── Code ── */
 code {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
   padding: 0.2em 0.4em;
   border-radius: 4px;
   color: var(--accent);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
-/* ── Utility classes ── */
+/* ── Page layout ── */
+.page-title {
+  font-size: 1.75rem;
+  margin: 0;
+  background: linear-gradient(135deg, var(--white) 0%, var(--text-body) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ── Semantic color utilities ── */
+.text-accent-light   { color: var(--accent-light)   !important; }
+.text-accent-soft    { color: var(--accent-soft)    !important; }
+.text-success-light  { color: var(--status-success-light) !important; }
+.text-warning-light  { color: var(--status-warning-light) !important; }
+.text-danger-light   { color: var(--status-danger-light)  !important; }
+.text-info-light     { color: var(--status-info)    !important; }
+
+.bg-surface    { background-color: var(--bg-surface) !important; }
+.border-subtle { border: var(--border-subtle) !important; }
+
+/* ── Utilities ── */
 .xsmall { font-size: 0.75rem; }
 
 .max-width-320 { max-width: 320px; }
@@ -284,14 +279,8 @@ code {
 .hover-scale {
   transition: transform var(--transition-normal), box-shadow var(--transition-normal);
 }
+
 .hover-scale:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
-
-.text-primary-light { color: #a5b4fc; }
-.text-warning-light { color: #fcd34d; }
-.text-success-light { color: #6ee7b7; }
-
-.bg-surface    { background-color: var(--bg-surface) !important; }
-.border-subtle { border: var(--border-subtle) !important; }

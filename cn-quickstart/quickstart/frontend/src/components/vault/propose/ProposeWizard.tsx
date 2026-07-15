@@ -130,10 +130,9 @@ const ProposeWizard: React.FC<ProposeWizardProps> = ({ parties, onSubmit, submit
           {[0, 1, 2, 3].map((i) => (
             <span
               key={i}
+              className="cv-wizard-dot"
               style={{
-                width: 10, height: 10, borderRadius: '50%',
-                background: i <= step ? 'var(--accent)' : 'rgba(255,255,255,0.15)',
-                transition: 'background var(--transition-fast)',
+                background: i <= step ? 'var(--accent)' : undefined,
               }}
             />
           ))}
