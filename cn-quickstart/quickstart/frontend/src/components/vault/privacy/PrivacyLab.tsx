@@ -140,7 +140,7 @@ const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitme
                     <div key={d.contractId} className="bg-surface border border-warning border-opacity-20 p-3 rounded">
                       <div className="d-flex align-items-center justify-content-between mb-2">
                         <span className="badge bg-warning text-dark xsmall">What the mediator learned</span>
-                        <span className="xsmall text-on-glass font-monospace" style={{ opacity: 0.85 }}>
+                        <span className="xsmall text-on-glass font-monospace">
                           {d.payload.revealedAt ? d.payload.revealedAt.split('T')[0] : 'Today'}
                         </span>
                       </div>

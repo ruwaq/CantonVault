@@ -52,7 +52,7 @@ const ToastNotification: React.FC = () => {
                                     <button
                                         type="button"
                                         className="btn btn-sm btn-outline-light py-0 px-1"
-                                        style={{ fontSize: '0.65rem' }}
+                                        style={{ fontSize: '0.7rem' }}
                                         onClick={() => { void navigator.clipboard?.writeText(proof.contractId ?? ''); }}
                                         title="Copy contract id"
                                     >

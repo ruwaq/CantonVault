@@ -24,7 +24,7 @@ const SettlementReceipts: React.FC<SettlementReceiptsProps> = ({ receipts }) => 
       {receipts.length === 0 ? (
         <div className="text-center py-4 text-on-glass">
           <p className="small mb-1">No payment receipts yet.</p>
-          <p className="xsmall mb-0" style={{ opacity: 0.75 }}>Confirm delivery in <strong>Step 2 · Act</strong> — the Canton Coin transfer generates an immutable receipt here.</p>
+          <p className="xsmall mb-0">Confirm delivery in <strong>Step 2 · Act</strong> — the Canton Coin transfer generates an immutable receipt here.</p>
         </div>
       ) : (
         <div className="d-flex flex-column gap-2">
@@ -39,7 +39,7 @@ const SettlementReceipts: React.FC<SettlementReceiptsProps> = ({ receipts }) => 
                       {r.payload.settlementExecuted ? copy.receiptSettled : 'Recorded outcome only'}
                     </span>
                   </div>
-                  <div className="text-on-glass xsmall" style={{ opacity: 0.9 }}>
+                  <div className="text-on-glass xsmall">
                     From {shortParty(r.payload.accepter)} → to {shortParty(r.payload.proposer)}
                   </div>
                 </div>

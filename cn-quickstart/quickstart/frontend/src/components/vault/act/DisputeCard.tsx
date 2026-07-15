@@ -41,7 +41,7 @@ const DisputeCard: React.FC<DisputeCardProps> = ({ contract, pendingAction, onRe
             {isResolving ? 'Deciding…' : copy.resolve}
           </button>
         </div>
-        <div className="xsmall text-on-glass border-top border-secondary border-opacity-10 pt-2 mt-2" style={{ opacity: 0.85 }}>
+        <div className="xsmall text-on-glass border-top border-secondary border-opacity-10 pt-2 mt-2">
           🔒 Only the fields disclosed by the dispute are visible to the mediator's node.
         </div>
       </div>

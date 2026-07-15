@@ -22,7 +22,7 @@ const WizardStepDescription: React.FC<WizardStepDescriptionProps> = ({ value, on
       onChange={(e) => onChange(e.target.value)}
       placeholder={copy.wizardStep1Placeholder}
     />
-    <div className="form-text text-on-glass mt-2" style={{ opacity: 0.85 }}>
+    <div className="form-text text-on-glass mt-2">
       A short label for the deal. Only you, the other party, and (if reported) the mediator will see this.
     </div>
   </div>

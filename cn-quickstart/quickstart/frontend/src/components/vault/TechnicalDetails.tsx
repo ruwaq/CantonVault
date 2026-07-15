@@ -48,11 +48,11 @@ const TechnicalDetails: React.FC<TechnicalDetailsProps> = ({
     <details className="mt-2">
       <summary
         className="xsmall text-on-glass cursor-pointer"
-        style={{ cursor: 'pointer', opacity: 0.85, listStyle: 'none' }}
+        style={{ cursor: 'pointer', listStyle: 'none' }}
       >
         ▾ {copy.technicalDetails}
       </summary>
-      <div className="xsmall text-on-glass font-monospace ps-2 pt-1" style={{ opacity: 0.9 }}>
+      <div className="xsmall text-on-glass font-monospace ps-2 pt-1">
         {contractId && (
           <div className="d-flex align-items-center gap-1" style={{ fontSize: '0.7rem' }}>
             <span>Contract ID: {contractId.slice(0, 16)}…</span>

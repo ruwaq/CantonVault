@@ -30,7 +30,7 @@ const WizardStepAmount: React.FC<WizardStepAmountProps> = ({ value, onChange }) 
         CC
       </span>
     </div>
-    <div className="form-text text-on-glass mt-2" style={{ opacity: 0.85 }}>
+    <div className="form-text text-on-glass mt-2">
       {value && !isNaN(Number(value)) ? (
         <>{Number(value).toLocaleString()} CC · {copy.wizardStep2Hint}</>
       ) : (

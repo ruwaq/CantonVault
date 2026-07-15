@@ -52,12 +52,12 @@ const WizardStepReview: React.FC<WizardStepReviewProps> = ({
         <div className="fw-bold text-white fs-5 mb-1">
           {description || '—'} · {amountNum.toLocaleString()} {currency}
         </div>
-        <div className="small text-on-glass" style={{ opacity: 0.9 }}>
+        <div className="small text-on-glass">
           From the payer to who gets paid, overseen by the mediator
           <br />
           who <strong className="text-success">sees nothing</strong> until someone reports a problem.
         </div>
-        <div className="xsmall text-on-glass mt-2" style={{ opacity: 0.75 }}>
+        <div className="xsmall text-on-glass mt-2">
           Type: {wfLabel} — shows the versatility without you having to choose.
         </div>
       </div>

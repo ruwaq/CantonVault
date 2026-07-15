@@ -76,7 +76,7 @@ const WizardStepParties: React.FC<WizardStepPartiesProps> = ({
       </label>
       {renderSelect(copy.roleAccepter, accepter, onAccepterChange, accepters, accepterCustom, setAccepterCustom, true)}
       {renderSelect(copy.roleThirdParty, thirdParty, onThirdPartyChange, mediators, thirdPartyCustom, setThirdPartyCustom)}
-      <div className="form-text text-on-glass mt-1" style={{ opacity: 0.85 }}>
+      <div className="form-text text-on-glass mt-1">
         The mediator <strong>sees nothing</strong> until someone reports a problem — then only the amount and description.
       </div>
     </div>

@@ -33,10 +33,10 @@
   /* ── SEMANTIC — text (the key to the contrast fix) ── */
   --text-heading:  #f4f4f5;  /* titles, critical data · 17:1 on bg-base (AAA) */
   --text-body:     #e4e4e7;  /* main text · 14:1 (AAA) */
-  --text-muted:    #a1a1aa;  /* hints, meta · 7:1 on bg-base (AAA) */
+  --text-muted:    #d4d4d8;  /* hints, meta · 11:1 on bg-base (AAA), raised from #a1a1aa for glass-surface legibility */
   --text-on-glass: #e4e4e7;  /* ← text on glass, NEVER use --text-muted here */
   --text-on-accent:#ffffff;  /* on indigo buttons */
-  --text-disabled: #52525b;  /* placeholders */
+  --text-disabled: #a1a1aa;  /* placeholders · 7:1 on bg-base (AAA), raised from #52525b */
 
   /* ── Accents (Electric Indigo) ── */
   --accent:        #6366f1;

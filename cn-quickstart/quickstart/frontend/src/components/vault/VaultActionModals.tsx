@@ -158,6 +158,12 @@ interface DisputeModalProps {
 export function DisputeModal({ show, commitment, onClose, onConfirm }: DisputeModalProps) {
     const [reason, setReason] = useState('');
 
+    useEffect(() => {
+        if (show) {
+            setReason('');
+        }
+    }, [show]);
+
     if (!commitment) return null;
 
     const handleConfirm = () => onConfirm(reason.trim() || 'Undisputed delivery issue');

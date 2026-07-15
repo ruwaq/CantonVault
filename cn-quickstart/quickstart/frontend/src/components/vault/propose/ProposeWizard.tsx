@@ -137,7 +137,7 @@ const ProposeWizard: React.FC<ProposeWizardProps> = ({ parties, onSubmit, submit
               }}
             />
           ))}
-          <span className="xsmall text-on-glass ms-2" style={{ opacity: 0.75 }}>
+          <span className="xsmall text-on-glass ms-2">
             Step {step + 1} of 4
           </span>
         </div>
