@@ -1,5 +1,5 @@
 # Session Handoff — CantonVault Hackathon
-## Última actualización: 2026-07-14 (REDISEÑO UX COMPLETO + todo funcional)
+## Última actualización: 2026-07-15 (DEMO COMPLETO — listo para el jurado)
 
 > **LEER ESTO PRIMERO** al iniciar la próxima sesión.
 > Estado verificado en vivo, en la DevNet y vía CLI de Cloudflare (wrangler + API).
@@ -24,8 +24,25 @@ Las 8 fases del plan se implementaron en orden, cada una = un commit deployable:
 | 6 — Confirmaciones | `66b3518` | ConfirmModal antes de Accept (beneficial friction) |
 | 7 — Auditoría | (verificado) | WCAG AAA confirmado: 14.2:1 text-on-glass, 15.7:1 text-body |
 
-**Bug de contraste RESUELTO:** text-muted en glass era ~3:1 (FAIL AA) → ahora
-7.0:1 (AAA). Verificado matemáticamente con calculadora WCAG.
+**Bug de contraste RESUELTO:** text-muted en glass era ~3:1 (FAIL AA) → ahora 7.0:1 (AAA). Verificado matemáticamente con calculadora WCAG.
+
+**Post-redesign (2026-07-15):** 3 bugs descubiertos y arreglados durante la verificación E2E:
+
+| Bug | Commit | Descripción |
+|---|---|---|
+| Mediator single-party | `17eb81f` | `DisclosedRecord` requiere `discloser /= observer`. El mediador ahora es `Observer::*` (prefijo distinto, party separada en Canton). |
+| Wizard defaults vacíos | `55b61cb` | `useState` se inicializaba antes de que SWR cargara las parties. `useEffect` rellena defaults cuando `parties` llega. |
+| extractCreatedContractId | `978f654` | `RaiseDispute`/`ResolveDispute` crean 2 contratos; el código devolvía el cid del primero (DisclosedRecord), no del DisputeCase/SettlementReceipt. `templateFilter` selecciona el correcto. |
+| DAML_AUTHORIZATION_ERROR | `597a88a` | `ResolveDispute` tiene `controller thirdParty`. `buildCommandEnvelope` ahora acepta `extraActAs` para autorizar como `MEDIATOR_PARTY`. |
+
+**Estado del demo (verificado E2E 2026-07-15):**
+```
+proposals:     2 (pendientes, el jurado puede aceptar/rechazar)
+commitments:   6 (activos/disputados/resueltos)
+receipts:      2 (1 fulfill + 1 dispute-resuelto)
+disclosures:   5 (disputas + resoluciones con campos revelados)
+dispute-cases: 0 (todos resueltos)
+```
 
 **Arquitectura frontend post-rediseño:**
 ```
