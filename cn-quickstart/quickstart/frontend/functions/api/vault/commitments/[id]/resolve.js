@@ -42,11 +42,15 @@ export const onRequest = async (context) => {
       );
     }
 
+    // ResolveDispute creates TWO contracts: a DisclosedRecord (first) and a
+    // SettlementReceipt (second). We index the SettlementReceipt — pass the
+    // template filter so we get the right child (same bug class as raise-dispute).
     const result = await submitExercise(
       'Vault.CommitmentContract:DisputeCase',
       match.cid,
       'ResolveDispute',
       { ruling },
+      'SettlementReceipt',
     );
 
     // ResolveDispute archives the DisputeCase and creates a SettlementReceipt

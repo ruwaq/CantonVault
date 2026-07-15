@@ -99,14 +99,29 @@ function buildCommandEnvelope(commands) {
   };
 }
 
-// Extract the first CreatedEvent contractId from a submit-and-wait-for-transaction response.
-// The ledger returns events as [{CreatedEvent: {...}} | {ArchivedEvent: {...}} | {ExercisedEvent: {...}}].
-function extractCreatedContractId(txResponse) {
+// Extract a CreatedEvent contractId from a submit-and-wait-for-transaction
+// response. The ledger returns events as
+// [{CreatedEvent: {...}} | {ArchivedEvent: {...}} | {ExercisedEvent: {...}}].
+//
+// `templateFilter` (optional): when a choice creates MULTIPLE contracts (e.g.
+// RaiseDispute creates both a DisclosedRecord and a DisputeCase), pass the
+// template suffix to pick the right one. Without it we return the FIRST
+// CreatedEvent — which may be the wrong contract in multi-create choices.
+function extractCreatedContractId(txResponse, templateFilter) {
   const events = txResponse?.transaction?.events ?? [];
-  for (const e of events) {
-    if (e.CreatedEvent?.contractId) return e.CreatedEvent.contractId;
+  const created = events
+    .map((e) => e.CreatedEvent)
+    .filter(Boolean);
+  if (templateFilter) {
+    const match = created.find((e) => {
+      const tid = e.templateId || '';
+      return typeof tid === 'string'
+        ? tid.includes(templateFilter)
+        : JSON.stringify(tid).includes(templateFilter);
+    });
+    if (match) return match.contractId;
   }
-  return null;
+  return created[0]?.contractId ?? null;
 }
 
 export async function submitCreate(template, args) {
@@ -131,7 +146,13 @@ export async function submitCreate(template, args) {
 // `template` is the "ModuleName:EntityName" suffix (e.g. 'Vault.CommitmentContract:CommitmentContract');
 // the package prefix is added here. `argument` is the choice's record payload
 // (may be empty {}), serialized under the `choiceArgument` field per the 3.5 spec.
-export async function submitExercise(template, contractId, choice, argument) {
+//
+// `createdTemplateFilter` (optional): when the choice creates MULTIPLE contracts
+// of different templates (e.g. RaiseDispute creates a DisclosedRecord AND a
+// DisputeCase), pass the suffix of the one whose contractId you want returned.
+// Without it the FIRST CreatedEvent's contractId is returned — which is wrong
+// for multi-create choices where you need a specific child.
+export async function submitExercise(template, contractId, choice, argument, createdTemplateFilter) {
   const tx = await ledgerPost('/v2/commands/submit-and-wait-for-transaction', buildCommandEnvelope([
     {
       ExerciseCommand: {
@@ -142,12 +163,10 @@ export async function submitExercise(template, contractId, choice, argument) {
       },
     },
   ]));
-  // Choices like AcceptProposal/Fulfill create a new contract (CommitmentContract /
-  // SettlementReceipt). Return that new contractId so the caller can act on it.
   return {
     updateId: tx.transaction?.updateId ?? tx.updateId,
     completionOffset: tx.transaction?.offset ?? tx.completionOffset,
-    contractId: extractCreatedContractId(tx),
+    contractId: extractCreatedContractId(tx, createdTemplateFilter),
   };
 }
 

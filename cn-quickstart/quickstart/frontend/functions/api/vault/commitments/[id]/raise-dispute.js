@@ -14,10 +14,15 @@ export const onRequest = async (context) => {
     const reason = String(body.reason ?? 'Undisputed delivery issue');
     // The choice controller is `actor` (parametrized signatory). In the demo
     // the same party holds all roles, so PARTY authorizes as a signatory.
+    // RaiseDispute creates TWO contracts: a DisclosedRecord (first) and a
+    // DisputeCase (second). We must index the DisputeCase's contractId — that's
+    // the one ResolveDispute targets. Pass the template filter so submitExercise
+    // returns the right child, not the first CreatedEvent (which is the
+    // DisclosedRecord — see the WRONGLY_TYPED_CONTRACT bug this fixed).
     const result = await submitExercise(TEMPLATE, contractId, 'RaiseDispute', {
       reason,
       actor: PARTY,
-    });
+    }, 'DisputeCase');
 
     // RaiseDispute creates a DisputeCase (its contractId is what ResolveDispute
     // must target). Index it with a sourceCid link back to the commitment so
