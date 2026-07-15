@@ -44,6 +44,15 @@ h1, h2, h3, h4, h5, h6 {
 .text-on-glass { color: var(--text-on-glass) !important; }
 .text-muted    { color: var(--text-muted) !important; }
 
+/* Override Bootstrap's text-muted which uses #6c757d (3.5:1 — fails WCAG AA).
+   Higher specificity so it wins regardless of CSS load order. */
+body .text-muted,
+.form-text.text-muted,
+.small.text-muted,
+p.text-muted,
+span.text-muted,
+div.text-muted { color: var(--text-muted) !important; }
+
 /* ── Buttons (Bootstrap overrides) ── */
 .btn {
   font-family: var(--font-sans) !important;
@@ -123,8 +132,13 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 0 0 0.25rem rgba(99, 102, 241, 0.25) !important;
 }
 
+/* Override Bootstrap's form-text which uses --bs-secondary-color (#6c757d, fails WCAG AA) */
+.form-text {
+  color: var(--text-on-glass) !important;
+}
+
 .form-label {
-  color: var(--text-muted);
+  color: var(--text-muted) !important;
   font-weight: 500;
   font-size: 0.875rem;
   margin-bottom: 0.5rem;

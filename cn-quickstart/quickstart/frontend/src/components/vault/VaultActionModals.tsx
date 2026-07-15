@@ -50,10 +50,10 @@ export function FulfillModal({ show, commitment, onClose, onConfirm }: FulfillMo
             size="lg"
         >
             <div className="mb-3">
-                <span className="text-muted me-3">
+                <span className="text-on-glass me-3">
                     Amount: <strong>{commitment.amount} {commitment.currency}</strong>
                 </span>
-                <span className="text-muted">
+                <span className="text-on-glass">
                     Workflow: <code>{commitment.workflow}</code>
                 </span>
             </div>
@@ -71,7 +71,7 @@ export function FulfillModal({ show, commitment, onClose, onConfirm }: FulfillMo
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                 />
-                <div className="form-text small text-muted">
+                <div className="form-text small text-on-glass">
                     Free-text proof of delivery (e.g. "Shipment confirmed", "Services rendered"). Stored permanently on the Settlement Receipt.
                 </div>
             </div>
@@ -85,7 +85,7 @@ export function FulfillModal({ show, commitment, onClose, onConfirm }: FulfillMo
                     value={allocationContractId}
                     onChange={(e) => setAllocationContractId(e.target.value)}
                 />
-                <div className="form-text small text-muted">
+                <div className="form-text small text-on-glass">
                     The on-ledger Canton Coin allocation that authorizes the transfer. Leave a value like <code>#0:1</code> if unsure.
                 </div>
             </div>
@@ -140,7 +140,7 @@ export function RefundModal({ show, commitment, onClose, onConfirm }: RefundModa
                 value={allocationContractId}
                 onChange={(e) => setAllocationContractId(e.target.value)}
             />
-            <div className="form-text small text-muted mt-1">
+            <div className="form-text small text-on-glass mt-1">
                 The on-ledger reverse allocation authorizing Canton Coin to flow back. Only works <strong>after the deadline has expired</strong> — the Daml contract enforces this. Leave <code>#0:2</code> if unsure.
             </div>
         </Modal>
@@ -177,7 +177,7 @@ export function DisputeModal({ show, commitment, onClose, onConfirm }: DisputeMo
             confirmButtonLabel="Raise dispute"
             confirmButtonClassName="btn-warning"
         >
-            <p className="small text-muted">
+            <p className="small text-on-glass">
                 Raising a dispute reveals only <strong>amount</strong> and{' '}
                 <strong>description</strong> to <code>{shortParty(commitment.thirdParty)}</code>.
                 The third party will NOT see the full commitment.
@@ -190,7 +190,7 @@ export function DisputeModal({ show, commitment, onClose, onConfirm }: DisputeMo
                 onChange={(e) => setReason(e.target.value)}
                 autoFocus
             />
-            <div className="form-text small text-muted mt-1">
+            <div className="form-text small text-on-glass mt-1">
                 Why you're escalating. This text <strong>is</strong> visible to the arbitrator and gets recorded in the DisclosedRecord on-ledger. Be specific — the arbitrator rules based on this.
             </div>
         </Modal>
@@ -236,7 +236,7 @@ export function ResolveModal({ show, contractId, onClose, onConfirm }: ResolveMo
             confirmButtonClassName="btn-primary"
             confirmButtonDisabled={ruling === 'proposer' && !allocationContractId.trim()}
         >
-            <p className="small text-muted">
+            <p className="small text-on-glass">
                 As the third party, issue a binding ruling. The resolution now creates a terminal settlement receipt, and proposer wins require a real allocation.
             </p>
             <div className="form-check mb-2">
@@ -250,7 +250,7 @@ export function ResolveModal({ show, contractId, onClose, onConfirm }: ResolveMo
                 <label className="form-check-label small" htmlFor="resolve-proposer">
                     Rule for proposer and execute settlement
                 </label>
-                <div className="form-text small text-muted mt-0 mb-1">
+                <div className="form-text small text-on-glass mt-0 mb-1">
                     Canton Coin flows to the proposer (the original supplier). Requires an allocation to authorize the transfer.
                 </div>
             </div>
@@ -265,7 +265,7 @@ export function ResolveModal({ show, contractId, onClose, onConfirm }: ResolveMo
                 <label className="form-check-label small" htmlFor="resolve-accepter">
                     Rule for accepter without payout
                 </label>
-                <div className="form-text small text-muted mt-0">
+                <div className="form-text small text-on-glass mt-0">
                     No Canton Coin moves. The accepter keeps their funds — use when the claim is unfounded.
                 </div>
             </div>
@@ -279,7 +279,7 @@ export function ResolveModal({ show, contractId, onClose, onConfirm }: ResolveMo
                         value={allocationContractId}
                         onChange={(e) => setAllocationContractId(e.target.value)}
                     />
-                    <div className="form-text small text-muted mt-1">
+                    <div className="form-text small text-on-glass mt-1">
                         The on-ledger allocation authorizing the payout to the proposer. Leave <code>#0:3</code> if unsure.
                     </div>
                 </>

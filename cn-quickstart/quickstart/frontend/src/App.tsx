@@ -39,7 +39,7 @@ const App: React.FC = () => {
                                         <Route path="*" element={
                                             <div className="text-center mt-5">
                                                 <h3 className="text-white">Page not found</h3>
-                                                <p className="text-muted">The page you requested does not exist.</p>
+                                                <p className="text-on-glass">The page you requested does not exist.</p>
                                             </div>
                                         } />
                                     </Routes>

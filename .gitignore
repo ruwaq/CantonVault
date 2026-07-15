@@ -170,3 +170,4 @@ scratch/
 
 # ZCode agent internals
 .zcode/
+.wrangler/
