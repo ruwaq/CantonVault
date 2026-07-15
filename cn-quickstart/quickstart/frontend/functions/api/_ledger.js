@@ -85,13 +85,18 @@ export async function ledgerEnd() {
 // {updateId, completionOffset}, and updateId is the tx hash, NOT a usable contractId.
 //
 // The request body is wrapped as { commands: { ... }, transactionShape } per the 3.5 schema.
-function buildCommandEnvelope(commands) {
+// Build the Canton 3.5 command envelope. `extraActAs` lets a caller add
+// additional authorizing parties — needed when a choice's controller is a
+// party other than PARTY (e.g. ResolveDispute is controlled by thirdParty,
+// which is MEDIATOR_PARTY). PARTY is always included as the primary actor.
+function buildCommandEnvelope(commands, extraActAs = []) {
+  const actAs = Array.from(new Set([PARTY, ...extraActAs]));
   return {
     commands: {
       applicationId: 'AppId',
       commandId: `cv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      actAs: [PARTY],
-      readAs: [PARTY],
+      actAs,
+      readAs: actAs,
       commands,
       transactionShape: 'CURRENT_LEDGER_END',
     },
@@ -152,7 +157,7 @@ export async function submitCreate(template, args) {
 // DisputeCase), pass the suffix of the one whose contractId you want returned.
 // Without it the FIRST CreatedEvent's contractId is returned — which is wrong
 // for multi-create choices where you need a specific child.
-export async function submitExercise(template, contractId, choice, argument, createdTemplateFilter) {
+export async function submitExercise(template, contractId, choice, argument, createdTemplateFilter, extraActAs) {
   const tx = await ledgerPost('/v2/commands/submit-and-wait-for-transaction', buildCommandEnvelope([
     {
       ExerciseCommand: {
@@ -162,7 +167,7 @@ export async function submitExercise(template, contractId, choice, argument, cre
         choiceArgument: argument,
       },
     },
-  ]));
+  ], extraActAs));
   return {
     updateId: tx.transaction?.updateId ?? tx.updateId,
     completionOffset: tx.transaction?.offset ?? tx.completionOffset,

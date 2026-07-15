@@ -3,6 +3,7 @@ import {
   kvList,
   kvPut,
   kvUpdateStatus,
+  MEDIATOR_PARTY,
 } from '../../../_ledger.js';
 
 // POST /api/vault/commitments/:id/resolve
@@ -45,12 +46,15 @@ export const onRequest = async (context) => {
     // ResolveDispute creates TWO contracts: a DisclosedRecord (first) and a
     // SettlementReceipt (second). We index the SettlementReceipt — pass the
     // template filter so we get the right child (same bug class as raise-dispute).
+    // ResolveDispute is `controller thirdParty`, so the command must be
+    // authorized by MEDIATOR_PARTY too (not just PARTY).
     const result = await submitExercise(
       'Vault.CommitmentContract:DisputeCase',
       match.cid,
       'ResolveDispute',
       { ruling },
       'SettlementReceipt',
+      [MEDIATOR_PARTY],
     );
 
     // ResolveDispute archives the DisputeCase and creates a SettlementReceipt
