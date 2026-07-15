@@ -80,23 +80,32 @@ src/
 
 ---
 
-## ✅ ESTADO ACTUAL (verificado 2026-07-14, offset 4342302)
+## ✅ ESTADO ACTUAL (verificado 2026-07-15, offset 4364647)
 
 | Componente | Estado | Evidencia |
 |---|---|---|
 | **Producción** | ✅ VIVO | `canton-vault.pages.dev` HTTP 200 |
-| **Auto-deploy CI/CD** | ✅ FUNCIONANDO | Cada `git push` a `main` → build + functions + deploy automático |
+| **Auto-deploy CI/CD** | ✅ FUNCIONANDO | `git push` → GitHub → CF build + deploy automático |
 | **Backend Pages Functions** | ✅ Deployadas + detectadas | `/api/health` → Canton 3.5.8 |
-| **Balance CC REAL** | ✅ De la red | `/api/vault/balance` → **31,433,860+ CC** vía Splice Validator API |
-| **GETs con datos reales** | ✅ VÍA KV | Los 5 GET leen del KV index — proposals/commitments/receipts visibles |
-| **resolve.js bug** | ✅ ARREGLADO | Busca DisputeCase en KV (antes en ACS que devolvía [] → siempre 404) |
-| **UX on-ledger para jurado** | ✅ Funcional, ⚠️ contraste malo | Toasts/tooltips/ayuda en campos funcionan PERO texto ilegible (contraste insuficiente) |
-| **Docs jurado** | ✅ LISTAS | README actualizado + DEMO.md guía paso a paso |
-| **Sistema de diseño** | 🔴 PENDIENTE | **Prioridad #1 próxima sesión** — ver arriba |
-| **Party del demo** | ✅ `cancore::*` | Writes funcionan + tiene CC del faucet |
-| **Lifecycle on-ledger** | ✅ create→accept→fulfill | Verificado E2E con persistencia KV |
-| **Git↔Cloudflare** | ✅ CONECTADO | `Git Provider: Yes`, build config corregida |
+| **Balance CC REAL** | ✅ De la red | `/api/vault/balance` → **31,693,018+ CC** vía Splice Validator API |
+| **GETs con datos reales** | ✅ VÍA KV | Los 5 GET leen del KV index — proposals/commitments/receipts/disclosures visibles |
+| **Rediseño UX completo** | ✅ 8 fases en prod | WCAG AAA, wizard 4 pantallas, copy humano, Privacy Lab humanizado |
+| **Contraste WCAG** | ✅ AAA | `--text-on-glass` 14.2:1, `--text-body` 15.7:1 (verificado matemáticamente) |
+| **Lifecycle on-ledger** | ✅ create→accept→fulfill→dispute→resolve | Verificado E2E con contractIds reales |
+| **resolve.js** | ✅ ARREGLADO (2 bugs) | templateFilter + extraActAs (mediator authorization) |
+| **Docs jurado** | ✅ LISTAS | README + DEMO.md actualizados al nuevo wizard flow |
+| **Party del demo** | ✅ `cancore::*` + `Observer::*` | Writes funcionan, el mediador es party distinta (requerido por Daml) |
+| **Git↔Cloudflare** | ✅ CONECTADO | `origin` = GitHub (dispara auto-deploy), `gitlab` = mirror |
 | **KV namespace** | ✅ BINDEADO | `VAULT_KV` (id `8c756265442a41bc8f57632075790a50`) en production + preview |
+
+### Datos en vivo (lo que ve el jurado al abrir el demo)
+```
+proposals:     2 (pendientes — el jurado puede aceptar/rechazar)
+commitments:   6 (activos, disputados, resueltos)
+receipts:      2 (1 fulfillment + 1 dispute-resuelto por el mediador)
+disclosures:   5 (disputas + resoluciones con campos revelados)
+dispute-cases: 0 (todos resueltos — el jurado puede crear uno nuevo)
+```
 
 ### Cuenta de Cloudflare — estado limpio (verificado vía API + wrangler)
 ```
@@ -170,36 +179,29 @@ Implementado en `functions/api/_ledger.js` → `walletBalance()` y usado por
 
 ---
 
-## 🔴 LO QUE FALTA (nada urgente — el demo está completo)
+## 🔴 LO QUE FALTA (post-rediseño — el demo está completo)
 
-### ✅ TODO RESUELTO
-- ✅ `git push` — sincronizado con github/main y origin/main
-- ✅ Git↔Cloudflare conectado — `Git Provider: Yes`, auto-deploy activo
-- ✅ Build config corregida — functions detectadas, `nodejs_compat` activo
-- ✅ Faucet CC — la party ya tiene fondos (faucet confirmó "enough funds")
-- ✅ Balance CC real — implementado vía Splice Validator API (no más hardcoded 0)
-- ✅ Limpieza Cloudflare — 3 Workers residuales eliminados
-- ✅ **GETs con datos reales** — índice KV de contractIds (los 5 GET ya devuelven datos)
-- ✅ **resolve.js bug** — ahora busca DisputeCase en KV (no en ACS que devolvía [])
-- ✅ **UX on-ledger** — toasts con CID+offset, botón copiar CID, empty states accionables
-- ✅ **Docs jurado** — README actualizado (sin Spring Boot) + DEMO.md guía paso a paso
+### ✅ TODO RESUELTO (esta sesión)
+- ✅ Rediseño UX — 8 fases implementadas y en producción
+- ✅ WCAG AAA — contraste verificado matemáticamente (14.2:1 text-on-glass)
+- ✅ Copy humano — `lib/copy.ts`, ~40 strings plain English, 0 jerga Daml visible
+- ✅ Wizard 4 pantallas — 1 decisión por pantalla, deadline 1h/1d/1w
+- ✅ Privacy Lab humanizado — sin pseudoterminal, lock-icon empty state
+- ✅ Confirmaciones — "Here's what will happen" antes de Accept
+- ✅ **dispute→resolve E2E** — arreglados 3 bugs: extractCreatedContractId, mediador como party distinta, DAML_AUTHORIZATION_ERROR
+- ✅ Remotes git corregidos — `origin` = GitHub (dispara CF), `gitlab` = mirror
+- ✅ DEMO.md actualizado al nuevo wizard flow
+- ✅ Seed de datos — 2 proposals, 6 commitments, 2 receipts, 5 disclosures
 
 ### NICE-TO-HAVE — Solo si sobra tiempo antes del deadline (19 jul)
 
-**1. Monitorear cuota de Cloudflare**
-Free = 100k req/día + 1k writes/día KV + 100k reads/día KV. Con SWR
-(revalidateOnFocus, 0 polling) es imposible superar esto. El demo usa ~5 writes
-+ ~30 reads por sesión de jurado. Si vuelve a subir raro, revisar pestañas
-abiertas del navegador.
-
-**2. Capturas de pantalla para el README**
-Tomar screenshots del demo en los 3 steps (propose, act, privacy lab) y del
+**1. Capturas de pantalla para el README**
+Tomar screenshots del demo en los 3 steps (Create, Act, Verify) y del
 toast de éxito con CID+offset. Añadir al README como evidencia visual.
 
-**3. Seed inicial de datos de demo**
-El KV arranca vacío. Para que el jurado vea listas pobladas de inmediato al
-abrir el demo, se podría crear 1-2 proposals de ejemplo via CLI/endpoint tras
-cada limpieza. Opcional — el DEMO.md guía al jurado a crear su propia propuesta.
+**2. Monitorear cuota de Cloudflare**
+Free = 100k req/día + 1k writes/día KV + 100k reads/día KV. Con SWR
+(revalidateOnFocus, 0 polling) es imposible superar esto.
 
 ---
 
@@ -302,50 +304,132 @@ Si mandas array → error 8000006 "Request body is incorrect".
 `deployment_configs`, no en el wrangler.jsonc local (este solo aplica para
 `wrangler dev` local).
 
+### Bug 9: extractCreatedContractId devuelve el cid equivocado en multi-create (2026-07-15)
+**Síntoma:** `resolve.js` fallaba con `WRONGLY_TYPED_CONTRACT`. El ledger decía:
+"Expected contract of type DisputeCase but got DisclosedRecord".
+**Root cause:** `RaiseDispute` y `ResolveDispute` crean **2 contratos** cada uno
+(DisclosedRecord + DisputeCase / SettlementReceipt). `extractCreatedContractId`
+devolvía el primer `CreatedEvent` — siempre el DisclosedRecord. El KV indexaba
+el cid del DisclosedRecord como si fuera el DisputeCase, y `resolve.js` trataba
+de ejercer `ResolveDispute` (choice de DisputeCase) sobre un DisclosedRecord.
+**Fix:** `extractCreatedContractId` acepta `templateFilter` opcional.
+`submitExercise` lo propaga como `createdTemplateFilter`. `raise-dispute.js`
+pasa `'DisputeCase'`, `resolve.js` pasa `'SettlementReceipt'`.
+**Lección:** cuando un choice Daml crea múltiples contratos, el orden en los
+eventos del ledger refleja el orden de ejecución del choice. No asumir que el
+primer CreatedEvent es el contrato que necesitas.
+
+### Bug 10: Mediador debe ser party distinta del actor (2026-07-15)
+**Síntoma:** `raise-dispute` fallaba con `PreconditionFailed` en DisclosedRecord.
+**Root cause:** `DisclosedRecord` tiene `ensure discloser /= observer`. En el
+demo original, los 3 roles (proposer/accepter/thirdParty) eran la misma party
+(`cancore::*`), violando la precondición. El sandbox tiene 52 prefijos de party
+con CanActAs — todos con el mismo hash.
+**Fix:** `MEDIATOR_PARTY = 'Observer::1220a14...'` (distinto prefijo, mismo hash).
+Canton los trata como parties separadas con vistas de validator independientes.
+`parties.js` devuelve el mediador como `MEDIATOR_PARTY`. El wizard lo pre-selecciona.
+**Lección:** `Party` en Canton incluye el prefijo. Prefijos distintos = parties
+distintas para el ledger, aunque el hash subyacente sea el mismo.
+
+### Bug 11: DAML_AUTHORIZATION_ERROR en ResolveDispute (2026-07-15)
+**Síntoma:** `resolve.js` fallaba con "requires authorizers Observer::... but
+only cancore::... were given".
+**Root cause:** `ResolveDispute` tiene `controller thirdParty`. Con el mediador
+como party distinta (`Observer::*`), el comando necesitaba autorización de esa
+party, pero `buildCommandEnvelope` solo enviaba `actAs: [PARTY]` (cancore).
+**Fix:** `buildCommandEnvelope` acepta `extraActAs` (deduplicado, PARTY siempre
+primario). `submitExercise` lo propaga. `resolve.js` pasa `[MEDIATOR_PARTY]`.
+**Lección:** en Canton, cada `controller` del choice debe estar en `actAs`. Si
+el controller es una party distinta del actor principal, hay que incluirla.
+
+### Bug 12: Wizard defaults vacíos por race condition SWR (2026-07-15)
+**Síntoma:** el botón "Next" del wizard (pantalla 3, "Who else is involved?")
+estaba deshabilitado aunque los selects mostraban "Accepter (Financier)" y
+"Mediator (Arbitrator)".
+**Root cause:** `useState` inicializaba `accepter`/`thirdParty` con `''` porque
+`parties` estaba vacío en el primer render (SWR aún no había cargado). Cuando
+las parties llegaban 200ms después, `useState` no se re-ejecutaba. El
+`<select>` mostraba la primera opción visualmente (comportamiento nativo del
+navegador cuando `value=""` no matchea), pero el estado React seguía siendo `''`.
+**Fix:** `useEffect` en `ProposeWizard` rellena los defaults cuando `parties`
+termina de cargar, con guard para no sobrescribir valores que el usuario ya
+haya elegido manualmente.
+**Lección:** `useState` no se re-ejecuta cuando las props cambian. Si el valor
+inicial depende de datos asíncronos, usar `useEffect` para poblarlo cuando
+lleguen.
+
 ---
 
-## 🏗️ Arquitectura actual del frontend
+## 🏗️ Arquitectura actual del frontend (post-rediseño UX)
 
 ```
 src/
+├── styles/                        # NUEVO: CSS modular 3-tier (WCAG AAA)
+│   ├── tokens.css                 # primitivos (zinc scale) + semánticos + alias legacy
+│   ├── base.css                   # resets, Bootstrap overrides, glass-panel, btn, modals
+│   └── vault.css                  # cv-* clases específicas de CantonVault
 ├── lib/
-│   ├── fetcher.ts              # SWR fetcher con timeout 8s + FetchError
-│   └── vaultNormalizers.ts     # raw backend → typed domain models
+│   ├── copy.ts                    # NUEVO: diccionario microcopy (~40 strings plain English)
+│   ├── fetcher.ts                 # SWR fetcher con timeout 8s + FetchError
+│   └── vaultNormalizers.ts        # raw backend → typed domain models
 ├── hooks/
-│   ├── useAuth.ts              # useUser(), useLogout(), useLoginLinks() — SWR
-│   ├── useVaultData.ts         # useProposals(), useCommitments(), etc. — SWR lectura
-│   └── useVaultMutations.ts    # createProposal(), acceptProposal(), etc. — SWR mutate
+│   ├── useAuth.ts                 # useUser(), useLogout(), useLoginLinks() — SWR
+│   ├── useVaultData.ts            # useProposals(), useCommitments(), etc. — SWR lectura
+│   └── useVaultMutations.ts       # createProposal(), acceptProposal(), etc. — SWR mutate
 ├── stores/
-│   ├── userStore.tsx           # FACADE thin sobre useAuth
-│   ├── vaultStore.tsx          # FACADE thin sobre useVaultData+Mutations
-│   ├── vaultApi.ts             # axios instance (baseURL /api/vault)
-│   └── toastStore.tsx          # notificaciones
+│   ├── userStore.tsx              # FACADE thin sobre useAuth
+│   ├── vaultStore.tsx             # FACADE thin sobre useVaultData+Mutations
+│   ├── vaultApi.ts                # axios instance (baseURL /api/vault)
+│   └── toastStore.tsx             # notificaciones
+├── components/vault/              # NUEVO: componentes modulares (<200 líneas c/u)
+│   ├── VaultHeader.tsx            # título + party chip + sync button
+│   ├── Stepper.tsx                # 3 macro-steps (Create → Act → Verify)
+│   ├── CopyCidButton.tsx          # botón copiar contractId, reutilizable
+│   ├── TechnicalDetails.tsx       # panel colapsable "Technical details ▾"
+│   ├── ConfirmModal.tsx           # "Here's what will happen" antes de acciones irreversibles
+│   ├── VaultActionModals.tsx      # FulfillModal, RefundModal, DisputeModal, ResolveModal
+│   ├── act/
+│   │   ├── ActStep.tsx            # orquestador de commitments + disputes
+│   │   ├── CommitmentCard.tsx     # status-first card + TechnicalDetails
+│   │   └── DisputeCard.tsx        # escalation card
+│   ├── privacy/
+│   │   ├── PrivacyLab.tsx         # 3 columnas humanizadas (sin pseudoterminal)
+│   │   └── SettlementReceipts.tsx # lista de payment receipts
+│   └── propose/
+│       ├── ProposeWizard.tsx      # orquestador 4 pantallas + estado
+│       ├── WizardStepDescription.tsx  # Pantalla 1: "What's this for?"
+│       ├── WizardStepAmount.tsx       # Pantalla 2: "How much?"
+│       ├── WizardStepParties.tsx      # Pantalla 3: "Who else?"
+│       └── WizardStepReview.tsx       # Pantalla 4: "Review and send"
 └── views/
-    ├── VaultView.tsx           # UI principal (sin polling manual, SWR gestiona)
-    ├── LoginView.tsx           # usa useLoginLinks() SWR
-    └── LandingView.tsx         # landing page estática
+    ├── VaultView.tsx              # Shell ~153 líneas (era 898) — routing + modales
+    ├── LoginView.tsx              # usa useLoginLinks() SWR
+    └── LandingView.tsx            # landing page estática
 
-functions/api/                   # Pages Functions (Cloudflare)
-├── _ledger.js                   # Helpers: getToken, ledgerPost, submitCreate,
-│                                #   submitExercise, queryActiveContracts, walletBalance
-├── health.js                    # GET /api/health
-├── authenticated-user.js        # GET /api/authenticated-user
-├── login-links.js               # GET /api/login-links
-├── logout.js                    # POST /api/logout
+functions/api/                      # Pages Functions (Cloudflare) — INTOCABLES
+├── _ledger.js                      # Helpers: getToken, ledgerPost, submitCreate,
+│                                   #   submitExercise, walletBalance, kvList, kvPut,
+│                                   #   extractCreatedContractId (con templateFilter),
+│                                   #   buildCommandEnvelope (con extraActAs)
+├── health.js                       # GET /api/health
+├── authenticated-user.js           # GET /api/authenticated-user
+├── login-links.js                  # GET /api/login-links
+├── logout.js                       # POST /api/logout
 └── vault/
-    ├── balance.js               # GET /api/vault/balance → CC real vía Validator API
-    ├── parties.js               # GET /api/vault/parties
-    ├── proposals.js             # GET (ACS) / POST (create on-ledger)
-    ├── proposals/[id]/accept.js # POST → AcceptProposal
-    ├── proposals/[id]/reject.js # POST → RejectProposal
-    ├── commitments.js           # GET (ACS)
-    ├── commitments/[id]/fulfill.js     # POST → Fulfill
-    ├── commitments/[id]/raise-dispute.js  # POST → RaiseDispute
-    ├── commitments/[id]/refund.js   # POST → Refund
-    ├── commitments/[id]/resolve.js # POST → ResolveDispute
-    ├── receipts.js              # GET (ACS)
-    ├── disclosures.js           # GET (ACS)
-    └── dispute-cases.js         # GET (ACS)
+    ├── balance.js                  # GET /api/vault/balance → CC real vía Validator API
+    ├── parties.js                  # GET /api/vault/parties (PARTY + MEDIATOR_PARTY)
+    ├── proposals.js                # GET (KV) / POST (create on-ledger)
+    ├── proposals/[id]/accept.js    # POST → AcceptProposal
+    ├── proposals/[id]/reject.js    # POST → RejectProposal
+    ├── commitments.js              # GET (KV)
+    ├── commitments/[id]/fulfill.js      # POST → Fulfill
+    ├── commitments/[id]/raise-dispute.js # POST → RaiseDispute (con templateFilter 'DisputeCase')
+    ├── commitments/[id]/refund.js       # POST → Refund
+    ├── commitments/[id]/resolve.js      # POST → ResolveDispute (con templateFilter + extraActAs)
+    ├── receipts.js                 # GET (KV)
+    ├── disclosures.js              # GET (KV)
+    └── dispute-cases.js            # GET (KV)
+```
 ```
 
 ### Config SWR (crítica para no pausar Cloudflare)
@@ -390,13 +474,20 @@ validator reasignó los rights de user 6. Si las writes vuelven a dar 403, verif
 - **ACS query:** `POST /v2/state/active-contracts` con `{filter:{filtersByParty:{<party>:{identifierFilter:{templateIds:[...]}}}}}`
 
 ### Helpers compartidos (`functions/api/_ledger.js`)
+- `PARTY` = `'cancore::1220a14...'` — actor principal del demo
+- `MEDIATOR_PARTY` = `'Observer::1220a14...'` — mediador (party distinta, requerido por Daml)
 - `getToken()` → token m2m cacheado
 - `ledgerGet(path)` / `ledgerPost(path, payload)` → wrappers HTTP
 - `ledgerEnd()` → offset actual del ledger
+- `buildCommandEnvelope(commands, extraActAs?)` → actAs incluye PARTY + extraActAs
 - `submitCreate(template, args)` → `{updateId, completionOffset, contractId}`
-- `submitExercise(template, cid, choice, arg)` → `{updateId, completionOffset, contractId}`
+- `submitExercise(template, cid, choice, arg, createdTemplateFilter?, extraActAs?)` → `{updateId, completionOffset, contractId}`
+- `extractCreatedContractId(txResponse, templateFilter?)` → cid del CreatedEvent correcto
 - `queryActiveContracts(templateIds)` → `[{contractId, payload}]` (devuelve [] en sandbox)
 - `walletBalance(party)` → `{unlocked, locked, round}` ← balance CC REAL
+- `kvList(env, kind, statuses?)` → lista records del índice KV
+- `kvPut(env, kind, cid, entry)` → escribe en el índice KV
+- `kvUpdateStatus(env, kind, cid, status)` → actualiza solo el status
 
 ---
 
@@ -417,7 +508,7 @@ cd cn-quickstart/quickstart/frontend && npm run build:ci && \
   npx wrangler pages deploy dist --project-name canton-vault --branch main --commit-dirty=true
 
 # Auto-deploy: simplemente git push
-git push origin main  # → dispara build en CF automáticamente
+git push origin main  # → GitHub → dispara build en CF automáticamente
 
 # Verificar qué versión está en vivo
 curl -s https://canton-vault.pages.dev/api/health
@@ -441,6 +532,20 @@ TOKEN=$(curl -s -X POST 'https://auth.sandbox.fivenorth.io/application/o/token/'
   | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
 curl -s "https://api.validator.devnet.sandbox.fivenorth.io/api/validator/v0/wallet/balance?party=cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8" \
   -H "Authorization: Bearer $TOKEN"
+
+# KV debug — listar/borrar keys del índice (namespace VAULT_KV)
+NS="8c756265442a41bc8f57632075790a50"
+cd cn-quickstart/quickstart/frontend
+npx wrangler kv key list --namespace-id "$NS" --remote | python3 -c "import sys,json; [print(k['name']) for k in json.load(sys.stdin)]"
+npx wrangler kv key delete "dispute:<cid>" --namespace-id "$NS" --remote
+npx wrangler kv key delete "disclosure:<cid>" --namespace-id "$NS" --remote
+
+# Seed rápido — crear proposal de demo (para repoblar KV si está vacío)
+MEDIATOR="Observer::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8"
+ACTOR="cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8"
+curl -s -X POST https://canton-vault.pages.dev/api/vault/proposals \
+  -H "Content-Type: application/json" \
+  -d "{\"accepter\":\"$ACTOR\",\"thirdParty\":\"$MEDIATOR\",\"amount\":5000,\"currency\":\"CC\",\"description\":\"Demo proposal\",\"workflow\":\"supply-chain-finance\",\"deadlineSeconds\":604800}"
 ```
 
 ---
@@ -480,25 +585,44 @@ curl -s "https://api.validator.devnet.sandbox.fivenorth.io/api/validator/v0/wall
     (requiere `pages_build_output_dir` que es otro flujo). El binding KV se
     configura con `PATCH /accounts/{id}/pages/projects/{name}` usando
     `kv_namespaces` como **objeto** `{BINDING: {namespace_id}}`, no como array.
+12. **`extractCreatedContractId` devuelve el PRIMER CreatedEvent** — cuando un
+    choice Daml crea múltiples contratos (ej. RaiseDispute crea DisclosedRecord +
+    DisputeCase), el primer CreatedEvent puede no ser el que necesitas. Usar
+    `templateFilter` para seleccionar el correcto.
+13. **`Party` en Canton incluye el prefijo — prefijos distintos = parties distintas**
+    para el ledger, aunque el hash subyacente sea el mismo. El sandbox tiene 52
+    prefijos con CanActAs. Usar `Observer::*` como mediador permite que el flujo
+    de dispute funcione (la precondición `discloser /= observer` se cumple).
+14. **Cada `controller` de un choice Daml debe estar en `actAs`** — si el
+    controller es una party distinta del actor principal, hay que incluirla en el
+    comando vía `extraActAs`. `ResolveDispute` es `controller thirdParty` y
+    requiere autorización del mediador.
+15. **`useState` no se re-ejecuta cuando las props cambian** — si el valor inicial
+    depende de datos asíncronos (SWR), usar `useEffect` para poblarlo cuando
+    lleguen. El `<select>` muestra la primera opción por comportamiento nativo del
+    navegador aunque el estado React sea `''`.
 
 ---
 
 ## 📅 Timeline del hackathon
 
-- **Deadline:** Domingo 19 julio medianoche
-- **Días restantes:** ~5
-- **Prioridad:** ✅ demo listo — todo lo urgente está hecho
+- **Deadline:** Sábado 19 julio medianoche
+- **Días restantes:** ~4
+- **Prioridad:** ✅ demo completo — listo para el jurado
 
-### ✅ Tareas resueltas (histórico)
-- `git push` — HECHO. `66024c6` en `github/main` y `origin/main`.
-- Limpieza Cloudflare — HECHA. 3 Workers residuales eliminados.
-  Queda 1 Pages project + 1 Worker subyacente (lo mínimo necesario).
-- Git↔Cloudflare — CONECTADO. `Git Provider: Yes`, auto-deploy activo.
-- Build config CF — CORREGIDA. root_dir + build:ci + nodejs_compat.
-  Funciones detectadas y compiladas en cada auto-deploy.
-- Faucet CC — la party ya tiene fondos (faucet confirmó "enough funds").
-- Balance CC real — implementado vía Splice Validator REST API.
-  `/api/vault/balance` ahora devuelve 31,428,468.76 CC reales de la red.
+### ✅ Tareas resueltas (histórico completo)
+- ✅ Rediseño UX — 8 fases implementadas y en producción (WCAG AAA, wizard, copy humano)
+- ✅ **dispute→resolve E2E** — 4 bugs arreglados: extractCreatedContractId, mediador party distinta, DAML_AUTHORIZATION_ERROR, wizard defaults
+- ✅ Remotes git — `origin` = GitHub (dispara auto-deploy CF), `gitlab` = mirror
+- ✅ Seed de datos — 2 proposals, 6 commitments, 2 receipts, 5 disclosures
+- ✅ DEMO.md actualizado al nuevo wizard flow
+- ✅ Balance CC real — implementado vía Splice Validator REST API (31.7M+ CC)
+- ✅ GETs con datos reales — índice KV de contractIds (los 5 GET devuelven datos)
+- ✅ `resolve.js` — arreglado (buscaba DisputeCase en ACS que devolvía [])
+- ✅ Git↔Cloudflare — `Git Provider: Yes`, auto-deploy activo
+- ✅ Build config CF — root_dir + build:ci + nodejs_compat
+- ✅ Faucet CC — la party tiene fondos
+- ✅ Limpieza Cloudflare — 3 Workers residuales eliminados
 
 ---
 
