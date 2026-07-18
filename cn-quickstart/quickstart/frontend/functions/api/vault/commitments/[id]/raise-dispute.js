@@ -1,4 +1,4 @@
-import { PARTY, submitExercise, kvGet, kvPut, kvUpdateStatus } from '../../../_ledger.js';
+import { PARTY, submitExercise, kvGet, kvPut, kvUpdateStatus, configure } from '../../../_ledger.js';
 
 // POST /api/vault/commitments/:id/raise-dispute
 // Exercises RaiseDispute on a CommitmentContract. Either signatory escalates
@@ -8,6 +8,7 @@ const TEMPLATE = 'Vault.CommitmentContract:CommitmentContract';
 
 export const onRequest = async (context) => {
   const { params, request, env } = context;
+  configure(env);
   const contractId = params.id;
   try {
     const body = await request.json().catch(() => ({}));
@@ -21,7 +22,7 @@ export const onRequest = async (context) => {
     // DisclosedRecord — see the WRONGLY_TYPED_CONTRACT bug this fixed).
     const result = await submitExercise(TEMPLATE, contractId, 'RaiseDispute', {
       reason,
-      actor: PARTY,
+      actor: PARTY.value,
     }, 'DisputeCase');
 
     // RaiseDispute creates a DisputeCase (its contractId is what ResolveDispute
@@ -53,7 +54,7 @@ export const onRequest = async (context) => {
         status: 'dispute',
         payload: {
           sourceCid: contractId,
-          discloser: PARTY,
+          discloser: PARTY.value,
           observer: p.thirdParty,
           revealedFields: { amount: String(p.amount ?? ''), description: p.description ?? '' },
           reason,

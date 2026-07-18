@@ -5,6 +5,7 @@ import React from 'react';
 import type { Commitment, VaultContract } from '../../../types';
 import { copy } from '../../../lib/copy';
 import TechnicalDetails from '../TechnicalDetails';
+import PrivacyTimeline from './PrivacyTimeline';
 
 interface CommitmentCardProps {
   contract: VaultContract<Commitment>;
@@ -38,9 +39,9 @@ const CommitmentCard: React.FC<CommitmentCardProps> = ({
             <h6 className="fw-bold text-white mb-1 d-flex align-items-center gap-2 flex-wrap">
               {c.description}
               {disputed ? (
-                <span className="badge bg-danger">{copy.statusDisputed}</span>
+                <span className="badge bg-danger cv-badge-glow cv-badge-disputed">{copy.statusDisputed}</span>
               ) : (
-                <span className="badge bg-success">{copy.statusActive}</span>
+                <span className="badge bg-success cv-badge-glow cv-badge-pulse">{copy.statusActive}</span>
               )}
             </h6>
             <div className="text-on-glass small">
@@ -82,6 +83,7 @@ const CommitmentCard: React.FC<CommitmentCardProps> = ({
             { label: copy.roleThirdParty, partyId: c.thirdParty },
           ]}
         />
+        <PrivacyTimeline disputed={disputed} resolved={false} />
       </div>
     </div>
   );

@@ -36,10 +36,15 @@ export const getApiClient = async (): Promise<ApiClient> => {
             (error) => {
                 if (error.response && error.response.status === 400) {
                     console.error("Validation Error (400):", error.response.data);
-                    // Emit custom event for toast store if needed, or just reject cleanly
                     const event = new CustomEvent('api:validation-error', { detail: error.response.data });
                     window.dispatchEvent(event);
                     return Promise.reject(new Error(error.response.data?.message || "Invalid request parameters."));
+                }
+                // SECURITY (audit F-A1): global 401 handler — redirect to landing
+                // on expired session, matching vaultApi.ts behavior.
+                if (error.response?.status === 401 && window.location.pathname !== '/') {
+                    window.dispatchEvent(new CustomEvent('auth:session-expired'));
+                    window.location.href = '/';
                 }
                 return Promise.reject(error);
             }

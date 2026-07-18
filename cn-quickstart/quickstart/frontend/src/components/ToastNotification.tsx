@@ -41,8 +41,14 @@ const ToastNotification: React.FC = () => {
                 </div>
                 <div className="toast-body">
                     <div className="fw-semibold">{bodyText}</div>
-                    {isSuccess && proof && (proof.contractId || proof.offset != null) && (
+                    {isSuccess && proof && (proof.contractId || proof.offset != null || proof.privacy) && (
                         <div className="mt-2 pt-2 border-top border-white border-opacity-25 font-monospace" style={{ fontSize: '0.72rem', lineHeight: 1.5 }}>
+                            {proof.privacy && (
+                                <div className="mb-1">
+                                    <span className="opacity-75">🔐</span>{' '}
+                                    <span className="text-info">{proof.privacy}</span>
+                                </div>
+                            )}
                             {proof.contractId && (
                                 <div className="d-flex align-items-center gap-1">
                                     <span className="opacity-75">CID:</span>

@@ -48,6 +48,10 @@ export const copy = {
   privacyCol3Empty: 'Report a problem in Act to see what the mediator learns',
   privacyCol3Body: 'When the problem was reported, the mediator learned only this:',
   privacyCol3Nothing: 'Nothing else.',
+  privacyCol4Title: 'What the competitor sees',
+  privacyCol4Empty: 'Searched the competitor\u2019s ledger',
+  privacyCol4EmptyDetail: '0 records found. The competitor\u2019s validator node never received this transaction data.',
+  privacyCol4Subtext: 'Canton\u2019s sub-transaction privacy: data only reaches signatory and observer nodes. Everyone else sees an empty ledger.',
   receiptsTitle: 'Payment receipts',
   receiptSettled: 'Payment completed',
 

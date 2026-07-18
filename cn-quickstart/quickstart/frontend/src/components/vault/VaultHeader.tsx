@@ -11,10 +11,16 @@ interface VaultHeaderProps {
   onSync: () => void;
   /** True while SWR is revalidating (disables the button + shows spinner). */
   isSyncing: boolean;
+  /** Called when the user clicks the "Load Demo Data" button. */
+  onSeedDemo?: () => void;
+  /** True while demo data is being seeded. */
+  isSeeding?: boolean;
+  /** True when the vault has no data (shows the seed button more prominently). */
+  isEmpty?: boolean;
 }
 
-/** Vault page action bar: title, signed-party chip, sync button. */
-const VaultHeader: React.FC<VaultHeaderProps> = ({ party, onSync, isSyncing }) => (
+/** Vault page action bar: title, signed-party chip, sync button, seed demo. */
+const VaultHeader: React.FC<VaultHeaderProps> = ({ party, onSync, isSyncing, onSeedDemo, isSeeding, isEmpty }) => (
   <div className="cv-vault-header">
     <div>
       <h2 className="cv-vault-title">CantonVault</h2>
@@ -26,14 +32,34 @@ const VaultHeader: React.FC<VaultHeaderProps> = ({ party, onSync, isSyncing }) =
         </div>
       )}
     </div>
-    <button className="btn btn-sm btn-outline-light px-3" onClick={onSync} disabled={isSyncing}>
-      {isSyncing ? (
-        <>
-          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-          Syncing…
-        </>
-      ) : '↻ Sync'}
-    </button>
+    <div className="d-flex gap-2">
+      {onSeedDemo && (
+        <button
+          className={`btn btn-sm px-3 ${isEmpty ? 'btn-success' : 'btn-outline-success'}`}
+          onClick={onSeedDemo}
+          disabled={isSeeding}
+        >
+          {isSeeding ? (
+            <>
+              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              Loading…
+            </>
+          ) : isEmpty ? (
+            '🚀 Load Demo Data'
+          ) : (
+            '🔄 Reload Demo'
+          )}
+        </button>
+      )}
+      <button className="btn btn-sm btn-outline-light px-3" onClick={onSync} disabled={isSyncing}>
+        {isSyncing ? (
+          <>
+            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            Syncing…
+          </>
+        ) : '↻ Sync'}
+      </button>
+    </div>
   </div>
 );
 

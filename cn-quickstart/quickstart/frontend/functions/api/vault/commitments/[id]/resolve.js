@@ -4,6 +4,7 @@ import {
   kvPut,
   kvUpdateStatus,
   MEDIATOR_PARTY,
+  configure,
 } from '../../../_ledger.js';
 
 // POST /api/vault/commitments/:id/resolve
@@ -21,6 +22,7 @@ import {
 // which is exactly the link we need here.
 export const onRequest = async (context) => {
   const { params, request, env } = context;
+  configure(env);
   const commitmentId = params.id;
   try {
     const body = await request.json().catch(() => ({}));
@@ -54,7 +56,7 @@ export const onRequest = async (context) => {
       'ResolveDispute',
       { ruling },
       'SettlementReceipt',
-      [MEDIATOR_PARTY],
+      [MEDIATOR_PARTY.value],
     );
 
     // ResolveDispute archives the DisputeCase and creates a SettlementReceipt

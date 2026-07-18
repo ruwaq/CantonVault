@@ -1,11 +1,12 @@
 // Copyright (c) 2026, CantonVault Hackathon. All rights reserved.
 // SPDX-License-Identifier: 0BSD
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { Commitment, DisclosedRecord, SettlementReceipt, VaultContract } from '../../../types';
 import { copy } from '../../../lib/copy';
 import TechnicalDetails from '../TechnicalDetails';
 import SettlementReceipts from './SettlementReceipts';
+import PrivacyExposureBar from './PrivacyExposureBar';
 
 interface PrivacyLabProps {
   receipts: VaultContract<SettlementReceipt>[];
@@ -16,10 +17,11 @@ interface PrivacyLabProps {
 /**
  * Privacy Lab — humanized (no pseudoterminal). The heart of the demo.
  *
- * Three columns in plain English:
+ * Four columns in plain English:
  *   1. "What you see"           — full commitment, human party labels
  *   2. "What the mediator sees" — lock-icon empty state: 0 agreements found
  *   3. "What the mediator learns after a report" — revealed fields, human
+ *   4. "What the competitor sees" — empty ledger: Canton privacy proof
  *
  * The old `> CANTON_PRIVATE_ISOLATION` pseudoterminal is gone: a novice reads
  * "0 agreements found", a technician expands Technical details for hashes.
@@ -27,6 +29,30 @@ interface PrivacyLabProps {
 const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitments }) => {
   const [viewIndex, setViewIndex] = useState(0);
   const sample = commitments[viewIndex] ?? commitments[0];
+
+  // Determine the current privacy stage for the exposure bar.
+  // Uses primitive values in the dependency array so that SWR cache
+  // updates (which produce new object references) don't trigger
+  // unnecessary recomputation — only actual data changes matter.
+  const sampleCid = sample?.contractId ?? null;
+  const sampleAmount = sample?.payload.amount;
+  const sampleProposer = sample?.payload.proposer;
+  const currentStage = useMemo(() => {
+    if (!sampleCid) return null;
+    // Check if this commitment has an associated receipt (fulfilled/resolved).
+    const hasReceipt = receipts.some(
+      (r) => r.payload.proposer === sampleProposer
+        && r.payload.amount === sampleAmount,
+    );
+    if (hasReceipt) return 3; // Resolved
+    // Check if this commitment has an associated disclosure (disputed).
+    const hasDisclosure = disclosures.some(
+      (d) => d.payload.sourceCid === sampleCid,
+    );
+    if (hasDisclosure) return 2; // Disputed
+    return 1; // Active
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sampleCid, sampleAmount, sampleProposer]);
 
   return (
     <div>
@@ -37,6 +63,9 @@ const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitme
           {copy.privacyBannerBody}
         </p>
       </div>
+
+      {/* Privacy Exposure Indicator */}
+      <PrivacyExposureBar currentStage={currentStage} />
 
       {/* Viewpoint selector (only when more than one commitment) */}
       {commitments.length > 1 && (
@@ -54,10 +83,10 @@ const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitme
         </div>
       )}
 
-      {/* Three columns */}
+      {/* Four columns */}
       <div className="row g-4 mb-4">
         {/* Column 1: What you see (stakeholders, full view) */}
-        <div className="col-lg-4 col-md-6">
+        <div className="col-lg-3 col-md-6">
           <div className="card h-100 border-success border-opacity-20 glass-panel">
             <div className="card-header bg-success bg-opacity-5 border-bottom border-success border-opacity-10 pb-3 d-flex justify-content-between align-items-center">
               <span className="text-success fw-bold d-flex align-items-center gap-2">
@@ -94,7 +123,7 @@ const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitme
         </div>
 
         {/* Column 2: What the mediator sees — lock-icon empty state (the demo's heart) */}
-        <div className="col-lg-4 col-md-6">
+        <div className="col-lg-3 col-md-6">
           <div className="card h-100 border-danger border-opacity-20 glass-panel">
             <div className="card-header bg-danger bg-opacity-5 border-bottom border-danger border-opacity-10 pb-3 d-flex justify-content-between align-items-center">
               <span className="text-danger fw-bold d-flex align-items-center gap-2">
@@ -117,7 +146,7 @@ const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitme
         </div>
 
         {/* Column 3: What the mediator learns after a report */}
-        <div className="col-lg-4 col-md-12">
+        <div className="col-lg-3 col-md-6">
           <div className="card h-100 border-warning border-opacity-20 glass-panel">
             <div className="card-header bg-warning bg-opacity-5 border-bottom border-warning border-opacity-10 pb-3 d-flex justify-content-between align-items-center">
               <span className="text-warning fw-bold d-flex align-items-center gap-2">
@@ -163,6 +192,32 @@ const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitme
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Column 4: What the competitor sees — empty ledger (Canton privacy proof) */}
+        <div className="col-lg-3 col-md-6">
+          <div className="card h-100 border-secondary border-opacity-20 glass-panel">
+            <div className="card-header bg-secondary bg-opacity-5 border-bottom border-secondary border-opacity-10 pb-3 d-flex justify-content-between align-items-center">
+              <span className="text-secondary fw-bold d-flex align-items-center gap-2">
+                <span>🏦</span> {copy.privacyCol4Title}
+              </span>
+              <span className="badge bg-secondary bg-opacity-20 text-on-glass">Empty Ledger</span>
+            </div>
+            <div className="card-body d-flex flex-column justify-content-center text-center">
+              <div className="py-4">
+                <div className="fs-1 mb-3">🏦</div>
+                <h6 className="fw-bold text-white mb-1">{copy.privacyCol4Empty}</h6>
+                <p className="text-on-glass small mb-0">
+                  <strong className="text-secondary">0 records found.</strong>
+                  <br />
+                  The competitor&apos;s validator node never received this transaction data.
+                </p>
+                <div className="alert alert-light small mt-3 mb-0 bg-white bg-opacity-5 border-0 py-2">
+                  {copy.privacyCol4Subtext}
+                </div>
+              </div>
             </div>
           </div>
         </div>

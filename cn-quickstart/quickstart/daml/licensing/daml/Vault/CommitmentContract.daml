@@ -150,15 +150,39 @@ template CommitmentContract with
     -- Refund: after the deadline, a signatory can close out an unfulfilled
     -- commitment. Creates a SettlementReceipt as immutable evidence.
     -- CONSUMING — archives the CommitmentContract, preventing double-refund.
-    -- Allocation locks held by the accepter will be externally withdrawn.
+    --
+    -- SECURITY (audit D-A1): when allocationCid is provided, executes a reverse
+    -- Canton Coin settlement (accepter → proposer) via the Splice Allocation
+    -- standard. This mirrors the Fulfill settlement path and is necessary for
+    -- real CC settlement scenarios. Without allocationCid, the refund is
+    -- symbolic (settlementExecuted = False) — valid only for tests/demo.
     choice Refund : ContractId SettlementReceipt
       with
         actor         : Party
+        allocationCid : Optional (ContractId Allocation, ExtraArgs)
       controller actor
       do
         require "Actor must be proposer or accepter" (actor `elem` signatory this)
         now <- getTime
         assertMsg "Cannot refund before deadline exceeded" (now >= deadline)
+        -- SECURITY: when real settlement is required, reject symbolic refund
+        assertMsg "Real settlement required — provide an allocationCid for reverse CC refund"
+          (not realSettlementRequired || case allocationCid of Some _ -> True; None -> False)
+
+        case allocationCid of
+          Some (allocCid, eArgs) -> do
+            alloc <- fetch @Allocation allocCid
+            let allocLeg = (view @Allocation alloc).allocation.transferLeg
+                allocLegId = (view @Allocation alloc).allocation.transferLegId
+            -- Reverse of Fulfill: sender = proposer (returning funds), receiver = accepter
+            assertMsg "Allocation sender must be proposer (reverse refund)" (allocLeg.sender == proposer)
+            assertMsg "Allocation receiver must be accepter (reverse refund)" (allocLeg.receiver == accepter)
+            assertMsg "Allocation amount must match commitment" (allocLeg.amount == amount)
+            assertMsg "Allocation instrument admin must match" (allocLeg.instrumentId.admin == instrumentAdmin)
+            assertMsg "Allocation instrument id must match currency" (allocLeg.instrumentId.id == currency)
+            _ <- exercise allocCid (Allocation_ExecuteTransfer eArgs)
+            return ()
+          None -> return ()
 
         create SettlementReceipt with
           proposer = proposer
@@ -167,7 +191,7 @@ template CommitmentContract with
           currency = currency
           timestamp = now
           outcome = "refunded"
-          settlementExecuted = False
+          settlementExecuted = case allocationCid of Some _ -> True; None -> False
           note = Some ("refunded via CantonVault: " <> workflow)
 
     -- | AllocationRequest interface implementation enables Canton Coin settlement

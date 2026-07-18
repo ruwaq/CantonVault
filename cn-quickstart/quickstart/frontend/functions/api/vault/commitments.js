@@ -1,4 +1,4 @@
-import { kvListAsContracts } from '../_ledger.js';
+import { kvListAsContracts, configure } from '../_ledger.js';
 
 // GET /api/vault/commitments — active CommitmentContracts (status "active" or
 // "disputed" in the KV index). The sandbox ACS does not divulge these, so we
@@ -6,6 +6,7 @@ import { kvListAsContracts } from '../_ledger.js';
 // leaves this list once it is fulfilled / refunded / resolved (terminal states).
 export const onRequest = async (context) => {
   const { env } = context;
+  configure(env);
   try {
     const contracts = await kvListAsContracts(env, 'commitment', ['active', 'disputed']);
     return Response.json(contracts);

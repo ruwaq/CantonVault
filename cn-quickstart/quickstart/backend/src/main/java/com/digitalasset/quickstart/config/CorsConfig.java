@@ -34,7 +34,11 @@ public class CorsConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split("\\s*,\\s*")));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
+        // SECURITY (audit B-A1): with allowCredentials=true, the CORS spec
+        // prohibits wildcard "*" for allowed headers. List headers explicitly.
+        configuration.setAllowedHeaders(List.of(
+            "Content-Type", "Authorization", "X-XSRF-TOKEN", "Idempotency-Key",
+            "Accept", "Origin", "X-Requested-With"));
         configuration.setAllowCredentials(true);
         configuration.setExposedHeaders(List.of("X-XSRF-TOKEN"));
 

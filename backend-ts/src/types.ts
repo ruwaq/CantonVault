@@ -56,15 +56,18 @@ export interface LedgerConfig {
   synchronizerId: string;
 }
 
-/** Default DevNet configuration (hackathon shared validator). */
+/** Default DevNet configuration (hackathon shared validator).
+ *  SECURITY (audit A-C1c): secrets are read from process.env, NOT hardcoded.
+ *  The CLIENT_SECRET must be set via CLIENT_SECRET env var.
+ *  Other values fall back to DevNet defaults for local development.
+ */
 export const DEVNET_CONFIG: LedgerConfig = {
-  ledgerApi: 'https://ledger-api.validator.devnet.sandbox.fivenorth.io',
-  authUrl: 'https://auth.sandbox.fivenorth.io/application/o/token/',
-  clientId: 'validator-devnet-m2m',
-  clientSecret:
-    'r69FQmevLRwEgMB8NnKaSDHPewTOSx7Yy5jucsqAlmsAaJc3DlggedCz4tyyonl4W2WoOVzkUIjy8dHTlc16AOJQzx02QzJylAUG56oLTCoVCJUUK40vRv9CqQEY3fjn',
-  party: 'cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8',
-  synchronizerId: 'wallet::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8',
+  ledgerApi: process.env.LEDGER_API || 'https://ledger-api.validator.devnet.sandbox.fivenorth.io',
+  authUrl: process.env.AUTH_URL || 'https://auth.sandbox.fivenorth.io/application/o/token/',
+  clientId: process.env.CLIENT_ID || 'validator-devnet-m2m',
+  clientSecret: process.env.CLIENT_SECRET || '',
+  party: process.env.PARTY || '',
+  synchronizerId: process.env.SYNCHRONIZER_ID || 'wallet::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8',
 };
 
 export const CANTONVAULT_PACKAGE = 'cantonvault-contracts';

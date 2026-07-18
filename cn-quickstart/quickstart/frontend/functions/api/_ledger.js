@@ -1,44 +1,74 @@
 // Shared ledger client for all Pages Functions (ES module).
 // Uses global scope to cache tokens across warm invocations.
+//
+// SECURITY (audit A-C1, A-H1–H3): secrets and environment-specific config are
+// read from Cloudflare Pages bindings (context.env) set via the dashboard or
+// wrangler.toml. Each handler MUST call configure(context.env) before using
+// any exported function. The defaults below are for local dev only and will
+// be overridden by the first configure() call.
 
-const LEDGER_API = 'https://ledger-api.validator.devnet.sandbox.fivenorth.io';
-// Splice Validator REST API — the only path that returns the REAL on-ledger Canton
-// Coin (Amulet) balance for this m2m party. The JSON Ledger API ACS endpoint does not
-// divulge Amulet holdings to the shared-validator m2m user (privacy of multi-tenant
-// sandbox), so the balance must be read from the Validator wallet endpoint instead.
-const VALIDATOR_API = 'https://api.validator.devnet.sandbox.fivenorth.io';
-const AUTH_URL = 'https://auth.sandbox.fivenorth.io/application/o/token/';
-const CLIENT_ID = 'validator-devnet-m2m';
-const CLIENT_SECRET =
-  'r69FQmevLRwEgMB8NnKaSDHPewTOSx7Yy5jucsqAlmsAaJc3DlggedCz4tyyonl4W2WoOVzkUIjy8dHTlc16AOJQzx02QzJylAUG56oLTCoVCJUUK40vRv9CqQEY3fjn';
-const PARTY =
-  'cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
-// The mediator must be a DISTINCT party from the actor for the DisclosedRecord
-// template precondition (`ensure discloser /= observer`). Same hash, different
-// prefix → Canton treats them as separate parties (separate validator views),
-// which is exactly what makes the Privacy Lab demo meaningful: the mediator's
-// node genuinely has a separate view. The m2m user has CanActAs rights on both.
-const MEDIATOR_PARTY =
-  'Observer::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
-const SYNCHRONIZER_ID =
-  'wallet::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
-const PKG = 'cantonvault-contracts';
+// ── Lazy config (set by the first handler that calls configure()) ────────────
+let _ledgerApi = 'https://ledger-api.validator.devnet.sandbox.fivenorth.io';
+let _validatorApi = 'https://api.validator.devnet.sandbox.fivenorth.io';
+let _authUrl = 'https://auth.sandbox.fivenorth.io/application/o/token/';
+let _clientId = 'validator-devnet-m2m';
+let _clientSecret = '';
+let _party = '';
+let _mediatorParty = '';
+let _synchronizerId = '';
+let _pkg = 'cantonvault-contracts';
+let _configured = false;
+
+/**
+ * Initialize the ledger client from Cloudflare Pages bindings.
+ * Call once at the top of every handler: configure(context.env).
+ * Falls back to defaults for local dev when env vars are not set.
+ */
+export function configure(env) {
+  if (_configured) return;
+  _ledgerApi = env.LEDGER_API || _ledgerApi;
+  _validatorApi = env.VALIDATOR_API || _validatorApi;
+  _authUrl = env.AUTH_URL || _authUrl;
+  _clientId = env.CLIENT_ID || _clientId;
+  // SECURITY: CLIENT_SECRET has NO default — must be set via env binding.
+  // If unset, getToken() will throw a clear error rather than silently
+  // using a hardcoded secret.
+  _clientSecret = env.CLIENT_SECRET || '';
+  _party = env.PARTY || '';
+  _mediatorParty = env.MEDIATOR_PARTY || '';
+  _synchronizerId = env.SYNCHRONIZER_ID || _synchronizerId;
+  _pkg = env.PKG || _pkg;
+  _configured = true;
+}
+
+// ── Accessors (so the rest of the module reads from the configured values) ──
+const LEDGER_API = { get value() { return _ledgerApi; } };
+const VALIDATOR_API = { get value() { return _validatorApi; } };
+const AUTH_URL = { get value() { return _authUrl; } };
+const CLIENT_ID = { get value() { return _clientId; } };
+const CLIENT_SECRET = { get value() { return _clientSecret; } };
+const PARTY = { get value() { return _party; } };
+const MEDIATOR_PARTY = { get value() { return _mediatorParty; } };
+const SYNCHRONIZER_ID = { get value() { return _synchronizerId; } };
+const PKG = _pkg;
 
 let tokenCache = null;
 
 export async function getToken() {
+  const secret = CLIENT_SECRET.value;
+  if (!secret) throw new Error('CLIENT_SECRET not configured — set via env binding');
   const now = Date.now();
   if (tokenCache && now < tokenCache.expiresAt - 5 * 60 * 1000) {
     return tokenCache.token;
   }
   const body = new URLSearchParams({
     grant_type: 'client_credentials',
-    client_id: CLIENT_ID,
-    client_secret: CLIENT_SECRET,
-    audience: CLIENT_ID,
+    client_id: CLIENT_ID.value,
+    client_secret: secret,
+    audience: CLIENT_ID.value,
     scope: 'daml_ledger_api',
   });
-  const res = await fetch(AUTH_URL, {
+  const res = await fetch(AUTH_URL.value, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
@@ -51,7 +81,7 @@ export async function getToken() {
 
 export async function ledgerGet(path) {
   const token = await getToken();
-  const res = await fetch(`${LEDGER_API}${path}`, {
+  const res = await fetch(`${LEDGER_API.value}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`Ledger GET ${path} failed: ${res.status}`);
@@ -60,7 +90,7 @@ export async function ledgerGet(path) {
 
 export async function ledgerPost(path, payload) {
   const token = await getToken();
-  const res = await fetch(`${LEDGER_API}${path}`, {
+  const res = await fetch(`${LEDGER_API.value}${path}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -90,7 +120,7 @@ export async function ledgerEnd() {
 // party other than PARTY (e.g. ResolveDispute is controlled by thirdParty,
 // which is MEDIATOR_PARTY). PARTY is always included as the primary actor.
 function buildCommandEnvelope(commands, extraActAs = []) {
-  const actAs = Array.from(new Set([PARTY, ...extraActAs]));
+  const actAs = Array.from(new Set([PARTY.value, ...extraActAs]));
   return {
     commands: {
       applicationId: 'AppId',
@@ -186,7 +216,7 @@ export async function queryActiveContracts(templateIds) {
         identifierFilter: { templateIds },
       },
     },
-    readAs: [PARTY],
+    readAs: [PARTY.value],
   });
   return (Array.isArray(data) ? data : []).map((item) => ({
     contractId: item.contractId,
@@ -198,9 +228,9 @@ export async function queryActiveContracts(templateIds) {
 // REST API. The JSON Ledger API ACS does not divulge Amulet holdings to the shared
 // validator m2m user; the Validator wallet endpoint is the authoritative source.
 // Returns { unlocked, locked, round } or null if unreachable.
-export async function walletBalance(party = PARTY) {
+export async function walletBalance(party = PARTY.value) {
   const token = await getToken();
-  const url = `${VALIDATOR_API}/api/validator/v0/wallet/balance?party=${encodeURIComponent(party)}`;
+  const url = `${VALIDATOR_API.value}/api/validator/v0/wallet/balance?party=${encodeURIComponent(party)}`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });

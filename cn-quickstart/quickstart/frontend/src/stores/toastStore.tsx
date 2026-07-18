@@ -12,6 +12,8 @@ export interface LedgerProof {
     contractId?: string
     /** The ledger offset the transaction landed at. */
     offset?: number
+    /** Privacy context: who can see this transaction. */
+    privacy?: string
 }
 
 interface ToastContextType {

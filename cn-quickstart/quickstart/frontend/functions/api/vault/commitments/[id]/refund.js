@@ -1,4 +1,4 @@
-import { PARTY, submitExercise, kvGet, kvPut, kvUpdateStatus } from '../../../_ledger.js';
+import { PARTY, submitExercise, kvGet, kvPut, kvUpdateStatus, configure } from '../../../_ledger.js';
 
 // POST /api/vault/commitments/:id/refund
 // Exercises Refund on a CommitmentContract after the deadline. Either signatory
@@ -9,11 +9,14 @@ const TEMPLATE = 'Vault.CommitmentContract:CommitmentContract';
 
 export const onRequest = async (context) => {
   const { params, env } = context;
+  configure(env);
   const contractId = params.id;
   try {
-    // The choice requires `actor` (parametrized signatory controller).
+    // The choice requires `actor` (parametrized signatory controller) and
+    // optional `allocationCid` (null = symbolic, Some = reverse CC settlement).
     const result = await submitExercise(TEMPLATE, contractId, 'Refund', {
-      actor: PARTY,
+      actor: PARTY.value,
+      allocationCid: null,
     });
 
     const commitmentRecord = await kvGet(env, 'commitment', contractId);

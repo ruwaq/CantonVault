@@ -42,10 +42,28 @@ function toSuccessMessage(action: string): string {
         'Rejecting proposal': 'Proposal rejected',
         'Fulfilling commitment': 'Commitment fulfilled — Canton Coin settled',
         'Raising dispute': 'Dispute raised — third party notified',
-        'Resolving dispute': 'Dispute resolved — settlement recorded',
         'Refunding commitment': 'Commitment refunded',
+        'Resolving dispute': 'Dispute resolved — settlement recorded',
+        'Seeding demo data': 'Demo data loaded — 4 scenarios ready',
     };
     return map[action] ?? action;
+}
+
+/**
+ * Privacy context string for each action, shown in the success toast.
+ */
+function privacyContext(action: string): string {
+    const map: Record<string, string> = {
+        'Creating proposal': 'Privacy: 2 parties only — mediator and competitors see nothing',
+        'Accepting proposal': 'Privacy: 2 parties only — commitment is invisible to everyone else',
+        'Rejecting proposal': 'Privacy: 2 parties only',
+        'Fulfilling commitment': 'Privacy: 2 parties only — settlement receipt is bilateral',
+        'Raising dispute': 'Privacy: 3 parties — mediator now sees amount and description',
+        'Refunding commitment': 'Privacy: 2 parties only',
+        'Resolving dispute': 'Privacy: 3 parties — mediator ruling is final, competitor sees nothing',
+        'Seeding demo data': 'Privacy: 3 scenarios loaded with full lifecycle data',
+    };
+    return map[action] ?? '';
 }
 
 // Vault SWR cache keys (must match useVaultData.ts).
@@ -103,6 +121,7 @@ export function useVaultMutations() {
                     toast.displaySuccess(toSuccessMessage(action), {
                         contractId: data?.contractId,
                         offset: data?.offset,
+                        privacy: privacyContext(action),
                     });
                     return result;
                 })
@@ -256,6 +275,25 @@ export function useVaultMutations() {
         [wrap, mutate],
     );
 
+    /** Seed the KV index with 3 realistic demo scenarios (idempotent). */
+    const seedDemoData = useCallback(
+        () =>
+            wrap(
+                null,
+                'Seeding demo data',
+                async () => {
+                    const res = await vaultApi.post('/seed-demo');
+                    // Revalidate all vault caches so the UI picks up the new data.
+                    await Promise.all(
+                        Object.values(K).map((key) => mutate(key)),
+                    );
+                    return res;
+                },
+                Object.values(K),
+            ),
+        [wrap, mutate],
+    );
+
     return {
         pending,
         createProposal,
@@ -265,5 +303,6 @@ export function useVaultMutations() {
         raiseDispute,
         resolveDispute,
         refundCommitment,
+        seedDemoData,
     };
 }

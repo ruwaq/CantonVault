@@ -62,6 +62,7 @@ interface VaultContextType extends VaultState {
     raiseDispute: (contractId: string, reason: string) => Promise<unknown>;
     resolveDispute: (contractId: string, ruling: string, allocationContractId?: string) => Promise<unknown>;
     refundCommitment: (contractId: string, input: RefundInput) => Promise<unknown>;
+    seedDemoData: () => Promise<unknown>;
 }
 
 // Vault SWR keys (mirror hooks/useVaultData.ts).
@@ -129,6 +130,7 @@ export const useVaultStore = (): VaultContextType => {
         raiseDispute: mutations.raiseDispute,
         resolveDispute: mutations.resolveDispute,
         refundCommitment: mutations.refundCommitment,
+        seedDemoData: mutations.seedDemoData,
     };
 };
 

@@ -1,4 +1,4 @@
-import { kvListAsContracts } from '../_ledger.js';
+import { kvListAsContracts, configure } from '../_ledger.js';
 
 // GET /api/vault/receipts — SettlementReceipts: immutable terminal evidence of
 // every Fulfill / Refund / ResolveDispute. Served from the KV index (the ACS
@@ -6,6 +6,7 @@ import { kvListAsContracts } from '../_ledger.js';
 // fulfilled, refunded, dispute-proposer, dispute-accepter.
 export const onRequest = async (context) => {
   const { env } = context;
+  configure(env);
   try {
     const contracts = await kvListAsContracts(env, 'receipt');
     return Response.json(contracts);

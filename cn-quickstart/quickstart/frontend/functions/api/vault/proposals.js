@@ -1,6 +1,7 @@
 import {
   PARTY,
   PKG,
+  configure,
   submitCreate,
   queryActiveContracts,
   kvList,
@@ -12,6 +13,7 @@ const PROPOSAL_TPL = 'Vault.CommitmentProposal:CommitmentProposal';
 
 export const onRequest = async (context) => {
   const { request, env } = context;
+  configure(env);
 
   if (request.method === 'GET') {
     try {
@@ -36,22 +38,27 @@ export const onRequest = async (context) => {
       if (amount <= 0) {
         return Response.json({ error: 'Amount must be greater than 0' }, { status: 400 });
       }
-      const description = String(body.description ?? '').trim();
-      if (!description) {
-        return Response.json({ error: 'Description is required' }, { status: 400 });
-      }
+const description = String(body.description ?? '').trim();
+	      if (!description) {
+	        return Response.json({ error: 'Description is required' }, { status: 400 });
+	      }
+	      // SECURITY (audit S-A3): validate deadline is a valid ISO-8601 date.
+	      const deadline = String(body.deadline || '');
+	      if (deadline && isNaN(Date.parse(deadline))) {
+	        return Response.json({ error: 'Deadline must be a valid ISO-8601 date' }, { status: 400 });
+	      }
 
-      const payload = {
-        // `||` (not `??`) so empty strings from the frontend fall back to PARTY.
-        proposer: PARTY,
-        accepter: String(body.accepter || PARTY),
-        thirdParty: String(body.thirdParty || PARTY),
-        amount,
-        currency: String(body.currency || 'CC'),
-        description,
-        workflow: String(body.workflow || 'supply-chain-finance'),
-        deadline: String(body.deadline || '2026-12-31T23:59:59Z'),
-        instrumentAdmin: PARTY,
+	      const payload = {
+	        // `||` (not `??`) so empty strings from the frontend fall back to PARTY.
+	        proposer: PARTY.value,
+	        accepter: String(body.accepter || PARTY.value),
+	        thirdParty: String(body.thirdParty || PARTY.value),
+	        amount,
+	        currency: String(body.currency || 'CC'),
+	        description,
+	        workflow: String(body.workflow || 'supply-chain-finance'),
+	        deadline: deadline || '2026-12-31T23:59:59Z',
+        instrumentAdmin: PARTY.value,
         realSettlementRequired: false,
       };
       const result = await submitCreate('Vault.CommitmentProposal:CommitmentProposal', payload);

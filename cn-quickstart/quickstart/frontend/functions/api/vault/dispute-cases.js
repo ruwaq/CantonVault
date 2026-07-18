@@ -1,4 +1,4 @@
-import { kvListAsContracts } from '../_ledger.js';
+import { kvListAsContracts, configure } from '../_ledger.js';
 
 // GET /api/vault/dispute-cases — active DisputeCases awaiting the third party's
 // ResolveDispute ruling. Only status "open" disputes are shown; "resolved" ones
@@ -6,6 +6,7 @@ import { kvListAsContracts } from '../_ledger.js';
 // shared sandbox).
 export const onRequest = async (context) => {
   const { env } = context;
+  configure(env);
   try {
     const contracts = await kvListAsContracts(env, 'dispute', ['open']);
     return Response.json(contracts);

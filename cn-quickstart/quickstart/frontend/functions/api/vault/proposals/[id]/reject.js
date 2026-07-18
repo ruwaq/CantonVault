@@ -1,4 +1,4 @@
-import { submitExercise, kvUpdateStatus } from '../../../_ledger.js';
+import { submitExercise, kvUpdateStatus, configure } from '../../../_ledger.js';
 
 // POST /api/vault/proposals/:id/reject
 // Exercises RejectProposal on a CommitmentProposal. Archives it (terminal).
@@ -6,6 +6,7 @@ const TEMPLATE = 'Vault.CommitmentProposal:CommitmentProposal';
 
 export const onRequest = async (context) => {
   const { params, env } = context;
+  configure(env);
   const contractId = params.id;
   try {
     const result = await submitExercise(TEMPLATE, contractId, 'RejectProposal', {});

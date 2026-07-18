@@ -343,7 +343,7 @@ public class CommitmentController {
                                         "error", "Symbolic settlement is disabled. Provide an allocationContractId for real Canton Coin refund.")));
                     }
                     var choice = new CommitmentContract.Refund(
-                            new com.digitalasset.transcode.java.Party(party));
+                            new com.digitalasset.transcode.java.Party(party), Optional.empty());
                     return ledger.exerciseAndGetResult(contract.contractId, choice, commandId, party)
                             .thenApply(result -> {
                                 logger.info("Commitment {} refunded (symbolic)", contractId);
@@ -374,7 +374,8 @@ public class CommitmentController {
                     Tuple2<ContractId<Allocation>, ExtraArgs> allocationBundle =
                             new Tuple2<>(new ContractId<>(allocationContractId), transferContext.extraArgs());
                     var choice = new CommitmentContract.Refund(
-                            new com.digitalasset.transcode.java.Party(contract.payload.getProposer.getParty));
+                            new com.digitalasset.transcode.java.Party(contract.payload.getProposer.getParty),
+                            Optional.of(allocationBundle));
                     logger.info("Refunding commitment {} with real CC settlement (reverse allocation {})",
                             contract.contractId.getContractId, allocationContractId);
                     return ledger.exerciseAndGetResult(

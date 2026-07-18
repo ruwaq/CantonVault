@@ -96,6 +96,7 @@ const VaultView: React.FC = () => {
     const vault = useVaultStore();
     const [step, setStep] = useState<Step>('propose');
     const [creating, setCreating] = useState(false);
+    const [seeding, setSeeding] = useState(false);
 
     // ── Modal state ──
     const [acceptTarget, setAcceptTarget] = useState<string | null>(null);
@@ -110,6 +111,21 @@ const VaultView: React.FC = () => {
     }, []);
 
     const myParty = user?.party ?? '';
+
+    const isEmpty = vault.proposals.length === 0
+        && vault.commitments.length === 0
+        && vault.receipts.length === 0
+        && vault.disclosures.length === 0
+        && vault.disputes.length === 0;
+
+    const handleSeed = async () => {
+        setSeeding(true);
+        try {
+            await vault.seedDemoData();
+        } finally {
+            setSeeding(false);
+        }
+    };
 
     const handleCreate = async (input: {
         accepter: string; thirdParty: string; amount: number; currency: string;
@@ -130,7 +146,14 @@ const VaultView: React.FC = () => {
 
     return (
         <div className="pb-5">
-            <VaultHeader party={myParty} onSync={() => vault.refreshAll()} isSyncing={vault.loading} />
+            <VaultHeader
+                party={myParty}
+                onSync={() => vault.refreshAll()}
+                isSyncing={vault.loading}
+                onSeedDemo={handleSeed}
+                isSeeding={seeding}
+                isEmpty={isEmpty}
+            />
             <Stepper current={step} onStep={setStep} />
 
             <div className="mt-4">

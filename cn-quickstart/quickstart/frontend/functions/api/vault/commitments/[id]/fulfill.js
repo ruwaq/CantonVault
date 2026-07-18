@@ -1,4 +1,4 @@
-import { submitExercise, kvGet, kvPut, kvUpdateStatus } from '../../../_ledger.js';
+import { submitExercise, kvGet, kvPut, kvUpdateStatus, configure } from '../../../_ledger.js';
 
 // POST /api/vault/commitments/:id/fulfill
 // Exercises Fulfill on a CommitmentContract. Accepter confirms delivery.
@@ -9,6 +9,7 @@ const TEMPLATE = 'Vault.CommitmentContract:CommitmentContract';
 
 export const onRequest = async (context) => {
   const { params, request, env } = context;
+  configure(env);
   const contractId = params.id;
   try {
     const body = await request.json().catch(() => ({}));

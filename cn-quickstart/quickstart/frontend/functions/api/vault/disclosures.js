@@ -1,4 +1,4 @@
-import { kvListAsContracts } from '../_ledger.js';
+import { kvListAsContracts, configure } from '../_ledger.js';
 
 // GET /api/vault/disclosures — DisclosedRecords: immutable selective-disclosure
 // proofs created by RaiseDispute and ResolveDispute. Evidentiary (no choices) →
@@ -7,6 +7,7 @@ import { kvListAsContracts } from '../_ledger.js';
 // ResolveDispute).
 export const onRequest = async (context) => {
   const { env } = context;
+  configure(env);
   try {
     const contracts = await kvListAsContracts(env, 'disclosure');
     return Response.json(contracts);
