@@ -1,11 +1,13 @@
-import { ledgerEnd, PARTY } from './_ledger.js';
+import { ledgerEnd, PARTY, configure } from './_ledger.js';
 
-export const onRequest = async () => {
+export const onRequest = async (context) => {
+  const { env } = context;
+  configure(env);
   try {
     const offset = await ledgerEnd();
     return Response.json({
       name: 'CantonVault Operator',
-      party: PARTY,
+      party: PARTY.value,
       isAdmin: true,
       ledgerOffset: offset,
     });

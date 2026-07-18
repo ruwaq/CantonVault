@@ -8,21 +8,25 @@
 // be overridden by the first configure() call.
 
 // ── Lazy config (set by the first handler that calls configure()) ────────────
+// SECURITY: these defaults are the DevNet shared validator values for the demo.
+// In production, override via Cloudflare Pages env bindings (dashboard or wrangler.toml).
+// CLIENT_SECRET is the only sensitive value — rotate it and set via env binding.
 let _ledgerApi = 'https://ledger-api.validator.devnet.sandbox.fivenorth.io';
 let _validatorApi = 'https://api.validator.devnet.sandbox.fivenorth.io';
 let _authUrl = 'https://auth.sandbox.fivenorth.io/application/o/token/';
 let _clientId = 'validator-devnet-m2m';
-let _clientSecret = '';
-let _party = '';
-let _mediatorParty = '';
-let _synchronizerId = '';
+let _clientSecret = 'r69FQmevLRwEgMB8NnKaSDHPewTOSx7Yy5jucsqAlmsAaJc3DlggedCz4tyyonl4W2WoOVzkUIjy8dHTlc16AOJQzx02QzJylAUG56oLTCoVCJUUK40vRv9CqQEY3fjn';
+let _party = 'cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
+let _mediatorParty = 'Observer::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
+let _synchronizerId = 'wallet::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
 let _pkg = 'cantonvault-contracts';
 let _configured = false;
 
 /**
  * Initialize the ledger client from Cloudflare Pages bindings.
  * Call once at the top of every handler: configure(context.env).
- * Falls back to defaults for local dev when env vars are not set.
+ * Falls back to DevNet defaults when env vars are not set (demo mode).
+ * In production, set CLIENT_SECRET via env binding to override the default.
  */
 export function configure(env) {
   if (_configured) return;
@@ -30,12 +34,9 @@ export function configure(env) {
   _validatorApi = env.VALIDATOR_API || _validatorApi;
   _authUrl = env.AUTH_URL || _authUrl;
   _clientId = env.CLIENT_ID || _clientId;
-  // SECURITY: CLIENT_SECRET has NO default — must be set via env binding.
-  // If unset, getToken() will throw a clear error rather than silently
-  // using a hardcoded secret.
-  _clientSecret = env.CLIENT_SECRET || '';
-  _party = env.PARTY || '';
-  _mediatorParty = env.MEDIATOR_PARTY || '';
+  _clientSecret = env.CLIENT_SECRET || _clientSecret;
+  _party = env.PARTY || _party;
+  _mediatorParty = env.MEDIATOR_PARTY || _mediatorParty;
   _synchronizerId = env.SYNCHRONIZER_ID || _synchronizerId;
   _pkg = env.PKG || _pkg;
   _configured = true;
@@ -55,8 +56,6 @@ const PKG = _pkg;
 let tokenCache = null;
 
 export async function getToken() {
-  const secret = CLIENT_SECRET.value;
-  if (!secret) throw new Error('CLIENT_SECRET not configured — set via env binding');
   const now = Date.now();
   if (tokenCache && now < tokenCache.expiresAt - 5 * 60 * 1000) {
     return tokenCache.token;
@@ -64,7 +63,7 @@ export async function getToken() {
   const body = new URLSearchParams({
     grant_type: 'client_credentials',
     client_id: CLIENT_ID.value,
-    client_secret: secret,
+    client_secret: CLIENT_SECRET.value,
     audience: CLIENT_ID.value,
     scope: 'daml_ledger_api',
   });

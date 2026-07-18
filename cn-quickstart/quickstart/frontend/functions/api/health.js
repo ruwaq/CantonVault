@@ -1,6 +1,8 @@
-import { ledgerGet, ledgerEnd } from './_ledger.js';
+import { ledgerGet, ledgerEnd, configure } from './_ledger.js';
 
-export const onRequest = async () => {
+export const onRequest = async (context) => {
+  const { env } = context;
+  configure(env);
   try {
     const [ver, off] = await Promise.all([
       ledgerGet('/v2/version').then((d) => d.version),
