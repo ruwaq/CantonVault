@@ -111,6 +111,111 @@ All CRITICAL and actionable HIGH findings have been remediated. Verification:
 | H4 | `Fulfill` controller = accepter (receiver confirms) | By design | Correct for supply-chain finance: the financier (accepter) confirms delivery and triggers payment to the supplier (proposer). The proposer pre-authorizes the transfer via Splice AllocationRequest — no unilateral action possible. |
 | H6 | `RequireAuth` guard is client-side only | By design | Frontend guard prevents UI flash — the backend is the **authoritative** auth boundary. Mitigated by: C1 (DEMO_TOKEN required), H7 (global 401 interceptor). Every API call is independently authenticated server-side. |
 
+---
+
+# Security Audit — CantonVault FASE 2 (2026-07-18)
+
+## Status: COMPLETED ✅ — 43 hallazgos (3 CRITICAL, 6 HIGH, 13 MEDIUM, 12 LOW, 9 INFO)
+
+Auditoría integral fresh de todo el stack: Daml, Backend Java, Frontend React/TS,
+Serverless Functions, Backend Services TS, e Infraestructura. 6 capas, ~150 archivos.
+
+## CRITICAL
+
+| ID | Archivo | Línea | Hallazgo | Fix |
+|----|---------|-------|----------|-----|
+| **A-C1** | `functions/api/_ledger.js` | 13 | `CLIENT_SECRET` hardcodeado en plaintext (`r69FQmev...`) | Mover a `env.SECRET` de Cloudflare o `context.env` |
+| **A-C1b** | `backend-worker/src/index.ts` | 19-20 | **MISMO** `CLIENT_SECRET` hardcodeado — 2ª instancia | Mover a `env.SECRET` de Cloudflare |
+| **A-C1c** | `backend-ts/src/types.ts` | 64-65 | **MISMO** `CLIENT_SECRET` hardcodeado — 3ª instancia | Mover a `process.env.CLIENT_SECRET` |
+
+## HIGH
+
+| ID | Archivo | Hallazgo | Fix |
+|----|---------|----------|-----|
+| **A-H1** | `functions/api/_ledger.js:11` | `CLIENT_ID` hardcodeado | Mover a variable de entorno |
+| **A-H2** | `functions/api/_ledger.js:4` | `LEDGER_API` URL hardcodeada | Mover a variable de entorno |
+| **A-H3** | `functions/api/_ledger.js:14` | `PARTY` ID hardcodeado | Mover a variable de entorno |
+| **D-A1** | `daml/.../CommitmentContract.daml:154` | `Refund` no soporta reverse CC settlement — el fix de Fase 1 (H3) nunca se aplicó al código Daml. `settlementExecuted` siempre `False`. | Añadir `allocationCid` opcional al choice `Refund` |
+| **A-H1b** | `backend-worker/src/index.ts:18` | `CLIENT_ID` hardcodeado — 2ª instancia | Mover a variable de entorno |
+| **A-H1c** | `backend-ts/src/types.ts:63` | `CLIENT_ID` hardcodeado — 3ª instancia | Mover a variable de entorno |
+
+## MEDIUM
+
+| ID | Archivo | Hallazgo | Fix |
+|----|---------|----------|-----|
+| **A-M1** | `functions/api/_ledger.js:27` | `tokenCache` en variable global — race condition en Workers | Usar `crypto.subtle` o `ctx.waitUntil` para deduplicar refresh |
+| **A-M2** | `functions/api/_ledger.js:93` | `commandId` con `Date.now() + Math.random()` — colisionable | Usar `crypto.randomUUID()` |
+| **A-M3** | `functions/api/_ledger.js:275` | `kvList()` N+1 queries | Batch reads o usar KV metadata |
+| **S-A1** | `functions/api/vault/seed-demo.js` | Sin autenticación — cualquiera puede sobrescribir KV | Añadir auth check |
+| **S-A2** | `functions/api/vault/seed-demo.js` | PROPOSER y ACCEPTER son la misma party — demo no demuestra privacidad bilateral | Usar party IDs distintas |
+| **S-A3** | `functions/api/vault/proposals.js:53` | `deadline` sin validación de formato | Validar ISO-8601 antes de enviar a Canton |
+| **D-A2** | `daml/.../CommitmentContract.daml:221` | `allocationRequest_WithdrawImpl` sin guard de actor | Añadir `require` para defense-in-depth |
+| **D-A3** | `daml/.../CommitmentContract.daml:282` | `settlementTransferLegIdFor` depende de `show Time` — puede divergir de Java | Usar formato explícito en ambas capas |
+| **B-A1** | `backend/.../CorsConfig.java:37` | `allowedHeaders: *` con `allowCredentials: true` — viola spec CORS | Listar headers explícitamente |
+| **B-A2** | `backend/.../CommitmentController.java:464` | `resolveDispute` tiene dead code block | Eliminar o implementar la lógica |
+| **F-A2** | `frontend/.../PrivacyLab.tsx:52` | `useMemo` con arrays como dependencias — anula el fix del Bug 15 | Usar solo primitivas en el array de deps |
+| **F-A3** | `frontend/.../Modal.tsx:56` | `++modalTitleIdCounter` en cuerpo del componente (side effect) | Mover a `useRef` |
+| **F-A1** | `frontend/src/api.ts` | Sin interceptor 401 — Fase 1 (H7) decía "added to both" pero `api.ts` sigue sin él | Añadir interceptor 401 |
+
+## LOW
+
+| ID | Archivo | Hallazgo |
+|----|---------|----------|
+| **D-A4** | `daml/.../CommitmentContract.daml:271` | `ResolveDispute` pierde `currency` — usa `"REDACTED"` |
+| **D-A5** | `daml/.../CommitmentContract.daml:235` | `DisputeCase.ruling` nunca se lee |
+| **D-A6** | `daml/.../Disclosable.daml:24` | `ensure discloser /= observer` depende de semántica de prefijos Canton |
+| **B-A3** | `backend/.../CommitmentController.java:639` | `settlementTransferLegIdFor` Java vs Daml pueden divergir |
+| **B-A4** | `backend/.../CommitmentController.java:79` | Default inconsistente de `symbolicSettlementEnabled` (YAML: false, Java: true) |
+| **S-A4** | `functions/api/vault/commitments/[id]/fulfill.js:18` | `fulfill.js` siempre usa `allocationCid: null` |
+| **S-A5** | Todas las functions | Errores exponen `err.message` al cliente |
+| **BS-A3** | `backend-ts/src/server.ts:210` | `resolve` endpoint es un stub |
+| **BS-A4** | `backend-ts/src/server.ts:99` | `balance` hardcodeado a 0 |
+| **I-A1** | `compose.yaml:9` | `backend-service` usa `eclipse-temurin` — corre como root |
+| **F-A1** | `frontend/src/api.ts` | Sin interceptor 401 — Fase 1 (H7) decía "added to both" |
+| **F-A2** | `frontend/.../PrivacyLab.tsx:52` | `useMemo` con arrays — anula fix Bug 15 |
+
+## INFO / Positivos
+
+| ID | Hallazgo |
+|----|----------|
+| **D-A7** | `License.daml` y `AppInstall.daml` son boilerplate no usado |
+| **D-A8** | Cobertura de tests Daml excelente — 27 tests |
+| **B-A5** | `GlobalExceptionHandler` excelente — gRPC→HTTP, safe messages |
+| **B-A6** | `LedgerConfig` hardening sólido — TLS check, crash on missing config |
+| **B-A7** | `OAuth2Config` maneja missing claims correctamente |
+| **F-A4** | `vaultNormalizers.ts` robusto — nullish coalescing, defaults |
+| **F-A5** | `fetcher.ts` con timeout de 8s |
+| **F-A6** | `copy.ts` clean — plain English, sin jerga |
+| **F-A7** | `VaultView.tsx` valida inputs antes de mutar |
+| **I-A2** | CI/CD Actions pinned to SHA |
+
+---
+
+## Resumen Comparativo Fase 1 vs Fase 2
+
+| | Fase 1 (2026-07-03) | Fase 2 (2026-07-18) |
+|---|---|---|
+| CRITICAL | 5 (todos remediados) | 3 (1 secreto en 3 archivos) |
+| HIGH | 11 (accionables remediados) | 6 (nuevos + 1 regresión) |
+| MEDIUM | 15 | 13 |
+| LOW | 9 | 12 |
+| INFO | — | 9 |
+| **Total** | **40** | **43** |
+
+### Regresiones detectadas:
+- **D-A1 (HIGH):** `Refund` sin CC settlement — Fase 1 H3 decía resuelto pero nunca se aplicó
+- **F-A1 (LOW):** `api.ts` sin interceptor 401 — Fase 1 H7 decía "added to both"
+
+### Patrón crítico: CLIENT_SECRET hardcodeado en 3 ubicaciones
+El mismo secreto OAuth2 del DevNet aparece en:
+1. `cn-quickstart/quickstart/frontend/functions/api/_ledger.js:13`
+2. `backend-worker/src/index.ts:19-20`
+3. `backend-ts/src/types.ts:64-65`
+
+**Acción inmediata:** Rotar el secreto en DevNet y mover las 3 instancias a variables de entorno.
+
+---
+
 ## Disclosure
 
 This audit was performed as part of the Build on Canton Hackathon 2026. For security issues, open a private discussion or email the maintainers.

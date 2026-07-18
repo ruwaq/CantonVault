@@ -304,11 +304,12 @@ npx wrangler kv key list --namespace-id "$NS" --remote | python3 -c "import sys,
 
 ## 📅 PRÓXIMA SESIÓN
 
-### 🆕 Prioridad #0: Auditoría Integral (nuevo — plan listo)
-- **Plan de auditoría:** `docs/superpowers/specs/2026-07-18-audit-plan.md`
-- 6 capas (Daml → Backend Java → Frontend → Serverless → Backend TS → Infra)
-- 3 hallazgos preliminares CRITICAL/HIGH (CLIENT_SECRET hardcodeado en `_ledger.js`)
-- Ejecutar en orden bottom-up, ~2-3 horas
+### 🆕 Prioridad #0: Auditoría Integral (Fase 2 — COMPLETADA ✅)
+- **Plan:** `docs/superpowers/specs/2026-07-18-audit-plan.md`
+- **Resultados:** `SECURITY.md` actualizado — 43 hallazgos (3 CRITICAL, 6 HIGH, 13 MEDIUM, 12 LOW, 9 INFO)
+- **🚨 CRÍTICO:** `CLIENT_SECRET` hardcodeado en 3 archivos (`_ledger.js`, `backend-worker/src/index.ts`, `backend-ts/src/types.ts`)
+- **🔴 HIGH:** `Refund` sin CC settlement (regresión de Fase 1), `CLIENT_ID`/`LEDGER_API`/`PARTY` hardcodeados
+- **Acción inmediata:** Rotar el secreto DevNet + mover a variables de entorno
 
 ### Prioridad #1: Videos (crítico para la submission)
 - Grabar pitch video (3 min) y technical demo video (3 min)
