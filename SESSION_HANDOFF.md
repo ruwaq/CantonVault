@@ -1,8 +1,8 @@
 # Session Handoff — CantonVault Hackathon
-## Última actualización: 2026-07-18 (AGENTSHIELD CROSS-POLLINATION — demo listo para videos)
+## Última actualización: 2026-07-18 (AUDITORÍA FASE 2 COMPLETA + REMEDIACIÓN)
 
 > **LEER ESTO PRIMERO** al iniciar la próxima sesión.
-> Estado verificado en vivo, DevNet, y build local (Vite + tsc).
+> Auditoría completa (43 hallazgos) + remediación de CRITICAL/HIGH/MEDIUM.
 > Deadline: **19 julio medianoche** — quedan ~24 horas.
 
 ---
@@ -304,12 +304,15 @@ npx wrangler kv key list --namespace-id "$NS" --remote | python3 -c "import sys,
 
 ## 📅 PRÓXIMA SESIÓN
 
-### 🆕 Prioridad #0: Auditoría Integral (Fase 2 — COMPLETADA ✅)
+### 🆕 Prioridad #0: Auditoría Integral (Fase 2 — COMPLETADA + REMEDIADA ✅)
 - **Plan:** `docs/superpowers/specs/2026-07-18-audit-plan.md`
-- **Resultados:** `SECURITY.md` actualizado — 43 hallazgos (3 CRITICAL, 6 HIGH, 13 MEDIUM, 12 LOW, 9 INFO)
-- **🚨 CRÍTICO:** `CLIENT_SECRET` hardcodeado en 3 archivos (`_ledger.js`, `backend-worker/src/index.ts`, `backend-ts/src/types.ts`)
-- **🔴 HIGH:** `Refund` sin CC settlement (regresión de Fase 1), `CLIENT_ID`/`LEDGER_API`/`PARTY` hardcodeados
-- **Acción inmediata:** Rotar el secreto DevNet + mover a variables de entorno
+- **Resultados:** `SECURITY.md` — 43 hallazgos (3 CRITICAL, 6 HIGH, 13 MEDIUM, 12 LOW, 9 INFO)
+- **Remediación:** commit `7dcb4fd` — 33 archivos, 1203 inserciones
+  - ✅ CRITICAL: `CLIENT_SECRET` movido a env vars en 3 archivos + 13 handlers
+  - ✅ HIGH: Daml `Refund` ahora soporta reverse CC settlement
+  - ✅ MEDIUM: seed-demo auth, PrivacyLab useMemo fix
+  - ✅ LOW: 401 interceptor, CorsConfig, deadline validation
+- **⚠️ PENDIENTE:** Rotar el secreto en DevNet (el valor viejo ya está en el historial de git)
 
 ### Prioridad #1: Videos (crítico para la submission)
 - Grabar pitch video (3 min) y technical demo video (3 min)
