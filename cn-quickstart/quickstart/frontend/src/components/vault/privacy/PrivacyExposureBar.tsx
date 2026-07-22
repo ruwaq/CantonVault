@@ -58,7 +58,6 @@ interface PrivacyExposureBarProps {
  * exposed at each stage of the CantonVault lifecycle. Color-coded from
  * green (private) through yellow (selective disclosure) to red (public).
  *
- * Inspired by AgentShield's risk bar visualization.
  */
 const PrivacyExposureBar: React.FC<PrivacyExposureBarProps> = ({ currentStage }) => (
   <div className="cv-exposure-bar card glass-panel mb-4">

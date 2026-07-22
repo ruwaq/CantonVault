@@ -1,107 +1,107 @@
-# Decisión 02 — Arquitectura técnica
+# Decision 02 — Technical Architecture
 
-> **Stack, contratos Daml, infraestructura y extensiones al cn-quickstart.**
-> Cada decisión técnica justificada con la alternativa descartada. **Versión v2 institucional.**
+> **Stack, Daml contracts, infrastructure, and extensions to cn-quickstart.**
+> Each technical decision justified with the discarded alternative. **v2 institutional version.**
 
-**Fecha**: 2026-06-20
-**Estado**: ✅ Aprobada
+**Date**: 2026-06-20
+**Status**: ✅ Approved
 **Base**: `digital-asset/cn-quickstart` (commit main, Daml SDK 3.4.11, Splice 0.5.3)
 
 ---
 
-## 🏗️ Arquitectura de alto nivel
+## 🏗️ High-Level Architecture
 
 ```
 ┌──────────────────────────────────────────────────────┐
 │                    FRONTEND                            │
 │  React 18 + TypeScript + Vite + TailwindCSS           │
-│  • Dashboard de compromisos (como payer / payee)      │
-│  • Crear compromiso (Propose flow)                    │
-│  • Detalle + acciones (Release / Dispute / Resolve)   │
-│  • 🔥 Vista SPLIT-SCREEN (4 cuadrantes) — la killer   │
-│    Buyer | Seller | Arbiter | Competidor              │
+│  • Commitments dashboard (as payer / payee)           │
+│  • Create commitment (Propose flow)                    │
+│  • Detail + actions (Release / Dispute / Resolve)      │
+│  • 🔥 SPLIT-SCREEN view (4 quadrants) — the killer     │
+│    Buyer | Seller | Arbiter | Competitor               │
 ├──────────────────────────────────────────────────────┤
 │                 common/openapi.yaml                    │
-│   ← FUENTE ÚNICA de verdad (contract-first)           │
+│   ← SINGLE source of truth (contract-first)            │
 ├──────────────────────────────────────────────────────┤
 │                    BACKEND                             │
 │  Java 21 + Spring Boot 3.4                             │
 │  Writes: gRPC → Canton participant (LEDGER_HOST:3901) │
-│  Reads:  PQS (Postgres SQL sobre Active Contract Set) │
+│  Reads:  PQS (Postgres SQL over Active Contract Set)   │
 │  Auth:   shared-secret (dev) / OAuth2 Keycloak (prod) │
 ├──────────────────────────────────────────────────────┤
 │              SMART CONTRACTS (Daml)                    │
 │  • CommitmentProposal  (Propose pattern)              │
 │  • CommitmentContract  (Disclosure interface)         │
 │  • DisputeCase         (arbiter on-demand)            │
-│  • SettlementReceipt   (recibo inmutable)             │
-│  + Settlement con Canton Coin (amulet / token std)    │
+│  • SettlementReceipt   (immutable receipt)             │
+│  + Settlement with Canton Coin (amulet / token std)   │
 ├──────────────────────────────────────────────────────┤
-│              INFRAESTRUCTURA                           │
+│              INFRASTRUCTURE                             │
 │  Dev:    cn-quickstart Docker LocalNet (compose)      │
-│  Live:   Seaport devnet.seaport.to (.dar upload al validator)│
+│  Live:   Seaport devnet.seaport.to (.dar upload to validator)│
 └──────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🧩 Por qué esta arquitectura (alternativas descartadas)
+## 🧩 Why This Architecture (Discarded Alternatives)
 
-### Decisión A1: cn-quickstart como base (NO proyecto desde cero)
+### Decision A1: cn-quickstart as base (NOT a project from scratch)
 
-| Opción | Pros | Contras | Veredicto |
+| Option | Pros | Cons | Verdict |
 |---|---|---|---|
-| **cn-quickstart** ⭐ | Stack completo y probado, patrón Propose/Accept ya implementado, Docker compose listo, Jatin lo mostró como referencia | Hay que entender el código existente (Java + OpenAPI codegen) | ✅ **Elegido** |
-| Proyecto desde cero | Control total, solo lo necesario | Hay que montar auth, PQS, gRPC, codegen, Docker — 2 semanas extra | ❌ Descartado |
-| Solo frontend + JSON API directo | Sin backend Java | La auth de parties en Canton es compleja; sin PQS las queries son lentas | ❌ Descartado |
+| **cn-quickstart** ⭐ | Complete and proven stack, Propose/Accept pattern already implemented, Docker compose ready, Jatin showed it as reference | Must understand existing code (Java + OpenAPI codegen) | ✅ **Chosen** |
+| Project from scratch | Full control, only what is needed | Must set up auth, PQS, gRPC, codegen, Docker — 2 extra weeks | ❌ Discarded |
+| Frontend only + direct JSON API | No Java backend | Party auth in Canton is complex; without PQS queries are slow | ❌ Discarded |
 
-**Justificación**: El workshop de Jatin usó cn-quickstart como referencia. Los jueces conocen el stack. Usarlo demuestra "entendemos el ecosistema". El codegen contract-first (OpenAPI compartido) reduce scope de backend.
+**Rationale**: Jatin's workshop used cn-quickstart as reference. The judges know the stack. Using it demonstrates "we understand the ecosystem". Contract-first codegen (shared OpenAPI) reduces backend scope.
 
-### Decisión A2: Frontend directo al validator (NO vía backend Java)
+### Decision A2: Frontend directly to validator (NOT via Java backend)
 
-| Opción | Pros | Contras | Veredicto |
+| Option | Pros | Cons | Verdict |
 |---|---|---|---|
-| **cn-quickstart pattern (frontend → backend → ledger)** ⭐ | Auth, PQS, codegen ya resueltos | 1 capa más | ✅ **Elegido** (alineado al scaffold) |
-| Frontend → JSON API directo | Sin backend, más simple | Auth de parties y external signing son complejos; Seaport no documentado | ❌ Descartado |
+| **cn-quickstart pattern (frontend → backend → ledger)** ⭐ | Auth, PQS, codegen already solved | 1 extra layer | ✅ **Chosen** (aligned with scaffold) |
+| Frontend → direct JSON API | No backend, simpler | Party auth and external signing are complex; Seaport undocumented | ❌ Discarded |
 
-**Justificación**: La auth de parties en Canton (JWT por party, external signing con Loop wallet) es compleja. El cn-quickstart ya la resuelve. No reinventar.
+**Rationale**: Party auth in Canton (JWT per party, external signing with Loop wallet) is complex. cn-quickstart already solves it. Don't reinvent.
 
-### Decisión A3: Dev = LocalNet Docker + Live = Seaport devnet
+### Decision A3: Dev = LocalNet Docker + Live = Seaport devnet
 
-> ⚠️ **Seaport (devnet.seaport.to) NO está documentado oficialmente.** Es un wrapper hackathon mostrado por Jatin en vivo. Hay que confirmar con Jatin en Discord 3 cosas:
-> 1. Cómo se sube el `.dar` desde Seaport
-> 2. Qué URL base del JSON API nos asignan
-> 3. Formato de party ID esperado
+> ⚠️ **Seaport (devnet.seaport.to) is NOT officially documented.** It is a hackathon wrapper shown by Jatin live. Must confirm with Jatin on Discord 3 things:
+> 1. How to upload the `.dar` from Seaport
+> 2. What JSON API base URL they assign us
+> 3. Expected party ID format
 
-**Estrategia dual** (degrada con elegancia):
-- **Desarrollo**: `make start` con cn-quickstart Docker LocalNet → 100% control, logs, debugging
-- **Live para jueces**: subir el `.dar` compilado a Seaport devnet → cumple el requirement "Link to live product"
+**Dual strategy** (degrades gracefully):
+- **Development**: `make start` with cn-quickstart Docker LocalNet → 100% control, logs, debugging
+- **Live for judges**: upload the compiled `.dar` to Seaport devnet → meets the "Link to live product" requirement
 
-**Fallback** si Seaport no coopera: instrucciones claras de `make start` en 1 comando en el README, con video demo. Los jueces prefieren un LocalNet que funciona que un Seaport que se rompe.
+**Fallback** if Seaport doesn't cooperate: clear `make start` instructions in 1 command in the README, with demo video. Judges prefer a working LocalNet over a broken Seaport.
 
 ---
 
-## 📜 Los 4 contratos Daml (diseño detallado)
+## 📜 The 4 Daml Contracts (Detailed Design)
 
-### Principio rector de privacidad
-> **El árbitro NUNCA debe ser controller de una choice sobre `CommitmentContract`**, porque ejercer una choice divulga el contrato al controller. Las choices del árbitro viven en `DisputeCase`, contrato separado.
+### Privacy Guiding Principle
+> **The arbiter MUST NEVER be a controller of a choice on `CommitmentContract`**, because exercising a choice divulges the contract to the controller. The arbiter's choices live in `DisputeCase`, a separate contract.
 
-### Template 1: `CommitmentProposal` (Patrón Propose)
+### Template 1: `CommitmentProposal` (Propose Pattern)
 
 ```daml
--- Adaptación del AppInstallRequest del cn-quickstart
+-- Adaptation of the AppInstallRequest from cn-quickstart
 template CommitmentProposal with
-    payer     : Party        -- quien crea la propuesta (John / Donante)
-    payee     : Party        -- quien la acepta (María / ONG)
-    arbiter   : Party        -- referenciado, PERO no stakeholder aún
+    payer     : Party        -- who creates the proposal (John / Donor)
+    payee     : Party        -- who accepts it (María / NGO)
+    arbiter   : Party        -- referenced, BUT not a stakeholder yet
     amount    : Decimal
     currency  : Text         -- "USD", "MXN", "EUR"
-    description : Text       -- "Café orgánico 500kg" / "Apoyo 12 familias"
+    description : Text       -- "Organic coffee 500kg" / "Support 12 families"
     deadline  : Time
-    scenario  : Text         -- "b2b" | "ngo" (para UX)
+    scenario  : Text         -- "b2b" | "ngo" (for UX)
   where
-    signatory payer          -- solo el proponente autoriza la creación
-    observer  payee          -- la contraparte ve, pero no puede alterar
+    signatory payer          -- only the proposer authorizes creation
+    observer  payee          -- the counterparty sees, but cannot alter
     ensure amount > 0.0
     ensure payer /= payee
 
@@ -112,23 +112,23 @@ template CommitmentProposal with
            payee = payee
            arbiter = arbiter
            amount = amount
-           -- ... todos los campos
+           -- ... all fields
            status = Active
 
     choice RejectProposal : ()
       controller payee
-      do pure ()   -- consuming: archiva la propuesta
+      do pure ()   -- consuming: archives the proposal
 ```
 
-**Privacidad en este punto**: payer y payee ven la propuesta. Arbiter **no** la ve. Competidor **no** la ve.
+**Privacy at this point**: payer and payee see the proposal. Arbiter does **not** see it. Competitor does **not** see it.
 
-### Template 2: `CommitmentContract` (con Disclosure interface)
+### Template 2: `CommitmentContract` (with Disclosure interface)
 
 ```daml
 template CommitmentContract with
     payer       : Party
     payee       : Party
-    arbiter     : Party        -- REFERENCIADO pero NO en observer/signatory
+    arbiter     : Party        -- REFERENCED but NOT in observer/signatory
     amount      : Decimal
     currency    : Text
     description : Text
@@ -136,16 +136,16 @@ template CommitmentContract with
     scenario    : Text
     status      : Status       -- Active | Fulfilled | Disputed | Refunded
   where
-    signatory payer, payee     -- SOLO las dos partes
-    -- ⚠️ NO 'observer arbiter' aquí — esa es la clave de la privacidad
+    signatory payer, payee     -- ONLY the two parties
+    -- ⚠️ NO 'observer arbiter' here — that is the key to privacy
     ensure amount > 0.0
 
-    -- Pago normal: payee entrega, payer confirma
+    -- Normal payment: payee delivers, payer confirms
     choice Fulfill : ContractId SettlementReceipt
       controller payer
       do
-        -- 🔥 Settlement REAL con Canton Coin (amulet token standard)
-        -- (patrón de LicenseRenewalRequest_CompleteRenewal del cn-quickstart)
+        -- 🔥 REAL Settlement with Canton Coin (amulet token standard)
+        -- (pattern from LicenseRenewalRequest_CompleteRenewal in cn-quickstart)
         create SettlementReceipt with
           payer = payer
           payee = payee
@@ -153,8 +153,8 @@ template CommitmentContract with
           currency = currency
           timestamp = ...  -- getTime
 
-    -- Cualquiera de las 2 partes puede levantar disputa
-    -- Esto crea el DisputeCase → aquí el arbiter ENTRA como observer
+    -- Either of the 2 parties can raise a dispute
+    -- This creates the DisputeCase → here the arbiter ENTERS as observer
     nonconsuming choice RaiseDispute : ContractId DisputeCase
       with reason : Text
       controller payer, payee
@@ -164,20 +164,20 @@ template CommitmentContract with
            payee = payee
            arbiter = arbiter
            reason = reason
-           amountRevealed = amount      -- solo ahora el arbiter ve el monto
+           amountRevealed = amount      -- only now the arbiter sees the amount
            descriptionRevealed = description
 
-    -- Antes de deadline, payer puede recuperar (si payee no responde)
+    -- Before deadline, payer can recover (if payee doesn't respond)
     choice Refund : ()
       controller payer
-      do ...  -- requiere check de deadline
+      do ...  -- requires deadline check
 ```
 
-**Privacidad garantizada**:
-- Payer y payee: ven todo siempre
-- Arbiter: **no ve nada** mientras no haya disputa
-- Competidor: **no ve nada nunca**
-- Cuando se levanta disputa → se crea `DisputeCase` → arbiter ve SOLO lo que ponemos en ese contrato
+**Guaranteed privacy**:
+- Payer and payee: always see everything
+- Arbiter: **sees nothing** while there is no dispute
+- Competitor: **never sees anything**
+- When a dispute is raised → `DisputeCase` is created → arbiter sees ONLY what we put in that contract
 
 ### Template 3: `DisputeCase` (arbiter on-demand)
 
@@ -188,23 +188,23 @@ template DisputeCase with
     payee              : Party
     arbiter            : Party
     reason             : Text
-    amountRevealed     : Decimal      -- ⚠️ NO copiamos TODO el contrato
+    amountRevealed     : Decimal      -- ⚠️ we do NOT copy the ENTIRE contract
     descriptionRevealed: Text
     ruling             : Optional Text
   where
     signatory payer, payee
-    observer  arbiter                 -- 🔥 recién aquí el arbiter entra
+    observer  arbiter                 -- 🔥 only now the arbiter enters
 
-    -- El arbiter decide: a favor de payer o payee
+    -- The arbiter decides: in favor of payer or payee
     choice ResolveDispute : ContractId SettlementReceipt
       with ruling : Text
-      controller arbiter              -- solo el arbiter ejerce esto
+      controller arbiter              -- only the arbiter exercises this
       do
-        -- lógica según ruling → Fulfill o Refund
+        -- logic according to ruling → Fulfill or Refund
         create SettlementReceipt with ...
 ```
 
-### Template 4: `SettlementReceipt` (recibo inmutable)
+### Template 4: `SettlementReceipt` (immutable receipt)
 
 ```daml
 template SettlementReceipt with
@@ -216,52 +216,52 @@ template SettlementReceipt with
     note      : Optional Text
   where
     signatory payer, payee
-    -- No choices: es evidence criptográfica de cierre
+    -- No choices: it is cryptographic evidence of closure
 ```
 
 ---
 
-## 🔐 Verificación de privacidad por escenario (v2 institucional)
+## 🔐 Privacy Verification by Scenario (v2 Institutional)
 
-### Escenario 1: Invoice Financing Privado — SME Corp / Financier / Buyer Corp
+### Scenario 1: Private Invoice Financing — SME Corp / Financier / Buyer Corp
 
-| Party | ¿Ve CommitmentProposal? | ¿Ve CommitmentContract? | ¿Ve DisputeCase? | ¿Ve SettlementReceipt? |
+| Party | Sees CommitmentProposal? | Sees CommitmentContract? | Sees DisputeCase? | Sees SettlementReceipt? |
 |---|---|---|---|---|
-| SME Corp (payer del repayment) | ✅ creador | ✅ signatory | ✅ (si dispute) | ✅ |
-| Financier (payee del repayment) | ✅ observer | ✅ signatory | ✅ (si dispute) | ✅ |
-| Buyer Corp (deudor subyacente) | ❌ | ❌ | ❌ | ❌ |
-| Competidor del Financier | ❌ | ❌ | ❌ | ❌ |
+| SME Corp (payer of repayment) | ✅ creator | ✅ signatory | ✅ (if dispute) | ✅ |
+| Financier (payee of repayment) | ✅ observer | ✅ signatory | ✅ (if dispute) | ✅ |
+| Buyer Corp (underlying debtor) | ❌ | ❌ | ❌ | ❌ |
+| Financier's Competitor | ❌ | ❌ | ❌ | ❌ |
 
-**Lo que se demuestra**: Buyer nunca sabe que la factura se factorizó (previene double-factoring y signal de debilidad). Competidor no ve el portfolio.
+**What is demonstrated**: Buyer never knows the invoice was factored (prevents double-factoring and weakness signal). Competitor does not see the portfolio.
 
-### Escenario 2: OTC Block Trade Privado — Dealer A / Dealer B / Clearing
+### Scenario 2: Private OTC Block Trade — Dealer A / Dealer B / Clearing
 
-| Party | ¿Ve CommitmentProposal? | ¿Ve CommitmentContract? | ¿Ve DisclosureContract (netting)? | ¿Ve SettlementReceipt? |
+| Party | Sees CommitmentProposal? | Sees CommitmentContract? | Sees DisclosureContract (netting)? | Sees SettlementReceipt? |
 |---|---|---|---|---|
-| Dealer A | ✅ creador | ✅ signatory | — | ✅ |
+| Dealer A | ✅ creator | ✅ signatory | — | ✅ |
 | Dealer B | ✅ observer | ✅ signatory | — | ✅ |
-| Clearing house | ❌ | ❌ | ✅ **solo netting** (on-demand) | 🟡 solo netting receipt |
-| Mercado / competidores | ❌ | ❌ | ❌ | ❌ |
+| Clearing house | ❌ | ❌ | ✅ **netting only** (on-demand) | 🟡 netting receipt only |
+| Market / competitors | ❌ | ❌ | ❌ | ❌ |
 
-**Lo que se demuestra**: el clearing solo ve lo mínimo para netting (no el portfolio completo). El mercado no puede front-runear lo que no existe para su nodo.
+**What is demonstrated**: the clearing house only sees the minimum for netting (not the full portfolio). The market cannot front-run what does not exist for its node.
 
-> 💡 **El patrón DisclosureContract** se usa en el escenario OTC para revelar SOLO los campos de netting al clearing, no el trade completo. Es el mismo mecanismo que el DisputeCase pero con semántica "disclosure de netting" en vez de "disputa".
+> 💡 **The DisclosureContract pattern** is used in the OTC scenario to reveal ONLY the netting fields to the clearing house, not the full trade. It is the same mechanism as DisputeCase but with "netting disclosure" semantics instead of "dispute".
 
 ---
 
-## 🔧 Extensiones al cn-quickstart (la lista concreta)
+## 🔧 Extensions to cn-quickstart (Concrete List)
 
-### Daml (4 archivos nuevos)
+### Daml (4 new files)
 ```
 quickstart/daml/licensing/daml/Vault/
 ├── CommitmentProposal.daml
-├── CommitmentContract.daml     ← implementa Disclosure interface
+├── CommitmentContract.daml     ← implements Disclosure interface
 ├── DisputeCase.daml
 └── SettlementReceipt.daml
 ```
-Más tests en `daml/licensing-tests/daml/Vault/Scripts/`.
+Plus tests in `daml/licensing-tests/daml/Vault/Scripts/`.
 
-### OpenAPI (1 archivo editado)
+### OpenAPI (1 edited file)
 ```
 quickstart/common/openapi.yaml
   + paths:
@@ -276,9 +276,9 @@ quickstart/common/openapi.yaml
       /dispute-cases/{cid}:resolve
       /settlement-receipts
 ```
-→ El codegen genera automáticamente interfaces Spring (backend) + tipos TS (frontend).
+→ The codegen automatically generates Spring interfaces (backend) + TS types (frontend).
 
-### Backend (4 controladores nuevos)
+### Backend (4 new controllers)
 ```
 quickstart/backend/src/main/java/com/digitalasset/quickstart/service/
 ├── CommitmentProposalsApiImpl.java
@@ -286,16 +286,16 @@ quickstart/backend/src/main/java/com/digitalasset/quickstart/service/
 ├── DisputeCasesApiImpl.java
 └── SettlementReceiptsApiImpl.java
 ```
-Patrón: copiar `AppInstallRequestsApiImpl.java` (Propose/Accept) y `LicenseApiImpl.java` (settlement con amulet).
+Pattern: copy `AppInstallRequestsApiImpl.java` (Propose/Accept) and `LicenseApiImpl.java` (settlement with amulet).
 
-### Frontend (3 vistas nuevas + 1 split-screen)
+### Frontend (3 new views + 1 split-screen)
 ```
 quickstart/frontend/src/
 ├── views/
-│   ├── DashboardView.tsx          ← lista de compromisos por rol
-│   ├── CreateCommitmentView.tsx   ← formulario propose
-│   ├── CommitmentDetailView.tsx   ← acciones fulfill/dispute/refund
-│   └── SplitScreenDemoView.tsx    ← 🔥 LA KILLER FEATURE
+│   ├── DashboardView.tsx          ← list of commitments by role
+│   ├── CreateCommitmentView.tsx   ← propose form
+│   ├── CommitmentDetailView.tsx   ← fulfill/dispute/refund actions
+│   └── SplitScreenDemoView.tsx    ← 🔥 THE KILLER FEATURE
 ├── stores/
 │   ├── commitmentStore.tsx
 │   └── disputeStore.tsx
@@ -305,28 +305,28 @@ quickstart/frontend/src/
 
 ---
 
-## 🧪 Estrategia de testing
+## 🧪 Testing Strategy
 
-| Nivel | Herramienta | Qué cubre |
+| Level | Tool | What It Covers |
 |---|---|---|
-| **Daml Script** (unit) | `daml test` | Lógica de choices, ensure, transiciones de estado |
-| **Daml Script** (privacy) | Test de visibilidad por party | Verificar que arbiter NO ve CommitmentContract hasta disputa |
-| **Integración backend** | Spring Boot Test + LocalNet | Endpoints REST ↔ ledger, PQS queries |
-| **E2E** | Playwright (incluido en quickstart) | Flujo completo: crear → aceptar → fulfill → receipt |
-| **Demo privacy** | Script de Daml Script grabable | Genera el estado del split-screen para el video |
+| **Daml Script** (unit) | `daml test` | Choice logic, ensure, state transitions |
+| **Daml Script** (privacy) | Visibility test by party | Verify that arbiter does NOT see CommitmentContract until dispute |
+| **Backend integration** | Spring Boot Test + LocalNet | REST endpoints ↔ ledger, PQS queries |
+| **E2E** | Playwright (included in quickstart) | Full flow: create → accept → fulfill → receipt |
+| **Privacy demo** | Recordable Daml Script | Generates the split-screen state for the video |
 
-**Test crítico de privacidad** (el que demuestra que funciona):
+**Critical privacy test** (the one that proves it works):
 ```daml
--- Verifica que el arbiter NO puede ver CommitmentContract
+-- Verifies that the arbiter CANNOT see CommitmentContract
 test_arbiter_privacy = script do
   ... create CommitmentContract ...
-  -- query active contracts as arbiter → debe estar vacío
+  -- query active contracts as arbiter → should be empty
   arbiterContracts <- query @CommitmentContract arbiter
   assertMsg "Arbiter should NOT see CommitmentContract"
     (null arbiterContracts)
-  -- levantar disputa
+  -- raise dispute
   ... exercise RaiseDispute ...
-  -- ahora arbiter ve DisputeCase pero NO CommitmentContract
+  -- now arbiter sees DisputeCase but NOT CommitmentContract
   arbiterDisputes <- query @DisputeCase arbiter
   assertMsg "Arbiter should see DisputeCase"
     (not (null arbiterDisputes))
@@ -334,25 +334,25 @@ test_arbiter_privacy = script do
 
 ---
 
-## 🚨 Riesgos técnicos y mitigaciones
+## 🚨 Technical Risks and Mitigations
 
-| Riesgo | Probabilidad | Impacto | Mitigación |
+| Risk | Probability | Impact | Mitigation |
 |---|---|---|---|
-| Seaport no coopera / no docs | 🔴 alta | 🟡 medio | Dual deploy: LocalNet docker como respaldo |
-| Disclosure interface no compila en SDK 3.4.11 | 🟡 media | 🟡 medio | Fallback a patrón DisputeCase manual (ya diseñado) |
-| Settlement con amulet demasiado complejo | 🟡 media | 🔴 **alto** | **NON-NEGOTIABLE**: Canton Coin settlement real es lo que nos hace económicamente nativos (Cantonomics: 62% del pool a featured apps con transaction utility). Si tropezamos, prioridad absoluta hasta que funcione — NO hay fallback a settlement simbólico (eso nos descarta del Featured App pipeline y del Protocol Development Fund) |
-| Daml SDK learning curve | 🔴 alta | 🟡 medio | Semana 1 dedicada a dominar Daml con el cn-quickstart como referencia |
-| Auth de parties en frontend | 🟡 media | 🟡 medio | Usar el shared-secret del cn-quickstart (already works) |
+| Seaport doesn't cooperate / no docs | 🔴 high | 🟡 medium | Dual deploy: LocalNet docker as fallback |
+| Disclosure interface doesn't compile in SDK 3.4.11 | 🟡 medium | 🟡 medium | Fallback to manual DisputeCase pattern (already designed) |
+| Settlement with amulet too complex | 🟡 medium | 🔴 **high** | **NON-NEGOTIABLE**: Real Canton Coin settlement is what makes us economically native (Cantonomics: 62% of the pool to featured apps with transaction utility). If we stumble, absolute priority until it works — NO fallback to symbolic settlement (that disqualifies us from the Featured App pipeline and the Protocol Development Fund) |
+| Daml SDK learning curve | 🔴 high | 🟡 medium | Week 1 dedicated to mastering Daml with cn-quickstart as reference |
+| Party auth in frontend | 🟡 medium | 🟡 medium | Use the shared-secret from cn-quickstart (already works) |
 
 ---
 
-## 📚 Referencias técnicas verificadas
+## 📚 Verified Technical References
 
 - Daml reference (templates/choices/structure): https://docs.digitalasset.com/build/3.5/reference/daml/structure.html
 - Parties & authority: https://docs.digitalasset.com/build/3.5/tutorials/smart-contracts/parties.html
 - Ledger privacy & divulgence: https://docs.digitalasset.com/overview/3.4/explanations/ledger-model/ledger-privacy.html
 - Daml.Finance Disclosure interface: https://github.com/digital-asset/daml-finance/blob/main/src/main/daml/Daml/Finance/Interface/Util/V3/Disclosure.daml
 - cn-quickstart AppInstall (Propose/Accept): https://github.com/digital-asset/cn-quickstart/blob/main/quickstart/daml/licensing/daml/Licensing/AppInstall.daml
-- cn-quickstart License (settlement con amulet): https://github.com/digital-asset/cn-quickstart/blob/main/quickstart/daml/licensing/daml/Licensing/License.daml
+- cn-quickstart License (settlement with amulet): https://github.com/digital-asset/cn-quickstart/blob/main/quickstart/daml/licensing/daml/Licensing/License.daml
 - Canton architecture: https://docs.canton.network/overview/learn/architecture
 - JSON Ledger API V2: https://docs.digitalasset.com/explanations/json-api/index.html

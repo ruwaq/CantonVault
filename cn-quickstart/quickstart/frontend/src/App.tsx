@@ -10,7 +10,6 @@ import Header from './components/Header';
 import ToastNotification from './components/ToastNotification';
 import RequireAuth from './components/RequireAuth';
 import VaultView from './views/VaultView';
-import LandingView from './views/LandingView';
 
 /**
  * App shell. SWR owns data fetching/caching globally (no per-store Providers
@@ -25,7 +24,7 @@ const App: React.FC = () => {
             <div className="app-container">
                 <Routes>
                     {/* Full-screen public pages — no app chrome */}
-                    <Route path="/" element={<LandingView />} />
+                    <Route path="/" element={<Navigate to="/vault" replace />} />
                     <Route path="/login" element={<LoginView />} />
                     {/* Authenticated app — with header nav */}
                     <Route path="/*" element={

@@ -1,185 +1,185 @@
-# Decisión 03 — Posicionamiento y pitch
+# Decision 03 — Positioning and pitch
 
-> **Naming, tagline, narrativa, escenarios de demo y script del video de 3 min.**
-> Lo que los jueces van a ver y oír. **Versión v2 institucional** (sin LATAM, sin ONG).
+> **Naming, tagline, narrative, demo scenarios, and 3-minute video script.**
+> What the judges will see and hear. **Institutional v2 version** (no LATAM, no NGO).
 
-**Fecha**: 2026-06-20 (v2)
-**Estado**: ✅ Aprobado
+**Date**: 2026-06-20 (v2)
+**Status**: ✅ Approved
 
 ---
 
-## 🏷️ Identidad
+## 🏷️ Identity
 
-| Campo | Valor |
+| Field | Value |
 |---|---|
-| **Nombre del producto** | `CantonVault` |
+| **Product name** | `CantonVault` |
 | **Tagline EN** | *"Privacy-first conditional commitments for institutional trade finance."* |
 | **Tagline ES** | *"Compromisos condicionales con privacidad para finanzas de comercio institucional."* |
-| **Frase del video** | *"Privacy without proof isn't privacy — it's a liability. CantonVault makes selective disclosure the emergent property of stakeholder-scoped atomic settlement, not a bolted-on cryptographic layer."* |
-| **Tracks** | Track 1 (Private DeFi) primario + Track 2 (TradeFi/RWA) |
-| **Tono** | Institucional, premium, técnico-preciso (no hype, no emoción barata) |
+| **Video phrase** | *"Privacy without proof isn't privacy — it's a liability. CantonVault makes selective disclosure the emergent property of stakeholder-scoped atomic settlement, not a bolted-on cryptographic layer."* |
+| **Tracks** | Track 1 (Private DeFi) primary + Track 2 (TradeFi/RWA) |
+| **Tone** | Institutional, premium, technically precise (no hype, no cheap emotion) |
 
-### Por qué "CantonVault" y no "CantonEscrow"
+### Why "CantonVault" and not "CantonEscrow"
 
-| Nombre | Posicionamiento implícito | Bucket competitivo |
+| Name | Implicit positioning | Competitive bucket |
 |---|---|---|
-| CantonEscrow | "Otro producto de escrow" | Commodity (5-10 equipos) |
-| **CantonVault** | "Primitiva de privacidad / bóveda de compromisos" | Diferenciado (0 equipos) |
+| CantonEscrow | "Another escrow product" | Commodity (5-10 teams) |
+| **CantonVault** | "Privacy primitive / commitment vault" | Differentiated (0 teams) |
 
-"Vault" evoca seguridad institucional, control, confidencialidad regulada. "Escrow" evoca "un contrato más de internet". El nombre es la primera impresión del juez.
-
----
-
-## 🎬 Los 2 escenarios de la demo (100% institucionales)
-
-> ⚠️ **Sin LATAM, sin ONG**. Ambos escenarios son casos de uso **literales del brief oficial**.
-
-### Escenario 1 (principal, ~65% del demo): **Invoice Financing Privado**
-
-> **SME Corp** (vendedor) tiene factura pendiente de **Buyer Corp** (comprador grande, Net 60). **Financier** (fondo / factor) le adelanta cash con 5% descuento.
-
-**El dolor real (verificado)**:
-- El SME no quiere que el Financier vea **TODO su portfolio de facturas** → riesgo de double-factoring y signal de debilidad financiera
-- El Financier no quiere que el Buyer sepa que la factura se factorizó → riesgo de adverse selection en pricing
-- Hoy: ambos se enteran de todo vía sistemas centralizados o reportes manuales
-
-**Con CantonVault**:
-1. SME crea `CommitmentProposal` (SME = payer del financiamiento, Financier = payee que recibe repayment, Buyer = deudor subyacente)
-2. Financier acepta → se crea `CommitmentContract`. **SME y Financier ven. Buyer y competidores NO.**
-3. Cuando Buyer paga la factura al SME → SME confirma → `Fulfill`
-4. Settlement atómico en Canton Coin: repayment al Financier. Se crea `SettlementReceipt`.
-5. **El Buyer nunca supo que la factura se factorizó. Los competidores del SME nunca vieron el portfolio completo.**
-
-**Split-screen**:
-| SME Corp | Financier | Buyer Corp | Competidor |
-|---|---|---|---|
-| ✅ Ve compromiso + repayment | ✅ Ve compromiso + repayment | ❌ **Vacío** (no sabe que se factorizó) | ❌ **Vacío siempre** |
-
-### Escenario 2 (complementario, ~25% del demo): **OTC Block Trade Privado**
-
-> **Dealer A** y **Dealer B** negocian un bloque OTC (bonos / derivados). **Clearing house** necesita ver lo mínimo para netting.
-
-**El dolor real (verificado)**:
-- Competencia no debe ver precio/size del bloque **antes** de ejecución → movimiento de mercado en contra
-- El clearing no debe ver el portfolio completo de cada dealer → info privilegiada
-- Hoy: phone broker + chat + riesgo de leakage
-
-**Con CantonVault**:
-1. Dealer A crea `CommitmentProposal` (price, size, instrument) → Dealer B observer
-2. Dealer B acepta → `CommitmentContract` creado. Ambos dealers ven. **Clearing no ve nada aún.**
-3. En settlement → `Fulfill` → se crea `DisclosureContract` para el clearing con SOLO los campos de netting (no el portfolio completo)
-4. Settlement atómico en Canton Coin
-
-**Split-screen**:
-| Dealer A | Dealer B | Clearing | Mercado |
-|---|---|---|---|
-| ✅ Ve trade completo | ✅ Ve trade completo | 🟡 Ve **solo netting** (disclosure selectivo) | ❌ **Vacío** (no front-running posible) |
-
-### Cierre (~10% del demo): **"Una primitiva, múltiples workflows"**
-
-*"Mismo contrato subyacente. Invoice financing privado y OTC block trade privado. Privacidad selectiva como propiedad emergente del stakeholder-scoping, no como capa criptográfica bolted-on. Solo Canton."*
+"Vault" evokes institutional security, control, regulated confidentiality. "Escrow" evokes "just another internet contract." The name is the judge's first impression.
 
 ---
 
-## 🖥️ La killer feature: demo split-screen de 4 cuadrantes
+## 🎬 The 2 demo scenarios (100% institutional)
+
+> ⚠️ **No LATAM, no NGO**. Both scenarios are **literal use cases from the official brief**.
+
+### Scenario 1 (primary, ~65% of demo): **Private Invoice Financing**
+
+> **SME Corp** (seller) has an outstanding invoice from **Buyer Corp** (large buyer, Net 60). **Financier** (fund / factor) advances cash at a 5% discount.
+
+**The real pain point (verified)**:
+- The SME does not want the Financier to see **their ENTIRE invoice portfolio** → double-factoring risk and signal of financial weakness
+- The Financier does not want the Buyer to know the invoice was factored → adverse selection risk in pricing
+- Today: both parties learn everything via centralized systems or manual reports
+
+**With CantonVault**:
+1. SME creates `CommitmentProposal` (SME = financing payer, Financier = payee receiving repayment, Buyer = underlying debtor)
+2. Financier accepts → `CommitmentContract` is created. **SME and Financier can see it. Buyer and competitors CANNOT.**
+3. When Buyer pays the invoice to the SME → SME confirms → `Fulfill`
+4. Atomic settlement in Canton Coin: repayment to Financier. `SettlementReceipt` is created.
+5. **The Buyer never knew the invoice was factored. The SME's competitors never saw the full portfolio.**
+
+**Split-screen**:
+| SME Corp | Financier | Buyer Corp | Competitor |
+|---|---|---|---|
+| ✅ Sees commitment + repayment | ✅ Sees commitment + repayment | ❌ **Empty** (doesn't know factoring occurred) | ❌ **Always empty** |
+
+### Scenario 2 (complementary, ~25% of demo): **Private OTC Block Trade**
+
+> **Dealer A** and **Dealer B** negotiate an OTC block (bonds / derivatives). **Clearing house** needs to see the bare minimum for netting.
+
+**The real pain point (verified)**:
+- Competitors must not see the block's price/size **before** execution → adverse market movement
+- The clearing house must not see each dealer's full portfolio → privileged information
+- Today: phone broker + chat + leakage risk
+
+**With CantonVault**:
+1. Dealer A creates `CommitmentProposal` (price, size, instrument) → Dealer B observer
+2. Dealer B accepts → `CommitmentContract` created. Both dealers see it. **Clearing sees nothing yet.**
+3. At settlement → `Fulfill` → `DisclosureContract` is created for the clearing house with ONLY the netting fields (not the full portfolio)
+4. Atomic settlement in Canton Coin
+
+**Split-screen**:
+| Dealer A | Dealer B | Clearing | Market |
+|---|---|---|---|
+| ✅ Sees full trade | ✅ Sees full trade | 🟡 Sees **only netting** (selective disclosure) | ❌ **Empty** (no front-running possible) |
+
+### Closing (~10% of demo): **"One primitive, multiple workflows"**
+
+*"Same underlying contract. Private invoice financing and private OTC block trade. Selective privacy as an emergent property of stakeholder scoping, not as a bolted-on cryptographic layer. Only on Canton."*
+
+---
+
+## 🖥️ The killer feature: 4-quadrant split-screen demo
 
 ```
 ┌─────────────────────────┬─────────────────────────┐
-│  🏢 PARTE A (SME/Dealer)│  💼 PARTE B (Financier) │
+│  🏢 PARTY A (SME/Dealer)│  💼 PARTY B (Financier) │
 │                          │                          │
-│  ✅ Compromiso activo    │  ✅ Compromiso activo   │
-│  Repayment comprometido │  Fondos garantizados    │
-│  [Confirmar fulfillment]│  Esperando liberación   │
+│  ✅ Active commitment    │  ✅ Active commitment   │
+│  Repayment committed    │  Funds guaranteed       │
+│  [Confirm fulfillment]  │  Awaiting release       │
 ├─────────────────────────┼─────────────────────────┤
-│  ⚖️ TERCERO (Buyer/Clear)│  🌐 COMPETIDOR/MERCADO │
+│  ⚖️ THIRD PARTY (Buyer/Clear)│  🌐 COMPETITOR/MARKET │
 │                          │                          │
-│  (vacío hasta disclosure)│  (TOTALMENTE vacío)     │
+│  (empty until disclosure)│  (COMPLETELY empty)     │
 │                          │                          │
-│  💡 Disclosure on-demand │  💡 El contrato no       │
-│     cuando se necesita   │     existe para este nodo│
+│  💡 On-demand disclosure │  💡 The contract does    │
+│     when needed          │     not exist for this node│
 └─────────────────────────┴─────────────────────────┘
 ```
 
-**Por qué esto es imbatible**: en 30 segundos un juez entiende privacidad selectiva mejor que con 10 horas de explicación. El cuadrante del competidor **siempre vacío** es el golpe visual que demuestra que Canton no "oculta" datos: los datos **no existen** para esa party.
+**Why this is unbeatable**: in 30 seconds a judge understands selective privacy better than with 10 hours of explanation. The competitor quadrant **always empty** is the visual punch that proves Canton does not "hide" data: the data **does not exist** for that party.
 
 ---
 
-## 🎥 Script del video de 3 minutos
+## 🎥 3-minute video script
 
-| Tiempo | Sección | Contenido |
+| Time | Section | Content |
 |---|---|---|
-| 0:00-0:15 | **Dato shock** | *"En invoice financing, el double-factoring le cuesta a la industria miles de millones al año. Y en OTC trading, el leakage de un block order mueve mercados enteros en segundos."* |
-| 0:15-0:30 | **El problema** | *"En finanzas institucionales, las partes necesitan compartir lo mínimo necesario para ejecutar — sin exponer portfolio completo, sin revelar factorización, sin leakage de pricing a competidores. Hoy no existe esa infraestructura de selective disclosure nativa."* |
-| 0:30-0:45 | **La solución** | *"CantonVault: compromisos condicionales privados donde la privacidad es propiedad emergente del stakeholder-scoping, no una capa criptográfica. Una primitiva, múltiples workflows."* |
-| 0:45-1:45 | **Demo Escenario 1** | Invoice Financing: SME → Financier, Buyer no sabe. Split-screen. Sub-título: *"El Buyer ve un ledger vacío. La factorización nunca se reveló."* |
-| 1:45-2:15 | **Demo Escenario 2** | OTC Block Trade: Dealer A → Dealer B, Clearing ve solo netting. Sub-título: *"El mercado no puede front-runear lo que no puede ver."* |
-| 2:15-2:30 | **"Una primitiva, múltiples workflows"** | *"El mismo contrato. Privacidad como protocolo, no como opt-in caro."* |
-| 2:30-2:50 | **Por qué Canton** | *"En Ethereum puedes construir esto con ZK — a 10x el coste en ingeniería, con fuga de metadatos, sin settlement atómico nativo. Canton lo hace el default. Y no, no es Corda resucitado — Canton añade global synchronizer para composabilidad cross-firm y Canton Coin para settlement atómico. Corda no tenía ninguno."* |
-| 2:50-3:00 | **CTA** | *"CantonVault. Privacy without proof is a liability. We make it the protocol. Solo en Canton."* |
+| 0:00-0:15 | **Shock stat** | *"In invoice financing, double-factoring costs the industry billions each year. And in OTC trading, a block order leak moves entire markets in seconds."* |
+| 0:15-0:30 | **The problem** | *"In institutional finance, parties need to share the bare minimum required to execute — without exposing the full portfolio, without revealing factoring, without leaking pricing to competitors. Today, that native selective disclosure infrastructure does not exist."* |
+| 0:30-0:45 | **The solution** | *"CantonVault: private conditional commitments where privacy is the emergent property of stakeholder scoping, not a cryptographic layer. One primitive, multiple workflows."* |
+| 0:45-1:45 | **Demo Scenario 1** | Invoice Financing: SME → Financier, Buyer does not know. Split-screen. Subtitle: *"The Buyer sees an empty ledger. The factoring was never revealed."* |
+| 1:45-2:15 | **Demo Scenario 2** | OTC Block Trade: Dealer A → Dealer B, Clearing sees only netting. Subtitle: *"The market cannot front-run what it cannot see."* |
+| 2:15-2:30 | **"One primitive, multiple workflows"** | *"The same contract. Privacy as protocol, not as an expensive opt-in."* |
+| 2:30-2:50 | **Why Canton** | *"On Ethereum you can build this with ZK — at 10x the engineering cost, with metadata leakage, without native atomic settlement. Canton makes it the default. And no, it's not Corda resurrected — Canton adds a global synchronizer for cross-firm composability and Canton Coin for atomic settlement. Corda had neither."* |
+| 2:50-3:00 | **CTA** | *"CantonVault. Privacy without proof is a liability. We make it the protocol. Only on Canton."* |
 
 ---
 
-## 📊 Slide deck (10 slides máximo)
+## 📊 Slide deck (10 slides max)
 
-| # | Slide | Contenido clave |
+| # | Slide | Key content |
 |---|---|---|
-| 1 | **Portada** | Logo CantonVault + tagline |
-| 2 | **Problema** | Double-factoring, OTC leakage, compliance (Basel III, MiCA, FATF) |
-| 3 | **Solución** | Diagrama: Parte A ↔ CantonVault ↔ Parte B, tercero off-stage |
-| 4 | **Por qué Canton (honesto)** | Matriz honesta Canton vs Ethereum-ZK vs Corda (sin "imposible") |
-| 5 | **¿No es esto Corda?** | Preempt explícito: "sí, y Canton lo evoluciona con X, Y" |
-| 6 | **Demo Invoice Financing** | Captura split-screen SME/Financier/Buyer/Competidor |
-| 7 | **Demo OTC Block Trade** | Captura split-screen Dealers/Clearing/Mercado |
-| 8 | **Arquitectura** | Stack: Daml + cn-quickstart + Seaport + amulet settlement real |
-| 9 | **Privacidad técnica** | Diagrama de los 4 contratos + Disclosure interface + Canton Coin flow |
-| 10 | **Mercado + Roadmap** | Trade finance gap (ADB) + visión: agentic commerce fase 3 |
+| 1 | **Cover** | CantonVault logo + tagline |
+| 2 | **Problem** | Double-factoring, OTC leakage, compliance (Basel III, MiCA, FATF) |
+| 3 | **Solution** | Diagram: Party A ↔ CantonVault ↔ Party B, third party off-stage |
+| 4 | **Why Canton (honest)** | Honest matrix: Canton vs Ethereum-ZK vs Corda (no "impossible") |
+| 5 | **Isn't this Corda?** | Explicit preempt: "yes, and Canton evolves it with X, Y" |
+| 6 | **Demo Invoice Financing** | Split-screen capture: SME/Financier/Buyer/Competitor |
+| 7 | **Demo OTC Block Trade** | Split-screen capture: Dealers/Clearing/Market |
+| 8 | **Architecture** | Stack: Daml + cn-quickstart + Seaport + real amulet settlement |
+| 9 | **Technical privacy** | Diagram of the 4 contracts + Disclosure interface + Canton Coin flow |
+| 10 | **Market + Roadmap** | Trade finance gap (ADB) + vision: autonomous commerce phase 3 |
 
 ---
 
-## ✅ Datos verificables para usar (siempre citar fuente)
+## ✅ Verifiable data to use (always cite the source)
 
-| Dato | Valor | Fuente |
+| Data point | Value | Source |
 |---|---|---|
-| Canton Coin (CC) burn-mint equilibrium | nativo | Splice / Canton docs |
-| Cantonomics rewards | 62% del pool (~516M CC/mes) a featured apps | canton.network/blog/cantonomics-for-app-builders |
+| Canton Coin (CC) burn-mint equilibrium | native | Splice / Canton docs |
+| Cantonomics rewards | 62% of pool (~516M CC/month) to featured apps | canton.network/blog/cantonomics-for-app-builders |
 | USDCx live on Canton (global B2B payments) | Dec 2025 | canton.network/blog/usdcx-now-live-on-canton |
-| HSBC tokenised deposit pilot | confirmado | canton.network/news/hsbc-completes-tokenised-deposit-pilot |
-| Double-factoring como problema real | documentado industria | factoring industry reports |
-| Basel III risk reporting on-demand | regulación en vigor | bis.org/bcbs/basel3 |
-| MiCA confidencialidad comercial | EU 2023/1114 | eur-lex.europa.eu/eli/reg/2023/1114 |
+| HSBC tokenised deposit pilot | confirmed | canton.network/news/hsbc-completes-tokenised-deposit-pilot |
+| Double-factoring as a real problem | industry documented | factoring industry reports |
+| Basel III risk reporting on-demand | regulation in force | bis.org/bcbs/basel3 |
+| MiCA commercial confidentiality | EU 2023/1114 | eur-lex.europa.eu/eli/reg/2023/1114 |
 | FATF Travel Rule $1,000 threshold | Oct 2024 | fatf-gafi.org |
-| Canton privacy thesis ("full transparency is a bug") | blog oficial | canton.network/blog/full-transparency-is-a-bug-not-a-feature |
-| Canton anti-ZK-generality ("privacy needs proof") | blog oficial | canton.network/blog/zero-knowledge-proofs-whe-privacy-needs-more |
+| Canton privacy thesis ("full transparency is a bug") | official blog | canton.network/blog/full-transparency-is-a-bug-not-a-feature |
+| Canton anti-ZK-generality ("privacy needs proof") | official blog | canton.network/blog/zero-knowledge-proofs-whe-privacy-needs-more |
 
-> ⚠️ **NO usar** (datos que aplicamos mal en v1):
-> - ❌ "23% fees cross-border" (es de remesas consumidor, no B2B)
-> - ❌ "79% LATAM con pagos atrasados" (fuente dudosa, ángulo LATAM descartado)
-> - ❌ "$15B LATAM market" (TAM mal aplicado a escrow)
-> - ❌ "WFP usa blockchain" (cierto pero ONG fuera de scope)
-> - ❌ "81.9% Indonesian study on transparency" (fuente no verificable)
-> - ❌ "Imposible en Ethereum" (falso en 2026 con ZK + AA)
-
----
-
-## 🚫 Anti-patterns a evitar en el pitch (v2)
-
-- ❌ "Tokenizamos X" sin justificar por qué Canton
-- ❌ Demo que requiere 15 min de setup para el juez
-- ❌ "Usamos AI" sin restricciones cripto-forzadas (el brief avisa contra "AI wrapper")
-- ❌ Frontend hermoso pero contratos Daml triviales
-- ❌ **"Imposible en Ethereum"** (falso, juez ZK te destruye)
-- ❌ **"Privacy engine" genérico** (Canton penaliza — *"opacity is a liability"*)
-- ❌ **Datos de LATAM, ONG, remesas consumidor** (no resuenan con Canton)
-- ❌ **No nombrar Corda** (lo van a pensar igual; mejor preempt)
-- ❌ **Settlement simbólico** (sin Canton Coin real = no nativos económicamente)
+> ⚠️ **DO NOT use** (data we misapplied in v1):
+> - ❌ "23% cross-border fees" (consumer remittances, not B2B)
+> - ❌ "79% LATAM with late payments" (dubious source, LATAM angle discarded)
+> - ❌ "$15B LATAM market" (TAM poorly applied to escrow)
+> - ❌ "WFP uses blockchain" (true but NGO out of scope)
+> - ❌ "81.9% Indonesian study on transparency" (unverifiable source)
+> - ❌ "Impossible on Ethereum" (false in 2026 with ZK + AA)
 
 ---
 
-## ✅ Lo que hace que los jueces recuerden el proyecto (v2)
+## 🚫 Anti-patterns to avoid in the pitch (v2)
 
-1. **Una demo visual que golpea**: split-screen con cuadrante de competidor/market siempre vacío
-2. **Una frase que se queda**: *"Privacy without proof isn't privacy — it's a liability."* (usando las propias palabras de Canton contra la competencia ZK)
-3. **Preempt de Corda**: nombrar el fantasma uno mismo da credibilidad instantánea
-4. **Settlement real con Canton Coin**: no es mock, es burn-mint equilibrium nativo
-5. **Cobertura de 2 casos de uso del brief oficial**: invoice financing + OTC, ambos literales del brief
-6. **Visión institucional creíble**: trade finance gap real + roadmap a agentic fase 3
+- ❌ "We tokenize X" without justifying why Canton
+- ❌ Demo that requires 15 min of setup for the judge
+- ❌ "We use AI" without crypto-enforced constraints (the brief warns against superficial solutions)
+- ❌ Beautiful frontend but trivial Daml contracts
+- ❌ **"Impossible on Ethereum"** (false, a ZK judge will destroy you)
+- ❌ **Generic "privacy engine"** (Canton penalizes this — *"opacity is a liability"*)
+- ❌ **LATAM, NGO, consumer remittance data** (does not resonate with Canton)
+- ❌ **Not naming Corda** (they'll think it anyway; better to preempt)
+- ❌ **Symbolic settlement** (no real Canton Coin = not economically native)
+
+---
+
+## ✅ What makes judges remember the project (v2)
+
+1. **A visually striking demo**: split-screen with the competitor/market quadrant always empty
+2. **A phrase that sticks**: *"Privacy without proof isn't privacy — it's a liability."* (using Canton's own words against ZK competition)
+3. **Corda preempt**: naming the elephant in the room yourself gives instant credibility
+4. **Real settlement with Canton Coin**: not a mock, native burn-mint equilibrium
+5. **Coverage of 2 use cases from the official brief**: invoice financing + OTC, both literal from the brief
+6. **Credible institutional vision**: real trade finance gap + roadmap to autonomous commerce phase 3

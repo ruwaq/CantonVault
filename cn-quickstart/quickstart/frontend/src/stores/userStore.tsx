@@ -22,6 +22,7 @@ import { useUser, useLogout, refreshUser } from '../hooks/useAuth';
 export interface UserContextType {
     user: ReturnType<typeof useUser>['user'];
     loading: boolean;
+    error: ReturnType<typeof useUser>['error'];
     fetchUser: (silent?: boolean) => Promise<unknown>;
     clearUser: () => void;
     logout: ReturnType<typeof useLogout>;
@@ -32,12 +33,13 @@ export interface UserContextType {
  * Consumers call `useUserStore()` exactly as before.
  */
 export const useUserStore = (): UserContextType => {
-    const { user, isLoading } = useUser();
+    const { user, isLoading, error } = useUser();
     const logout = useLogout();
 
     return {
         user,
         loading: isLoading,
+        error,
         // fetchUser delegates to SWR's mutate (silent is kept for API compat;
         // with SWR there is no `loading` flip to worry about either way).
         fetchUser: (_silent?: boolean) => refreshUser(),

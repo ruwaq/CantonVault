@@ -1,17 +1,17 @@
-# CantonVault — Guía de Deploy a Producción
+# CantonVault — Production Deployment Guide
 
-## Modos de deploy
+## Deployment modes
 
-| Modo | Comando | Cuándo usar |
+| Mode | Command | When to use |
 |------|---------|-------------|
-| **Dev (LocalNet)** | `./run-localnet.sh up` | Desarrollo local, todos los servicios en Docker |
-| **DevNet real** | `make start PROFILE=devnet` | Conectar a un validator Canton existente (splice-node) |
-| **Producción** | `docker compose -f compose.yaml -f compose.prod.yaml up` | Deploy real con Dockerfile non-root, TLS, OAuth2 |
+| **Dev (LocalNet)** | `./run-localnet.sh up` | Local development, all services in Docker |
+| **Real DevNet** | `make start PROFILE=devnet` | Connect to an existing Canton validator (splice-node) |
+| **Production** | `docker compose -f compose.yaml -f compose.prod.yaml up` | Real deployment with non-root Dockerfile, TLS, OAuth2 |
 
-## Prerrequisitos producción
+## Production prerequisites
 
 ```bash
-# REQUERIDO — la app CRASHEA sin estos:
+# REQUIRED — the app CRASHES without these:
 export LEDGER_HOST=<canton-participant-host>
 export LEDGER_APPLICATION_ID=<your-app-id>
 export REGISTRY_BASE_URI=<splice-registry-url>
@@ -20,22 +20,22 @@ export AUTH_MODE=oauth2
 # OAuth2 (Keycloak / OIDC provider):
 export OAUTH2_ISSUER_URI=https://auth.tudominio.com/realms/AppProvider
 export OAUTH2_CLIENT_ID=app-provider-backend
-export OAUTH2_CLIENT_SECRET=<tu-client-secret>
+export OAUTH2_CLIENT_SECRET=<your-client-secret>
 
 # Database (Postgres):
 export POSTGRES_HOST=<db-host>
 export POSTGRES_USERNAME=<db-user>
 export POSTGRES_PASSWORD=<db-password>
 
-# Canton Network (DevNet o mainnet):
+# Canton Network (DevNet or mainnet):
 export LEDGER_TLS_ENABLED=true
 export SYMBOLIC_SETTLEMENT_ENABLED=false
 
-# CORS (orígenes permitidos):
+# CORS (allowed origins):
 export CORS_ALLOWED_ORIGINS=https://tudominio.com
 ```
 
-## Arquitectura de producción
+## Production architecture
 
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────────┐
@@ -51,27 +51,27 @@ export CORS_ALLOWED_ORIGINS=https://tudominio.com
                      └──────────────┘     └──────────────────┘
 ```
 
-### Capa de seguridad
+### Security layer
 
-| Capa | Mecanismo |
+| Layer | Mechanism |
 |------|-----------|
-| **Auth usuarios** | OAuth2/OIDC via Keycloak → JWT con claims `party_id`, `tenant_id`, `realm_access.roles` |
-| **Auth ledger** | `TokenProvider` → Bearer token en gRPC metadata |
-| **Acting party** | Derivado del JWT claim `party_id` → `LedgerApi` usa `actAs` per-request |
-| **Multi-tenant** | `TenantPropertiesRepository` persiste tenants en Postgres |
-| **CSRF** | Double-submit cookie (`XSRF-TOKEN`) en frontend y backend |
-| **CORS** | Allowlist de orígenes en `application.yml` |
-| **Passwords** | BCrypt via `DelegatingPasswordEncoder` (nunca `{noop}`) |
-| **Container** | Non-root user (`uid 1001`) en Dockerfile de producción |
+| **User auth** | OAuth2/OIDC via Keycloak → JWT with `party_id`, `tenant_id`, `realm_access.roles` claims |
+| **Ledger auth** | `TokenProvider` → Bearer token in gRPC metadata |
+| **Acting party** | Derived from JWT `party_id` claim → `LedgerApi` uses `actAs` per-request |
+| **Multi-tenant** | `TenantPropertiesRepository` persists tenants in Postgres |
+| **CSRF** | Double-submit cookie (`XSRF-TOKEN`) in frontend and backend |
+| **CORS** | Origin allowlist in `application.yml` |
+| **Passwords** | BCrypt via `DelegatingPasswordEncoder` (never `{noop}`) |
+| **Container** | Non-root user (`uid 1001`) in production Dockerfile |
 
-## Subir el DAR al validator
+## Uploading the DAR to the validator
 
 ```bash
-# 1. Compilar el DAR
+# 1. Compile the DAR
 cd cn-quickstart/quickstart
 daml build --package-root daml/licensing
 
-# 2. Subir al validator (requiere credenciales de admin)
+# 2. Upload to the validator (requires admin credentials)
 dar upload \
   --host $LEDGER_HOST \
   --port $LEDGER_PORT \
@@ -79,8 +79,8 @@ dar upload \
   --access-token-file <(echo $VALIDATOR_ADMIN_TOKEN) \
   daml/licensing/.daml/dist/quickstart-licensing-0.0.4.dar
 
-# 3. Onboardear parties (el backend lo hace automáticamente en startup
-#    vía splice-onboarding container, o manualmente con:
+# 3. Onboard parties (the backend does this automatically at startup
+#    via splice-onboarding container, or manually with:
 #    ./docker/backend-service/onboarding/onboarding.sh)
 ```
 
@@ -102,10 +102,10 @@ grpcurl -H "Authorization: Bearer $LEDGER_TOKEN" \
 
 ## Troubleshooting
 
-| Problema | Causa probable | Solución |
+| Problem | Likely cause | Solution |
 |----------|---------------|----------|
-| `LedgerConfig` crash al iniciar | `LEDGER_HOST` no seteado | `export LEDGER_HOST=...` |
-| `TokenProvider` required | Sin profile de auth activo | `export AUTH_MODE=oauth2` |
-| Settlement simbólico rechazado | `SYMBOLIC_SETTLEMENT_ENABLED=false` sin allocationContractId | Pasar `allocationContractId` real en el request |
-| `party_id` claim missing en JWT | Keycloak mapper no configurado | Agregar "party_id" mapper en Keycloak |
-| Tenant no persiste tras restart | `TenantPropertiesRepository` no tiene Postgres | Verificar `POSTGRES_HOST` y que la tabla `tenants` existe |
+| `LedgerConfig` crash on startup | `LEDGER_HOST` not set | `export LEDGER_HOST=...` |
+| `TokenProvider` required | No active auth profile | `export AUTH_MODE=oauth2` |
+| Symbolic settlement rejected | `SYMBOLIC_SETTLEMENT_ENABLED=false` without allocationContractId | Pass a real `allocationContractId` in the request |
+| `party_id` claim missing in JWT | Keycloak mapper not configured | Add "party_id" mapper in Keycloak |
+| Tenant does not persist after restart | `TenantPropertiesRepository` does not have Postgres | Verify `POSTGRES_HOST` and that the `tenants` table exists |

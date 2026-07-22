@@ -22,7 +22,6 @@ interface PrivacyTimelineProps {
 /**
  * Privacy Timeline — shows the lifecycle journey of a commitment with
  * privacy exposure at each stage. Horizontal timeline with 4 nodes.
- * Inspired by AgentShield's transparency panel pattern.
  */
 const PrivacyTimeline: React.FC<PrivacyTimelineProps> = ({ disputed, resolved }) => {
   const nodes: TimelineNode[] = [

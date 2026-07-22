@@ -135,5 +135,4 @@ All under `/api/vault` (proxied through Vite):
 
 - [ ] Contract keys for efficient lookup (blocked by Sandbox)
 - [ ] Separate interface package for DAR modularization
-- [ ] Daml Autopilot MCP integration (ChainSafe, 3600+ verified patterns)
 - [ ] Deploy to Seaport / DevNet

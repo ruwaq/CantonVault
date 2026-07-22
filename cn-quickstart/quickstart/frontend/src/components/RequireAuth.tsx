@@ -2,25 +2,26 @@
 // SPDX-License-Identifier: 0BSD
 
 import React from 'react';
-import { Navigate } from 'react-router-dom';
 import { useUserStore } from '../stores/userStore';
 
-/** Wraps authenticated routes. Redirects to /login if no session exists. */
+/**
+ * Wraps authenticated routes. The demo is stateless — useUser() always returns
+ * a user (either from the API or a hardcoded fallback). This component just
+ * shows a spinner while the first fetch is in flight, then renders children.
+ * It never redirects to /login.
+ */
 const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { user, loading } = useUserStore();
+    const { loading } = useUserStore();
 
     if (loading) {
         return (
-            <div className="d-flex justify-content-center mt-5">
-                <div className="spinner-border text-primary" role="status">
+            <div className="d-flex flex-column align-items-center justify-content-center mt-5 pt-5">
+                <div className="spinner-border text-primary mb-3" role="status">
                     <span className="visually-hidden">Loading…</span>
                 </div>
+                <p className="text-on-glass">Connecting to Canton DevNet…</p>
             </div>
         );
-    }
-
-    if (!user) {
-        return <Navigate to="/login" replace />;
     }
 
     return <>{children}</>;

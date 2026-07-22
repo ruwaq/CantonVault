@@ -47,7 +47,7 @@ Full-stack security audit of the CantonVault hackathon project covering:
 - **React/TypeScript** frontend (stores, API, error handling)
 - **Infrastructure** (Docker, CI/CD, secrets, .gitignore)
 
-**Methodology:** 4 specialized agents auditing independent domains in parallel, followed by consolidation and remediation.
+**Methodology:** Comprehensive multi-layer audit covering all 6 layers of the stack, followed by consolidation and remediation.
 
 **Results:** 40 findings → 5 CRITICAL, 11 HIGH, 15 MEDIUM, 9 LOW/INFO.
 

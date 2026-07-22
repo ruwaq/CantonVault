@@ -166,9 +166,13 @@ cantonvault/
 ├── DEMO.md                            # Step-by-step jury demo guide
 ├── LICENSE                            # MIT License
 ├── SECURITY.md                        # Production Audit and Vulnerability Disclosures
-├── SESSION_HANDOFF.md                 # Developer handoff + technical debugging log
 ├── cli/                               # CantonVault TypeScript CLI for DevNet interaction
 │   └── src/index.ts                   # CLI entrypoint (status, propose, accept, fulfill, …)
+├── docs/                              # Project documentation
+│   ├── decisiones/                    # Architecture and strategy decisions
+│   ├── inteligencia-competitiva.md    # Competitive intelligence
+│   ├── investigacion-tecnica.md       # Technical research findings
+│   └── DEPLOYMENT.md                  # Deployment guide
 └── cn-quickstart/
     └── quickstart/                    # Main application code (cloned from upstream)
         ├── daml/

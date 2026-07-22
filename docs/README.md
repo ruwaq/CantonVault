@@ -1,67 +1,63 @@
-# 📚 Documentación CantonVault — Índice
+# 📚 CantonVault Documentation — Index
 
-> **Empezar aquí.** Este índice te dice qué leer según lo que necesites.
+> **Start here.** This index tells you what to read based on what you need.
 
-**Última actualización**: 2026-06-20
-
----
-
-## 🚀 Si tienes 5 minutos (visión general)
-
-1. [README.md](../README.md) — qué es CantonVault, stack, plan
-2. [decisiones/01-estrategia-ganadora.md](decisiones/01-estrategia-ganadora.md) — por qué esta idea y no otra
-
-## 🏗️ Si vas a programar (arquitectura)
-
-1. [decisiones/02-arquitectura-tecnica.md](decisiones/02-arquitectura-tecnica.md) — stack, contratos Daml, extensiones al quickstart
-2. [herramientas.md](herramientas.md) — versiones, URLs, qué instalar
-3. [investigacion-tecnica.md](investigacion-tecnica.md) — hallazgos que justifican cada decisión técnica
-
-## 🎬 Si vas a armar el pitch
-
-1. [decisiones/03-posicionamiento-pitch.md](decisiones/03-posicionamiento-pitch.md) — naming, narrativa, script del video, slides
-2. [decisiones/01-estrategia-ganadora.md](decisiones/01-estrategia-ganadora.md) § "test de Ethereum" y "test de VP de banco"
-
-## ❓ Si necesitas justificar una decisión
-
-1. [decisiones/01-estrategia-ganadora.md](decisiones/01-estrategia-ganadora.md) § "alternativas descartadas"
-2. [investigacion-tecnica.md](investigacion-tecnica.md) § fuente del hallazgo específico
-
-## 🔧 Si necesitas instalar algo
-
-1. [herramientas.md](herramientas.md) — verificá que esté en la lista antes de instalar
+**Last updated**: 2026-06-20
 
 ---
 
-## 📂 Estructura de carpetas
+## 🚀 If you have 5 minutes (overview)
+
+1. [README.md](../README.md) — what CantonVault is, stack, plan
+2. [decisiones/01-estrategia-ganadora.md](decisiones/01-estrategia-ganadora.md) — why this idea and not another
+
+## 🏗️ If you're going to code (architecture)
+
+1. [decisiones/02-arquitectura-tecnica.md](decisiones/02-arquitectura-tecnica.md) — stack, Daml contracts, extensions to the quickstart
+2. [herramientas.md](herramientas.md) — versions, URLs, what to install
+3. [investigacion-tecnica.md](investigacion-tecnica.md) — findings that justify each technical decision
+
+## 🎬 If you're preparing the pitch
+
+1. [decisiones/03-posicionamiento-pitch.md](decisiones/03-posicionamiento-pitch.md) — naming, narrative, video script, slides
+2. [decisiones/01-estrategia-ganadora.md](decisiones/01-estrategia-ganadora.md) § "Ethereum test" and "bank VP test"
+
+## ❓ If you need to justify a decision
+
+1. [decisiones/01-estrategia-ganadora.md](decisiones/01-estrategia-ganadora.md) § "discarded alternatives"
+2. [investigacion-tecnica.md](investigacion-tecnica.md) § source of the specific finding
+
+## 🔧 If you need to install something
+
+1. [herramientas.md](herramientas.md) — check that it's in the list before installing
+
+---
+
+## 📂 Directory structure
 
 ```
 docs/
-├── README.md                          ← ESTE ÍNDICE
+├── README.md                          ← THIS INDEX
 ├── decisiones/
-│   ├── 01-estrategia-ganadora.md      ← por qué CantonVault
-│   ├── 02-arquitectura-tecnica.md     ← cómo lo construimos
-│   └── 03-posicionamiento-pitch.md    ← cómo lo presentamos
-├── herramientas.md                    ← qué usamos (versiones + URLs)
-├── investigacion-tecnica.md           ← base empírica de las decisiones
-└── superpowers/
-    └── specs/                         ← specs formales (workflow superpowers)
-        └── 2026-06-20-cantonvault-design.md  ← (a escribir)
+│   ├── 01-estrategia-ganadora.md      ← why CantonVault
+│   ├── 02-arquitectura-tecnica.md     ← how we build it
+│   └── 03-posicionamiento-pitch.md    ← how we present it
+└── investigacion-tecnica.md           ← empirical basis for decisions
 ```
 
 ---
 
-## 🔄 Cómo se sincroniza esta documentación
+## 🔄 How this documentation is synced
 
-La documentación sigue un flujo **investigación → decisión → spec → implementación**:
+The documentation follows a **research → decision → implementation** flow:
 
 ```
-investigacion-tecnica.md  ──►  decisiones/01,02,03  ──►  specs/*  ──►  código
-       (hallazgos)              (qué decidimos)        (cómo)       (resultado)
+investigacion-tecnica.md  ──►  decisiones/01,02,03  ──►  código
+       (findings)              (what we decided)       (result)
 ```
 
-**Regla**: ninguna decisión técnica se toma sin estar justificada en `investigacion-tecnica.md` o marcada explícitamente como ⚠️ no verificada.
+**Rule**: no technical decision is made without being justified in `investigacion-tecnica.md` or explicitly marked as ⚠️ unverified.
 
-**Regla**: ningún cambio de arquitectura se aplica sin actualizar `decisiones/02-arquitectura-tecnica.md`.
+**Rule**: no architecture change is applied without updating `decisiones/02-arquitectura-tecnica.md`.
 
-**Regla**: ninguna herramienta se instala sin estar en `herramientas.md` o justificada en un nuevo doc de decisión.
+**Rule**: no tool is installed without being listed in `herramientas.md` or justified in a new decision doc.

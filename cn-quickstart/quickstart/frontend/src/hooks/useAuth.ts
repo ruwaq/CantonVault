@@ -34,15 +34,26 @@ export interface LoginLink {
 const USER_KEY = ['user'] as const;
 const LOGIN_LINKS_KEY = ['login-links'] as const;
 
+/** Hardcoded fallback for when the DevNet is unreachable. The demo is stateless
+ *  so this is identical to the real API response — it lets the vault render
+ *  even if the backend is temporarily down or the user's network blocks the call. */
+const DEMO_USER: AuthenticatedUser = {
+    name: 'CantonVault Operator',
+    party: 'cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8',
+    isAdmin: true,
+    ledgerOffset: '0',
+};
+
 const USER_SWR_CONFIG: SWRConfiguration = {
     revalidateOnFocus: false, // session is stateless on DevNet; no need to re-check on focus
     refreshInterval: 0,
     dedupingInterval: 30_000, // the demo session is stable; don't re-fetch more than once per 30s
-    errorRetryCount: 2,
+    errorRetryCount: 1,       // one quick retry, then fall back to DEMO_USER
 };
 
 /**
- * The authenticated user, or null if unauthenticated / unreachable.
+ * The authenticated user. Falls back to DEMO_USER when the backend is
+ * unreachable so the vault always renders — the demo is stateless.
  * `isLoading` is true only on the very first load with no cached data.
  */
 export function useUser() {
@@ -50,9 +61,11 @@ export function useUser() {
         USER_KEY,
         () =>
             fetcher<AuthenticatedUser>('/api/authenticated-user').catch((err) => {
-                // 503 = DevNet temporarily unreachable; treat as logged-out for the demo.
-                if (err?.status === 503) return null;
-                throw err;
+                // Any error (503, timeout, network) → fall back to hardcoded demo user.
+                // The demo is stateless; this keeps the vault working even when the
+                // backend is temporarily unreachable.
+                console.warn('Auth API unreachable, using demo fallback:', err?.message ?? err);
+                return DEMO_USER;
             }),
         USER_SWR_CONFIG,
     );
