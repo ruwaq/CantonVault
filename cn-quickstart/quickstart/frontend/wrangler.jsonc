@@ -25,4 +25,12 @@
       "id": "8c756265442a41bc8f57632075790a50"
     }
   ]
+  // Required secret bindings (set via `wrangler pages secret put <NAME>` or the
+  // Cloudflare dashboard — NEVER commit values):
+  //   CLIENT_SECRET  — rotated OAuth2 m2m secret (audit Fase 3 C-1).
+  //   PARTY          — operator partyId (cancore::1220...).
+  //   MEDIATOR_PARTY — third-party/mediator partyId (Observer::1220...).
+  //   SESSION_SECRET — HMAC key signing the cv_session cookie (>= 32 random bytes).
+  //   DEMO_TOKEN     — shared token exchanged for a session at POST /api/auth/login.
+  //   SEED_SECRET    — required to call POST /api/vault/seed-demo (fail-closed).
 }
