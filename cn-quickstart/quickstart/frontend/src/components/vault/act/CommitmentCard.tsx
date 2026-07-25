@@ -6,6 +6,7 @@ import type { Commitment, VaultContract } from '../../../types';
 import { copy } from '../../../lib/copy';
 import TechnicalDetails from '../TechnicalDetails';
 import PrivacyTimeline from './PrivacyTimeline';
+import VerifyLink from '../VerifyLink';
 
 interface CommitmentCardProps {
   contract: VaultContract<Commitment>;
@@ -75,6 +76,11 @@ const CommitmentCard: React.FC<CommitmentCardProps> = ({
             </button>
           </div>
         </div>
+        {contract.updateId && (
+          <div className="mb-2">
+            <VerifyLink updateId={contract.updateId} />
+          </div>
+        )}
         <TechnicalDetails
           contractId={contract.contractId}
           parties={[

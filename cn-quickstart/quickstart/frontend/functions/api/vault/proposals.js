@@ -82,6 +82,7 @@ export const onRequest = async (context) => {
         status: 'pending',
         payload,
         offset: result.completionOffset,
+        updateId: result.updateId,
       });
 
       // Whitelist the fields returned to the client — do NOT echo arbitrary body

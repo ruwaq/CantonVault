@@ -5,6 +5,7 @@ import React from 'react';
 import type { SettlementReceipt, VaultContract } from '../../../types';
 import { copy } from '../../../lib/copy';
 import { shortParty } from '../../../utils/party';
+import VerifyLink from '../VerifyLink';
 
 interface SettlementReceiptsProps {
   receipts: VaultContract<SettlementReceipt>[];
@@ -48,6 +49,7 @@ const SettlementReceipts: React.FC<SettlementReceiptsProps> = ({ receipts }) => 
                     Note: {r.payload.note}
                   </span>
                 )}
+                <VerifyLink updateId={r.updateId} />
               </div>
             </div>
           ))}

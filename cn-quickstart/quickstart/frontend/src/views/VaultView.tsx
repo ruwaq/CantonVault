@@ -12,6 +12,7 @@ import VaultHeader from '../components/vault/VaultHeader';
 import Stepper, { type Step } from '../components/vault/Stepper';
 import ProposeWizard from '../components/vault/propose/ProposeWizard';
 import CopyCidButton from '../components/vault/CopyCidButton';
+import VerifyLink from '../components/vault/VerifyLink';
 import ActStep from '../components/vault/act/ActStep';
 import PrivacyLab from '../components/vault/privacy/PrivacyLab';
 import { copy } from '../lib/copy';
@@ -56,6 +57,11 @@ const ProposalsList: React.FC<{
                                             <span>Contract ID: {p.contractId.slice(0, 16)}…</span>
                                             <CopyCidButton cid={p.contractId} />
                                         </div>
+                                        {p.updateId && (
+                                            <div className="mt-1">
+                                                <VerifyLink updateId={p.updateId} />
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="d-flex gap-2">
                                         <button

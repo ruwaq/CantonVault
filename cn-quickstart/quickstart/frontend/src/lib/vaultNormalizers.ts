@@ -73,6 +73,9 @@ export interface RawContractEnvelope {
     contractId?: string;
     payload?: Record<string, unknown>;
     getCid?: string;
+    _status?: string;
+    _offset?: number;
+    _updateId?: string;
 }
 
 // ── Normalizers ──────────────────────────────────────────────────────────────
@@ -154,7 +157,12 @@ export function toContracts<T>(
     return (rawList ?? [])
         .map((item) => {
             const payload = (item?.payload ?? item) as Record<string, unknown>;
-            return { contractId: cidOf(item), payload: normalize(payload) };
+            return {
+                contractId: cidOf(item),
+                payload: normalize(payload),
+                updateId: item?._updateId ?? undefined,
+                offset: item?._offset ?? undefined,
+            };
         })
         .filter((c) => c.contractId);
 }

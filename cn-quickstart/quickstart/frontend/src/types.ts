@@ -28,6 +28,10 @@ export function partyOf(value: PartyField | undefined | null): string {
 export interface VaultContract<T> {
     contractId: string;
     payload: T;
+    /** Canton transaction hash — links to the public verifier at /tx/{updateId}. */
+    updateId?: string;
+    /** Ledger offset the create/exercise landed at (for display). */
+    offset?: number;
 }
 
 export interface Proposal {

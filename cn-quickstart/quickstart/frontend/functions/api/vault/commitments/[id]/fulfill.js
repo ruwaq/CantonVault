@@ -47,6 +47,7 @@ export const onRequest = async (context) => {
         },
         sourceCid: contractId,
         offset: result.completionOffset,
+        updateId: result.updateId,
       });
     }
 

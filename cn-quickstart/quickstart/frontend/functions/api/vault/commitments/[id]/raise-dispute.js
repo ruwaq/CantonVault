@@ -50,6 +50,7 @@ export const onRequest = async (context) => {
         },
         sourceCid: contractId,
         offset: result.completionOffset,
+        updateId: result.updateId,
       });
       // DisclosedRecord — the selective-disclosure proof (amount + description
       // only). The RaiseDispute choice also creates this on-ledger.
@@ -64,6 +65,7 @@ export const onRequest = async (context) => {
         },
         sourceCid: contractId,
         offset: result.completionOffset,
+        updateId: result.updateId,
       });
     }
 

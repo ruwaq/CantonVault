@@ -459,6 +459,7 @@ export async function kvPut(env, kind, cid, record) {
     sourceCid: record.sourceCid ?? null,
     createdAt: record.createdAt ?? new Date().toISOString(),
     offset: record.offset ?? null,
+    updateId: record.updateId ?? null,
   };
   await kv(env).put(key, JSON.stringify(entry));
   return entry;
@@ -511,7 +512,9 @@ export async function kvListAsContracts(env, kind, statuses) {
     if (r.sourceCid && payload.commitmentRef === undefined) {
       payload.commitmentRef = r.sourceCid;
     }
-    return { contractId: r.cid, payload, _status: r.status, _offset: r.offset };
+    // Surface the Canton updateId so the UI can link to /tx/{updateId}.
+    // (audit Fase 3 + tx verifier: previously only stored offset.)
+    return { contractId: r.cid, payload, _status: r.status, _offset: r.offset, _updateId: r.updateId };
   });
 }
 

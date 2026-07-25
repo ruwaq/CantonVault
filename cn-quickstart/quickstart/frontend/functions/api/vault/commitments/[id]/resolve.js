@@ -76,6 +76,7 @@ export const onRequest = async (context) => {
         },
         sourceCid: commitmentId,
         offset: result.completionOffset,
+        updateId: result.updateId,
       });
     }
     // Disclosure of the resolution (ruling + revealed fields).
@@ -93,6 +94,7 @@ export const onRequest = async (context) => {
       },
       sourceCid: commitmentId,
       offset: result.completionOffset,
+      updateId: result.updateId,
     });
 
     return Response.json({
