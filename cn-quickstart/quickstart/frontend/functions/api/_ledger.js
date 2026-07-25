@@ -129,6 +129,13 @@ export async function ledgerPost(path, payload) {
     const err = new Error(`Ledger POST ${path} failed (HTTP ${res.status})`);
     Object.defineProperty(err, 'upstreamDetail', { value: text.slice(0, 500), enumerable: false });
     err.status = res.status;
+    // Try to surface the Canton error code (e.g. UPDATE_NOT_FOUND) for callers
+    // that need to distinguish "private/not visible" from a real failure.
+    try {
+      const parsed = JSON.parse(text);
+      const code = parsed?.errors?.[0]?.error?.code ?? parsed?.error?.code;
+      if (code) err.cantonCode = code;
+    } catch { /* not JSON */ }
     throw err;
   }
   return res.json();
@@ -357,6 +364,75 @@ export async function walletBalance(party = PARTY.value) {
 // refunded/disputed/resolved) so each GET can filter to the relevant subset.
 // `sourceCid` links a derived contract back to its origin (e.g. a receipt to
 // the commitment it settled, a dispute to its commitment) — used by resolve.js.
+
+// ── Public transaction verifier (audit Fase 3 — toast link) ─────────────────
+// Canton has no GET /v2/transactions/{id}; the JSON Ledger API exposes tx lookup
+// via POST /v2/updates/update-by-id with a request body. Returns
+// { update: { Transaction: { value: { updateId, offset, effectiveAt,
+// synchronizerId, events[] } } } } — note the two-level nesting vs the submit
+// response (which is transaction.events[]). ACS_DELTA shape gives Created +
+// Archived events (the "what happened on-ledger" narrative).
+//
+// Privacy: if the calling party is not a witness/stakeholder of any event,
+// Canton returns UPDATE_NOT_FOUND (indistinguishable from "never existed").
+// Our m2m operator party IS a signatory of every CantonVault contract, so it
+// can read its own txs. For other parties' private txs, found=false.
+export async function ledgerGetUpdateById(updateId) {
+  const data = await ledgerPost('/v2/updates/update-by-id', {
+    updateId,
+    updateFormat: {
+      includeTransactions: {
+        transactionShape: 'TRANSACTION_SHAPE_ACS_DELTA',
+        eventFormat: { verbose: true },
+      },
+    },
+  });
+  // Walk update.Transaction.value (the oneof variant we asked for).
+  const tx = data?.update?.Transaction?.value;
+  if (!tx) {
+    const err = new Error('Update not found or not visible to this party');
+    err.code = 'UPDATE_NOT_FOUND';
+    err.status = 404;
+    throw err;
+  }
+  // Normalize events [{CreatedEvent:{...}} | {ArchivedEvent:{...}}] into a flat
+  // human-readable list. Each event carries templateId + contractId + nodeId.
+  const events = (tx.events ?? []).map((e) => {
+    if (e.CreatedEvent) {
+      return {
+        kind: 'CreatedEvent',
+        templateId: e.CreatedEvent.templateId,
+        contractId: e.CreatedEvent.contractId,
+      };
+    }
+    if (e.ArchivedEvent) {
+      return {
+        kind: 'ArchivedEvent',
+        templateId: e.ArchivedEvent.templateId,
+        contractId: e.ArchivedEvent.contractId,
+      };
+    }
+    if (e.ExercisedEvent) {
+      return {
+        kind: 'ExercisedEvent',
+        templateId: e.ExercisedEvent.templateId,
+        contractId: e.ExercisedEvent.contractId,
+        choice: e.ExercisedEvent.choice,
+      };
+    }
+    return { kind: 'Unknown' };
+  });
+  return {
+    found: true,
+    updateId: tx.updateId,
+    offset: tx.offset,
+    effectiveAt: tx.effectiveAt,
+    synchronizerId: tx.synchronizerId,
+    workflowId: tx.workflowId ?? null,
+    events,
+    verifiedBy: 'CantonVault backend (m2m operator party)',
+  };
+}
 
 const KV_BINDING = 'VAULT_KV';
 
