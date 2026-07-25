@@ -1,4 +1,4 @@
-import { kvListAsContracts, configure } from '../_ledger.js';
+import { kvListAsContracts, configure, safeErrorResponse } from '../_ledger.js';
 
 // GET /api/vault/disclosures — DisclosedRecords: immutable selective-disclosure
 // proofs created by RaiseDispute and ResolveDispute. Evidentiary (no choices) →
@@ -12,9 +12,6 @@ export const onRequest = async (context) => {
     const contracts = await kvListAsContracts(env, 'disclosure');
     return Response.json(contracts);
   } catch (err) {
-    return Response.json(
-      { error: 'Failed to query disclosures from DevNet', detail: err.message },
-      { status: 502 },
-    );
+    return safeErrorResponse(502, 'Failed to query disclosures from DevNet', err);
   }
 };

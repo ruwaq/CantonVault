@@ -1,22 +1,24 @@
-import { PARTY, submitExercise, kvGet, kvPut, kvUpdateStatus, configure } from '../../../_ledger.js';
+import { PARTY, submitExercise, kvGet, kvPut, kvUpdateStatus, configure, safeErrorResponse, validateContractId } from '../../../_ledger.js';
 
 // POST /api/vault/commitments/:id/refund
 // Exercises Refund on a CommitmentContract after the deadline. Either signatory
 // can close out an unfulfilled commitment. CONSUMING — archives the contract.
-// NOTE: the Daml `deadline` assertion requires now >= deadline, so this only
-// succeeds once the commitment's deadline has passed.
+//
+// NOTE (audit Fase 3): the Daml Refund choice now requires `now > deadline`
+// (strict) and takes only `actor` — the `allocationCid` field was removed from
+// the contract signature (C-4 fix: it drained the proposer). Refund is a pure
+// archival close-out; the receipt carries settlementExecuted = false.
 const TEMPLATE = 'Vault.CommitmentContract:CommitmentContract';
 
 export const onRequest = async (context) => {
   const { params, env } = context;
   configure(env);
-  const contractId = params.id;
+  const idR = validateContractId(params.id);
+  if (!idR.ok) return safeErrorResponse(400, idR.error);
+  const contractId = idR.value;
   try {
-    // The choice requires `actor` (parametrized signatory controller) and
-    // optional `allocationCid` (null = symbolic, Some = reverse CC settlement).
     const result = await submitExercise(TEMPLATE, contractId, 'Refund', {
       actor: PARTY.value,
-      allocationCid: null,
     });
 
     const commitmentRecord = await kvGet(env, 'commitment', contractId);
@@ -45,9 +47,6 @@ export const onRequest = async (context) => {
       offset: result.completionOffset,
     });
   } catch (err) {
-    return Response.json(
-      { error: 'Failed to refund commitment on DevNet', detail: err.message },
-      { status: 502 },
-    );
+    return safeErrorResponse(502, 'Failed to refund commitment on DevNet', err);
   }
 };

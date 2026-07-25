@@ -7,6 +7,10 @@ import {
   kvList,
   kvListAsContracts,
   kvPut,
+  safeErrorResponse,
+  validateAmount,
+  validateDeadline,
+  validateText,
 } from '../_ledger.js';
 
 const PROPOSAL_TPL = 'Vault.CommitmentProposal:CommitmentProposal';
@@ -24,40 +28,49 @@ export const onRequest = async (context) => {
       const contracts = await kvListAsContracts(env, 'proposal', ['pending']);
       return Response.json(contracts);
     } catch (err) {
-      return Response.json(
-        { error: 'Failed to query proposals from DevNet', detail: err.message },
-        { status: 502 },
-      );
+      return safeErrorResponse(502, 'Failed to query proposals from DevNet', err);
     }
   }
 
   if (request.method === 'POST') {
+    let body;
     try {
-      const body = await request.json();
-      const amount = Number(body.amount ?? 0);
-      if (amount <= 0) {
-        return Response.json({ error: 'Amount must be greater than 0' }, { status: 400 });
-      }
-const description = String(body.description ?? '').trim();
-	      if (!description) {
-	        return Response.json({ error: 'Description is required' }, { status: 400 });
-	      }
-	      // SECURITY (audit S-A3): validate deadline is a valid ISO-8601 date.
-	      const deadline = String(body.deadline || '');
-	      if (deadline && isNaN(Date.parse(deadline))) {
-	        return Response.json({ error: 'Deadline must be a valid ISO-8601 date' }, { status: 400 });
-	      }
+      body = await request.json();
+    } catch {
+      return safeErrorResponse(400, 'Invalid JSON body');
+    }
+    try {
+      const amountR = validateAmount(body.amount);
+      if (!amountR.ok) return safeErrorResponse(400, amountR.error);
+      const descR = validateText(body.description, 'Description', 500);
+      if (!descR.ok) return safeErrorResponse(400, descR.error);
+      // deadline is optional from the client; default to a far-future value if absent.
+      const deadlineR = body.deadline
+        ? validateDeadline(body.deadline)
+        : { ok: true, value: '2099-12-31T23:59:59Z' };
+      if (!deadlineR.ok) return safeErrorResponse(400, deadlineR.error);
+      const workflowR = validateText(body.workflow, 'Workflow', 100);
+      if (!workflowR.ok) return safeErrorResponse(400, workflowR.error);
+      const currencyR = validateText(body.currency, 'Currency', 32);
+      if (!currencyR.ok) return safeErrorResponse(400, currencyR.error);
 
-	      const payload = {
-	        // `||` (not `??`) so empty strings from the frontend fall back to PARTY.
-	        proposer: PARTY.value,
-	        accepter: String(body.accepter || PARTY.value),
-	        thirdParty: String(body.thirdParty || PARTY.value),
-	        amount,
-	        currency: String(body.currency || 'CC'),
-	        description,
-	        workflow: String(body.workflow || 'supply-chain-finance'),
-	        deadline: deadline || '2026-12-31T23:59:59Z',
+      const payload = {
+        // Note: accepter/thirdParty are taken as-is here because the demo runs
+        // with the single m2m operator party; real multi-party would require
+        // validated distinct party ids. realSettlementRequired stays false
+        // because the sandbox m2m is NOT the DSO of the DevNet (see SECURITY.md
+        // Fase 3): AllocationFactory_Allocate rejects any settlement whose
+        // instrumentAdmin != DSO, so real Canton Coin settlement is not
+        // exercisable against the shared sandbox. The contract-level DvP path
+        // is proven by test_real_settlement_dvp (Daml.Script, local participant).
+        proposer: PARTY.value,
+        accepter: PARTY.value,
+        thirdParty: PARTY.value,
+        amount: amountR.value,
+        currency: currencyR.value,
+        description: descR.value,
+        workflow: workflowR.value,
+        deadline: deadlineR.value,
         instrumentAdmin: PARTY.value,
         realSettlementRequired: false,
       };
@@ -71,19 +84,27 @@ const description = String(body.description ?? '').trim();
         offset: result.completionOffset,
       });
 
+      // Whitelist the fields returned to the client — do NOT echo arbitrary body
+      // keys (audit Fase 3, M3).
       return Response.json({
         contractId: result.contractId,
-        payload: { ...body, amount, description },
+        payload: {
+          proposer: payload.proposer,
+          accepter: payload.accepter,
+          thirdParty: payload.thirdParty,
+          amount: payload.amount,
+          currency: payload.currency,
+          description: payload.description,
+          workflow: payload.workflow,
+          deadline: payload.deadline,
+        },
         updateId: result.updateId,
         offset: result.completionOffset,
       }, { status: 201 });
     } catch (err) {
-      return Response.json(
-        { error: 'Failed to create proposal on DevNet', detail: err.message },
-        { status: 502 },
-      );
+      return safeErrorResponse(502, 'Failed to create proposal on DevNet', err);
     }
   }
 
-  return Response.json({ error: 'Method not allowed' }, { status: 405 });
+  return safeErrorResponse(405, 'Method not allowed');
 };

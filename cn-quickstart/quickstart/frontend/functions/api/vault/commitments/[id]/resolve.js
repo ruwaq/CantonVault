@@ -5,6 +5,8 @@ import {
   kvUpdateStatus,
   MEDIATOR_PARTY,
   configure,
+  safeErrorResponse,
+  validateContractId,
 } from '../../../_ledger.js';
 
 // POST /api/vault/commitments/:id/resolve
@@ -23,15 +25,14 @@ import {
 export const onRequest = async (context) => {
   const { params, request, env } = context;
   configure(env);
-  const commitmentId = params.id;
+  const idR = validateContractId(params.id);
+  if (!idR.ok) return safeErrorResponse(400, idR.error);
+  const commitmentId = idR.value;
   try {
     const body = await request.json().catch(() => ({}));
     const ruling = String(body.ruling ?? 'proposer');
     if (ruling !== 'proposer' && ruling !== 'accepter') {
-      return Response.json(
-        { error: "ruling must be 'proposer' or 'accepter'" },
-        { status: 400 },
-      );
+      return safeErrorResponse(400, "ruling must be 'proposer' or 'accepter'");
     }
 
     // Find the open DisputeCase indexed from this commitment.
@@ -39,10 +40,7 @@ export const onRequest = async (context) => {
     const match = disputes.find((d) => d.sourceCid === commitmentId);
 
     if (!match?.cid) {
-      return Response.json(
-        { error: 'No active DisputeCase found for this commitment' },
-        { status: 404 },
-      );
+      return safeErrorResponse(404, 'No active DisputeCase found for this commitment');
     }
 
     // ResolveDispute creates TWO contracts: a DisclosedRecord (first) and a
@@ -105,9 +103,6 @@ export const onRequest = async (context) => {
       ruling,
     });
   } catch (err) {
-    return Response.json(
-      { error: 'Failed to resolve dispute on DevNet', detail: err.message },
-      { status: 502 },
-    );
+    return safeErrorResponse(502, 'Failed to resolve dispute on DevNet', err);
   }
 };

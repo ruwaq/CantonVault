@@ -1,19 +1,28 @@
-import { submitExercise, kvGet, kvPut, kvUpdateStatus, configure } from '../../../_ledger.js';
+import { submitExercise, kvGet, kvPut, kvUpdateStatus, configure, safeErrorResponse, validateContractId, validateText } from '../../../_ledger.js';
 
 // POST /api/vault/commitments/:id/fulfill
-// Exercises Fulfill on a CommitmentContract. Accepter confirms delivery.
-// `allocationCid: null` selects the symbolic settlement branch, which is valid
-// only for contracts created with realSettlementRequired=false (the demo path).
-// Real CC settlement would pass Some (allocCid, extraArgs) instead.
+// Exercises Fulfill on a CommitmentContract. The accepter confirms delivery.
+//
+// SETTLEMENT MODEL (audit Fase 3): this demo exercises Fulfill on the SYMBOLIC
+// settlement branch (allocationCid = None), which is valid for contracts
+// created with realSettlementRequired = false. The receipt therefore carries
+// settlementExecuted = false. Real Canton Coin settlement is NOT exercisable
+// against the shared DevNet sandbox: the m2m operator is not the DSO, and
+// AllocationFactory_Allocate rejects any settlement whose instrumentAdmin !=
+// DSO. The contract-level DvP path is proven by test_real_settlement_dvp
+// (Daml.Script on a local participant). See SECURITY.md Fase 3 for details.
 const TEMPLATE = 'Vault.CommitmentContract:CommitmentContract';
 
 export const onRequest = async (context) => {
   const { params, request, env } = context;
   configure(env);
-  const contractId = params.id;
+  const idR = validateContractId(params.id);
+  if (!idR.ok) return safeErrorResponse(400, idR.error);
+  const contractId = idR.value;
   try {
     const body = await request.json().catch(() => ({}));
-    const fulfillmentNote = String(body.fulfillmentNote ?? 'Delivery confirmed');
+    const noteR = validateText(body.fulfillmentNote, 'fulfillmentNote', 500);
+    const fulfillmentNote = noteR.ok ? noteR.value : 'Delivery confirmed';
     const result = await submitExercise(TEMPLATE, contractId, 'Fulfill', {
       fulfillmentNote,
       allocationCid: null,
@@ -47,9 +56,6 @@ export const onRequest = async (context) => {
       offset: result.completionOffset,
     });
   } catch (err) {
-    return Response.json(
-      { error: 'Failed to fulfill commitment on DevNet', detail: err.message },
-      { status: 502 },
-    );
+    return safeErrorResponse(502, 'Failed to fulfill commitment on DevNet', err);
   }
 };

@@ -106,7 +106,7 @@ export async function ledgerGet(path) {
   const res = await fetch(`${LEDGER_API.value}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!res.ok) throw new Error(`Ledger GET ${path} failed: ${res.status}`);
+  if (!res.ok) throw new Error(`Ledger GET failed (HTTP ${res.status})`);
   return res.json();
 }
 
@@ -122,13 +122,89 @@ export async function ledgerPost(path, payload) {
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Ledger POST ${path} (${res.status}): ${text}`);
+    // SECURITY (audit Fase 3, H-6): do NOT put the raw upstream body in
+    // .message — it is often surfaced to the client and leaks templateIds,
+    // party hashes, and Daml stack traces. Keep a generic message; stash the
+    // detail on a non-enumerable field for server logs only.
+    const err = new Error(`Ledger POST ${path} failed (HTTP ${res.status})`);
+    Object.defineProperty(err, 'upstreamDetail', { value: text.slice(0, 500), enumerable: false });
+    err.status = res.status;
+    throw err;
   }
   return res.json();
 }
 
 export async function ledgerEnd() {
   return (await ledgerGet('/v2/state/ledger-end')).offset;
+}
+
+/**
+ * Map a thrown error to a safe client-facing JSON response. Never leaks
+ * err.message / err.upstreamDetail — those may contain internals. The optional
+ * `message` overrides the generic one so each handler can keep its phrasing.
+ *
+ * (audit Fase 3, H-6): replaces the previous `detail: err.message` pattern
+ * found in every handler, which systematically disclosed ledger internals.
+ */
+export function safeErrorResponse(status, message, err) {
+  if (err) {
+    // Server-side only: full detail goes to stdout (Cloudflare observability),
+    // never to the HTTP body.
+    console.error(`[safeError ${status}] ${message}`, err?.message ?? err, err?.upstreamDetail ?? '');
+  }
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+// ── Input validators (audit Fase 3, M1/M2) ─────────────────────────────────
+// Defense-in-depth: the frontend validates too, but every edge handler MUST
+// re-validate because it is the authoritative boundary. These return
+// { ok, value } or { ok:false, error }.
+
+const ISO_8601_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+const PARTY_RE = /^(cancore|wallet|Observer)::1220[0-9a-f]{64}$/;
+// Canton contractIds look like #<int>:<int> or hex hashes; keep permissive but
+// reject control chars / quotes that could break JSON or log injection.
+const CID_RE = /^[\x21-\x7e]{1,200}$/;
+
+export function validateAmount(raw) {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return { ok: false, error: 'Amount must be a positive finite number' };
+  if (n > 1e12) return { ok: false, error: 'Amount unrealistically large' };
+  return { ok: true, value: n };
+}
+
+export function validateDeadline(raw) {
+  const s = String(raw ?? '').trim();
+  if (!s) return { ok: false, error: 'Deadline is required' };
+  if (!ISO_8601_RE.test(s)) return { ok: false, error: 'Deadline must be strict ISO-8601 (e.g. 2026-12-31T23:59:59Z)' };
+  const t = Date.parse(s);
+  if (!Number.isFinite(t)) return { ok: false, error: 'Deadline is not a valid date' };
+  if (t <= Date.now()) return { ok: false, error: 'Deadline must be in the future' };
+  return { ok: true, value: s };
+}
+
+export function validatePartyId(raw, field) {
+  const s = String(raw ?? '').trim();
+  if (!s) return { ok: false, error: `${field} is required` };
+  if (!PARTY_RE.test(s)) return { ok: false, error: `${field} is not a valid Canton party id` };
+  return { ok: true, value: s };
+}
+
+export function validateContractId(raw) {
+  const s = String(raw ?? '').trim();
+  if (!s) return { ok: false, error: 'contractId is required' };
+  if (!CID_RE.test(s) || /["\\\n\r]/.test(s)) return { ok: false, error: 'contractId has invalid characters' };
+  return { ok: true, value: s };
+}
+
+export function validateText(raw, field, maxLen = 500) {
+  const s = String(raw ?? '').trim();
+  if (!s) return { ok: false, error: `${field} is required` };
+  if (s.length > maxLen) return { ok: false, error: `${field} is too long (max ${maxLen})` };
+  return { ok: true, value: s };
 }
 
 // Canton 3.5 JSON Ledger API command submission. We use submit-and-wait-for-transaction

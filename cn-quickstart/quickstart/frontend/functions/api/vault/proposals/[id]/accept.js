@@ -1,4 +1,4 @@
-import { submitExercise, kvGet, kvPut, kvUpdateStatus, configure } from '../../../_ledger.js';
+import { submitExercise, kvGet, kvPut, kvUpdateStatus, configure, safeErrorResponse, validateContractId } from '../../../_ledger.js';
 
 // POST /api/vault/proposals/:id/accept
 // Exercises AcceptProposal on a CommitmentProposal. The accepter signs and
@@ -8,7 +8,9 @@ const TEMPLATE = 'Vault.CommitmentProposal:CommitmentProposal';
 export const onRequest = async (context) => {
   const { params, env } = context;
   configure(env);
-  const contractId = params.id;
+  const idR = validateContractId(params.id);
+  if (!idR.ok) return safeErrorResponse(400, idR.error);
+  const contractId = idR.value;
   try {
     const result = await submitExercise(TEMPLATE, contractId, 'AcceptProposal', {});
 
@@ -37,9 +39,6 @@ export const onRequest = async (context) => {
       offset: result.completionOffset,
     });
   } catch (err) {
-    return Response.json(
-      { error: 'Failed to accept proposal on DevNet', detail: err.message },
-      { status: 502 },
-    );
+    return safeErrorResponse(502, 'Failed to accept proposal on DevNet', err);
   }
 };

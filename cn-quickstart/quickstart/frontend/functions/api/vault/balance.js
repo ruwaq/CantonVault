@@ -1,4 +1,4 @@
-import { ledgerEnd, walletBalance, PARTY, configure } from '../_ledger.js';
+import { ledgerEnd, walletBalance, PARTY, configure, safeErrorResponse } from '../_ledger.js';
 
 // GET /api/vault/balance — returns the REAL on-ledger Canton Coin (Amulet) balance
 // for the acting party, read live from the Splice Validator REST API. No hardcoding.
@@ -21,9 +21,6 @@ export const onRequest = async (context) => {
       ledgerOffset: offset,
     });
   } catch (err) {
-    return Response.json(
-      { error: 'DevNet unreachable', detail: err.message },
-      { status: 503 },
-    );
+    return safeErrorResponse(503, 'DevNet unreachable', err);
   }
 };

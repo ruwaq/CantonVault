@@ -1,4 +1,4 @@
-import { PARTY, submitExercise, kvGet, kvPut, kvUpdateStatus, configure } from '../../../_ledger.js';
+import { PARTY, submitExercise, kvGet, kvPut, kvUpdateStatus, configure, safeErrorResponse, validateContractId, validateText } from '../../../_ledger.js';
 
 // POST /api/vault/commitments/:id/raise-dispute
 // Exercises RaiseDispute on a CommitmentContract. Either signatory escalates
@@ -9,10 +9,13 @@ const TEMPLATE = 'Vault.CommitmentContract:CommitmentContract';
 export const onRequest = async (context) => {
   const { params, request, env } = context;
   configure(env);
-  const contractId = params.id;
+  const idR = validateContractId(params.id);
+  if (!idR.ok) return safeErrorResponse(400, idR.error);
+  const contractId = idR.value;
   try {
     const body = await request.json().catch(() => ({}));
-    const reason = String(body.reason ?? 'Undisputed delivery issue');
+    const reasonR = validateText(body.reason, 'reason', 500);
+    const reason = reasonR.ok ? reasonR.value : 'Undisputed delivery issue';
     // The choice controller is `actor` (parametrized signatory). In the demo
     // the same party holds all roles, so PARTY authorizes as a signatory.
     // RaiseDispute creates TWO contracts: a DisclosedRecord (first) and a
@@ -70,9 +73,6 @@ export const onRequest = async (context) => {
       offset: result.completionOffset,
     });
   } catch (err) {
-    return Response.json(
-      { error: 'Failed to raise dispute on DevNet', detail: err.message },
-      { status: 502 },
-    );
+    return safeErrorResponse(502, 'Failed to raise dispute on DevNet', err);
   }
 };

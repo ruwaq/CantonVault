@@ -1,4 +1,4 @@
-import { ledgerGet, ledgerEnd, configure } from './_ledger.js';
+import { ledgerGet, ledgerEnd, configure, safeErrorResponse } from './_ledger.js';
 
 export const onRequest = async (context) => {
   const { env } = context;
@@ -10,6 +10,6 @@ export const onRequest = async (context) => {
     ]);
     return Response.json({ status: 'ok', cantonVersion: ver, ledgerOffset: off });
   } catch (err) {
-    return Response.json({ status: 'error', message: err.message }, { status: 503 });
+    return safeErrorResponse(503, 'DevNet unreachable', err);
   }
 };

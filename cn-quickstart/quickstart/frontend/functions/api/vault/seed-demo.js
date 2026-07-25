@@ -8,7 +8,7 @@
 // The demo data is written directly to KV (no on-ledger contracts are created),
 // so it's instant and doesn't depend on the DevNet being available.
 
-import { kvPut, kvList, configure } from '../_ledger';
+import { kvPut, kvList, configure, safeErrorResponse } from '../_ledger';
 
 // ── Party identifiers (match the real DevNet parties) ──────────────────────
 const PROPOSER = 'cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
@@ -329,9 +329,6 @@ export async function onRequestPost(context) {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    return new Response(
-      JSON.stringify({ error: 'Failed to seed demo data', detail: err.message }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } },
-    );
+    return safeErrorResponse(500, 'Failed to seed demo data', err);
   }
 }
