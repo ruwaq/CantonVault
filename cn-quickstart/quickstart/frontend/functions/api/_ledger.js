@@ -383,7 +383,13 @@ export async function ledgerGetUpdateById(updateId) {
     updateFormat: {
       includeTransactions: {
         transactionShape: 'TRANSACTION_SHAPE_ACS_DELTA',
-        eventFormat: { verbose: true },
+        // Canton REQUIRES at least one party filter — an empty eventFormat is
+        // rejected with INVALID_ARGUMENT. The operator party is a signatory of
+        // every CantonVault contract, so filtering by it surfaces all our events.
+        eventFormat: {
+          filtersByParty: { [PARTY.value]: {} },
+          verbose: true,
+        },
       },
     },
   });

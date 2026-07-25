@@ -65,18 +65,6 @@ export const onRequestGet = async (context) => {
       };
       return Response.json(graceful);
     }
-    // TEMP DEBUG: ?debug=1 exposes the raw upstream error shape (revert before finale).
-    const isDebug = new URL(context.request.url).searchParams.get('debug') === '1';
-    if (isDebug) {
-      return Response.json({
-        ok: false,
-        message: err.message,
-        status: err.status,
-        cantonCode: err.cantonCode,
-        code: err.code,
-        upstreamDetail: err.upstreamDetail,
-      }, { status: 200 });
-    }
     return safeErrorResponse(502, 'Failed to verify transaction on DevNet', err);
   }
 };
