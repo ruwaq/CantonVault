@@ -115,9 +115,10 @@ export function useVaultMutations() {
                     // contractId + offset from the backend. Convert the gerund
                     // action ("Accepting proposal") into a past-tense success
                     // ("Proposal accepted") for a natural confirmation message.
-                    const data = (result as { data?: { contractId?: string; offset?: number } })?.data;
+                    const data = (result as { data?: { contractId?: string; updateId?: string; offset?: number } })?.data;
                     toast.displaySuccess(toSuccessMessage(action), {
                         contractId: data?.contractId,
+                        updateId: data?.updateId,
                         offset: data?.offset,
                         privacy: privacyContext(action),
                     });

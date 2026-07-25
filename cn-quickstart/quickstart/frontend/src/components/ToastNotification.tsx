@@ -41,7 +41,7 @@ const ToastNotification: React.FC = () => {
                 </div>
                 <div className="toast-body">
                     <div className="fw-semibold">{bodyText}</div>
-                    {isSuccess && proof && (proof.contractId || proof.offset != null || proof.privacy) && (
+                    {isSuccess && proof && (proof.contractId || proof.updateId || proof.offset != null || proof.privacy) && (
                         <div className="mt-2 pt-2 border-top border-white border-opacity-25 font-monospace" style={{ fontSize: '0.72rem', lineHeight: 1.5 }}>
                             {proof.privacy && (
                                 <div className="mb-1">
@@ -71,6 +71,18 @@ const ToastNotification: React.FC = () => {
                                     <span className="opacity-75">Ledger offset:</span>{' '}
                                     <span className="text-warning">{proof.offset.toLocaleString()}</span>
                                 </div>
+                            )}
+                            {proof.updateId && (
+                                <a
+                                    href={`/tx/${proof.updateId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn btn-sm btn-warning bg-opacity-25 text-warning border-warning border-opacity-25 mt-1 py-0 px-2 text-decoration-none"
+                                    style={{ fontSize: '0.7rem' }}
+                                    title="Open the public verifier for this transaction"
+                                >
+                                    🔍 Verify on-ledger
+                                </a>
                             )}
                         </div>
                     )}

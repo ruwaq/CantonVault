@@ -10,6 +10,8 @@ import React, { createContext, useContext, useState, useCallback, useRef, useEff
 export interface LedgerProof {
     /** The created/affected contractId (will be shown truncated). */
     contractId?: string
+    /** The Canton transaction hash — links to the public verifier at /tx/:updateId. */
+    updateId?: string
     /** The ledger offset the transaction landed at. */
     offset?: number
     /** Privacy context: who can see this transaction. */
