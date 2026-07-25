@@ -154,6 +154,12 @@ CantonVault implements the **Delivery-vs-Payment (DvP)** pattern using the Splic
 
 *Reference implementation available under:* [`TestRealSettlement.daml`](file:///Users/munay/dev/Build%20on%20Canton%20Hackathon/cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestRealSettlement.daml)
 
+> **Demo note.** The live demo at canton-vault.pages.dev exercises the symbolic
+> settlement branch (see the "Settlement model" note above). The DvP pattern is
+> implemented and unit-tested at the contract level; deploying it end-to-end on
+> Canton Coin requires a DSO-authorized operator, which the shared DevNet
+> sandbox m2m account is not.
+
 ---
 
 ## 🗺️ Repository Structure Map
@@ -217,7 +223,10 @@ curl -s https://canton-vault.pages.dev/api/vault/proposals
 ```
 
 ### On-Ledger Tx Proofs (July 2026)
-We successfully processed **52,500 CC (Canton Coins)** across all three workflow scenarios:
+
+The following exercises landed on the Canton Network DevNet — each `updateId` is a
+verifiable transaction hash, and each exercise archives a `CommitmentContract` and
+produces a `SettlementReceipt` on-ledger:
 
 | # | Scenario | Amount | updateId (Transaction Hash) | Ledger Offset |
 |---|---|---|---|---|
@@ -226,6 +235,20 @@ We successfully processed **52,500 CC (Canton Coins)** across all three workflow
 | 3 | supply-chain-finance | 12,000 CC | `1220e723952221684661ac7f0a6fcf0db66e570866d062bf34ba938d23ab2090ce01` | 4297881 |
 | 4 | invoice-financing | 3,000 CC | `12202b830f37bcab5a0a234565bc6acd328e8eea979d6b71967068d2430cffb89678` | 4298442 |
 | 5 | otc-block-trade | 25,000 CC | `12204b7cf00a72988934e883439f48da8df2d0497435f2d9e6df87b7826aebb7d27c` | 4298435 |
+
+> **Settlement model — read me.** In this demo the exercises above run on the
+> **symbolic** settlement branch of `Fulfill` (`allocationCid = None`), so the
+> receipts record `settlementExecuted = false`. Real Canton Coin settlement is
+> **not exercisable** against the shared DevNet sandbox: the `validator-devnet-m2m`
+> operator is not the DSO of the network, and Splice's `AllocationFactory_Allocate`
+> rejects any settlement whose `instrumentAdmin != DSO`. The DvP path itself is
+> fully implemented at the **contract level** and is proven by
+> [`TestRealSettlement.daml`](./cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestRealSettlement.daml),
+> which moves real Amulet on a local Canton participant (`test_real_settlement_dvp`,
+> passing). Running it against the shared sandbox would require the DSO party and
+> `AmuletRules` to be divulged to the m2m operator. Full analysis in
+> [`SECURITY.md`](./SECURITY.md) (Fase 3).
+
 
 ---
 

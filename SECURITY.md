@@ -124,7 +124,7 @@ Serverless Functions, Backend Services TS, e Infraestructura. 6 capas, ~150 arch
 
 | ID | Archivo | Línea | Hallazgo | Fix |
 |----|---------|-------|----------|-----|
-| **A-C1** | `functions/api/_ledger.js` | 13 | `CLIENT_SECRET` hardcodeado en plaintext (`r69FQmev...`) | Mover a `env.SECRET` de Cloudflare o `context.env` |
+| **A-C1** | `functions/api/_ledger.js` | 13 | `CLIENT_SECRET` hardcodeado en plaintext (`r69FQ…` — redacted; see Fase 3) | Mover a `env.SECRET` de Cloudflare o `context.env` |
 | **A-C1b** | `backend-worker/src/index.ts` | 19-20 | **MISMO** `CLIENT_SECRET` hardcodeado — 2ª instancia | Mover a `env.SECRET` de Cloudflare |
 | **A-C1c** | `backend-ts/src/types.ts` | 64-65 | **MISMO** `CLIENT_SECRET` hardcodeado — 3ª instancia | Mover a `process.env.CLIENT_SECRET` |
 
@@ -259,3 +259,76 @@ export CORS_ALLOWED_ORIGINS=https://yourdomain.com
 | Plaintext passwords | BCrypt | All passwords hashed via `DelegatingPasswordEncoder` |
 | Default ledger host | Crash | `LedgerConfig` requires explicit `LEDGER_HOST` |
 | Debug logging | `WARN/INFO` | `Http11InputBuffer` not logged |
+
+---
+
+# Security Audit — CantonVault FASE 3 (2026-07-25)
+
+## Status: COMPLETED ✅ — 6 CRITICAL, 14 HIGH, 18 MEDIUM, 16 LOW across 6 layers
+
+Auditoría integral fresh (post-submission, pre-finale). Encontró que la
+remediación de Fase 2 fue en gran medida cosmética: los mismos hallazgos
+críticos persistían y se añadieron nuevos. Toda la remediación aplicada vive en
+la rama `fix/audit-remediation`.
+
+## CRITICAL remediados
+
+| ID | Hallazgo | Fix (commit) |
+|----|----------|--------------|
+| C-1 | `CLIENT_SECRET` OAuth2 hardcodeado en 5 archivos tracked (Fase 2 dijo "remediado" pero el valor real seguía como default). Aparece en 11 commits del historial. | Fail-closed en los 5 archivos: `_ledger.js` lanza si falta; CLI usa `loadConfig()` con `process.env.CLIENT_SECRET`; scripts shell usan `:?`. **El secreto debe rotarse en `auth.sandbox.fivenorth.io`** — eso es lo que protege de verdad; el historial se limpia con rotación. (`391c48a`) |
+| C-2 | Toda la API del demo era anónima — cero autenticación real. `authenticated-user.js` siempre devolvía `isAdmin:true`. | Nuevo `functions/api/_middleware.js` + `_auth.js`: cookie `cv_session` firmada con HMAC-SHA256 (Web Crypto), HttpOnly+Secure+SameSite=Strict, 8h TTL. Login (`/api/auth/login`) intercambia `DEMO_TOKEN` por la cookie. Rate limit 60/min por identidad (KV). CORS allowlist. (`d0d7a22`) |
+| C-3 | `seed-demo.js` fail-open: POST anónimo borraba todo el KV index. | Fail-closed: si `SEED_SECRET` no está, devuelve 503. (`391c48a`) |
+| C-4 | `Refund` con `allocationCid=Some` drenaba al proposer (enviaba CC proposer→accepter cuando no hubo transfer forward que revertir). Código muerto sin cobertura de tests. | Eliminado el path `Some` del choice `Refund` en Daml; ahora es archival puro. 27/27 tests siguen pasando. (`4db04aa`) |
+| C-5 | DvP "real" claim era simbólico: ningún flujo movía Canton Coin (todos los receipts `settlementExecuted:false`). | Investigación confirmó que el DvP real **no es ejecutable** contra el sandbox DevNet: el m2m operator no es el DSO, y `AllocationFactory_Allocate` rechaza settlements con `instrumentAdmin != DSO`. `test_real_settlement_dvp` (Daml.Script) prueba que el contrato soporta DvP real en un participant local. El demo se mantiene en settlement simbólico, ahora **documentado honestamente** en código y README. (`ab63ab8`) |
+| C-6 | Frontend: bypass de auth — cualquier fallo de red logueaba como admin (`DEMO_USER` fallback). | Removido el fallback. `fetcher.ts` redirige a `/login` en 401. `RequireAuth` redirige cuando `user===null`. `LoginView` llama a `/api/auth/login`. (`23e83c6`) |
+
+## HIGH remediados (selección)
+
+| ID | Fix |
+|----|-----|
+| H-1 | `commandId` ahora `crypto.randomUUID()` (era `Date.now()+Math.random()`, colisionable). |
+| H-2 | `getToken()` dedup refreshes concurrentes y guarda contra `expires_in` faltante (evita loop NaN → DoS al IdP). |
+| H-3 | `allocationRequest_RejectImpl` ahora autoriza al `accepter` (sender del leg) según spec Splice. |
+| H-5 | Race del deadline eliminada: Fulfill `now < deadline`, Refund `now > deadline` (zona muerta segura en `==`). |
+| H-6 | `safeErrorResponse()` en todos los handlers; el upstream body del ledger ya no llega al `.message`. |
+| H-9 | Interceptor 401 ahora en el `fetcher` SWR (el único por donde pasa la lectura), no solo en clientes axios muertos. |
+| H-13 | `ResolveDispute` crea `DisclosedRecord` para **ambos** (ganador y perdedor), no solo el ganador. |
+
+## MEDIUM remediados (selección)
+
+- Validación de inputs en todos los edge handlers: amount (finite, >0, ≤1e12), deadline (ISO-8601 estricto + futuro), contractId, text bounds. (`ab63ab8`)
+- Whitelist de campos en el payload devuelto por `proposals.js` (no spread de body crudo). (`ab63ab8`)
+- `Modal.tsx`: `useId()` reemplaza contador módulo-global (side effect en render). (`f9f41e8`)
+- `PrivacyLab.tsx`: deps del `useMemo` ahora incluyen `receipts`/`disclosures` (stale state de la barra de exposición). (`f9f41e8`)
+- `useVaultMutations.ts`: optimistic updates con `revalidate:true` (antes `false`, racía contra la revalidación de KV eventualmente consistente). (`f9f41e8`)
+- `dependabot.yml` ahora cubre `cli/`. Daml installer endurecido en CI. (`a8ca493`)
+
+## Cambios de arquitectura
+
+- **Borrados `backend-ts/` y `backend-worker/`**: no eran el demo (solo `functions/api/*` se sirve), y contenían stubs engañosos (balance=0, resolve no-op, todos los exercises del Worker eran stubs). También duplicaban el `CLIENT_SECRET`. (`ba94019`)
+- **Auth model**: cookie HMAC firmada. Limitación documentada: `DEMO_TOKEN` va al bundle del SPA vía `VITE_DEMO_TOKEN` (aceptable para demo de un operador; producción usaría OAuth2 con IdP externo).
+- **Settlement**: simbólico documentado. El pitch ya **no** claims "52,500 CC processed" como real.
+
+## Limitaciones conocidas restantes (by design o bloqueo externo)
+
+| Limitación | Estado | Razón |
+|---|---|---|
+| `CLIENT_SECRET` en historial git (11 commits) | Pendiente de rotación | Rotar en `auth.sandbox.fivenorth.io` lo neutraliza. `git filter-repo` diferido por decisión del equipo (riesgo de reescribir historial pre-finale). |
+| DvP real en DevNet | No ejecutable | El sandbox m2m no es el DSO. Requeriría que el operador del sandbox divulgue `AmuletRules`/`ExternalPartyAmuletRules` al m2m, o levantar un Canton+Splice local (que no calificaría como "live on Canton Devnet"). |
+| `DEMO_TOKEN` en bundle SPA | Aceptado para demo | Single-operator hackathon. Producción → OAuth2 con IdP externo. |
+| `api.ts`/`vaultApi.ts` axios clients | Pendiente de remover | Apuntan a un backend Spring legacy; el flujo vault real usa `fetcher`. Se dejan para no romper imports; se limpian en seguimiento. |
+
+## Setup de secrets requerido (Cloudflare Pages)
+
+Antes de deployar la rama a `main`, setear (vía `wrangler pages secret put` o dashboard):
+
+```
+CLIENT_SECRET   # el ROTADO (no el filtrado)
+PARTY           # cancore::1220...
+MEDIATOR_PARTY  # Observer::1220...
+SESSION_SECRET  # >=32 bytes random para HMAC
+DEMO_TOKEN      # token random intercambiado en /api/auth/login
+SEED_SECRET     # para habilitar /api/vault/seed-demo (opcional)
+```
+
+Sin estos, los endpoints fallan cerrado (500/503/401) — por diseño.
