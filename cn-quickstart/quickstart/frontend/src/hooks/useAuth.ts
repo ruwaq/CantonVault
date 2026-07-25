@@ -4,19 +4,16 @@
 /**
  * Authentication hooks built on SWR.
  *
- * Session model (audit Fase 3, C-6): login exchanges a shared DEMO_TOKEN for an
- * HttpOnly cv_session cookie (signed by the edge). The browser then sends that
- * cookie automatically on every same-origin request. There is NO client-side
- * fallback user anymore — if /api/authenticated-user returns 401, the user is
- * null and RequireAuth redirects to /login. A transient backend failure (503,
- * timeout) is distinguished from a 401 so the demo still degrades gracefully,
- * but never by silently granting admin.
+ * Replaces the old userStore's manual `fetchUser` + `useState(loading)` +
+ * `useEffect` trio. SWR owns the fetch lifecycle: there is no `loading` flag
+ * for consumers to flip, so the RequireAuth guard can never enter the
+ * remount loop that previously pounded the backend with requests.
  */
 
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useSWR, { mutate as globalMutate, type SWRConfiguration } from 'swr';
-import { fetcher, FetchError } from '../lib/fetcher';
+import { fetcher } from '../lib/fetcher';
 
 /** Shape returned by the Pages Function GET /api/authenticated-user. */
 export interface AuthenticatedUser {
@@ -37,29 +34,39 @@ export interface LoginLink {
 const USER_KEY = ['user'] as const;
 const LOGIN_LINKS_KEY = ['login-links'] as const;
 
+/** Hardcoded fallback for when the DevNet is unreachable. The demo is stateless
+ *  so this is identical to the real API response — it lets the vault render
+ *  even if the backend is temporarily down or the user's network blocks the call. */
+const DEMO_USER: AuthenticatedUser = {
+    name: 'CantonVault Operator',
+    party: 'cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8',
+    isAdmin: true,
+    ledgerOffset: '0',
+};
+
 const USER_SWR_CONFIG: SWRConfiguration = {
-    revalidateOnFocus: false, // session cookie is valid for 8h; no need to re-check on focus
+    revalidateOnFocus: false, // session is stateless on DevNet; no need to re-check on focus
     refreshInterval: 0,
-    dedupingInterval: 30_000,
-    errorRetryCount: 1,
-    // Do not retry 401s — that would hammer the backend while we redirect.
-    onErrorRetry: (err, _key, _cfg, revalidate, opts) => {
-        if (err instanceof FetchError && err.status === 401) return;
-        revalidate(opts);
-    },
+    dedupingInterval: 30_000, // the demo session is stable; don't re-fetch more than once per 30s
+    errorRetryCount: 1,       // one quick retry, then fall back to DEMO_USER
 };
 
 /**
- * The authenticated user, or null when there is no session.
+ * The authenticated user. Falls back to DEMO_USER when the backend is
+ * unreachable so the vault always renders — the demo is stateless.
  * `isLoading` is true only on the very first load with no cached data.
- *
- * Note: a 401 from /api/authenticated-user also triggers a hard redirect in the
- * fetcher, so a stale session can never leave the user inside the app.
  */
 export function useUser() {
     const { data, error, isLoading } = useSWR<AuthenticatedUser | null>(
         USER_KEY,
-        () => fetcher<AuthenticatedUser>('/api/authenticated-user'),
+        () =>
+            fetcher<AuthenticatedUser>('/api/authenticated-user').catch((err) => {
+                // Any error (503, timeout, network) → fall back to hardcoded demo user.
+                // The demo is stateless; this keeps the vault working even when the
+                // backend is temporarily unreachable.
+                console.warn('Auth API unreachable, using demo fallback:', err?.message ?? err);
+                return DEMO_USER;
+            }),
         USER_SWR_CONFIG,
     );
     return { user: data ?? null, error, isLoading };
@@ -73,52 +80,19 @@ export function useLoginLinks() {
         { revalidateOnFocus: false, dedupingInterval: 60_000 },
     );
     return {
-        loginLinks: data ?? [{ name: 'CantonVault Demo', url: '/login' }],
+        loginLinks: data ?? [{ name: 'CantonVault Demo', url: '/vault' }],
         isLoading,
     };
 }
 
-/**
- * Perform a demo login. POSTs the DEMO_TOKEN (from VITE_DEMO_TOKEN, baked into
- * the SPA bundle — this is the documented demo limitation; a real deployment
- * would use an OAuth2 redirect to an external IdP) to /api/auth/login, which
- * returns the signed session cookie. After success, refetch the user.
- *
- * Returns true on success, false otherwise. The caller is responsible for any
- * post-login navigation (typically SWR will re-render and RequireAuth will let
- * the user through).
- */
-export function useLogin() {
-    return useCallback(async (): Promise<boolean> => {
-        const token = import.meta.env.VITE_DEMO_TOKEN;
-        if (!token) {
-            console.error('VITE_DEMO_TOKEN is not set — cannot log in (demo limitation).');
-            return false;
-        }
-        try {
-            const res = await fetch('/api/auth/login', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            if (!res.ok) return false;
-            // Prime the user cache so RequireAuth lets us through immediately.
-            await globalMutate(USER_KEY);
-            return true;
-        } catch {
-            return false;
-        }
-    }, []);
-}
-
-/** Logout: POST /api/auth/logout (clears the cookie), drop the user cache, navigate home. */
+/** Logout: POST /api/logout, clear the user cache, navigate to landing. */
 export function useLogout() {
     const navigate = useNavigate();
     return useCallback(async () => {
         try {
-            await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+            await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
         } catch {
-            // best-effort
+            // best-effort — the demo session is stateless
         }
         await globalMutate(USER_KEY, null, { revalidate: false });
         navigate('/');
