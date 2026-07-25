@@ -88,12 +88,10 @@ export interface CreateProposalInput {
 
 export interface FulfillInput {
     fulfillmentNote: string;
-    allocationContractId: string;
 }
 
-export interface RefundInput {
-    allocationContractId: string;
-}
+// (audit Fase 3): RefundInput removed — Refund no longer moves Canton Coin and
+// the backend ignores any allocation field. refundCommitment now takes no body.
 
 /**
  * Centralized mutation hook: returns `pending` state plus a bag of action
@@ -141,17 +139,27 @@ export function useVaultMutations() {
                 'Creating proposal',
                 async () => {
                     const res = await vaultApi.post('/proposals', input);
-                    // Optimistic update: KV is eventually consistent (up to 60s
-                    // cross-datacenter), so the immediate SWR revalidation may
-                    // not see the new proposal yet. Insert it into the cache now
-                    // from the response payload; the background revalidation will
-                    // reconcile once KV replicates.
-                    await mutate(K.proposals, (current: unknown) => {
-                        const list = (current ?? []) as Array<{ contractId: string; payload: Record<string, unknown> }>;
-                        const cid = res.data?.contractId;
-                        if (!cid || list.some((p) => p.contractId === cid)) return list;
-                        return [{ contractId: cid, payload: { ...input } }, ...list];
-                    }, { revalidate: false });
+                    // (audit Fase 3, H-1): insert into the SWR cache WITH
+                    // revalidate:true. The previous { revalidate: false } optimisic
+                    // insert raced against wrap()'s subsequent
+                    // Promise.all(mutate(...)) revalidation: KV is eventually
+                    // consistent (up to 60s cross-DC), so the revalidation could
+                    // fetch a list that did NOT yet contain the new proposal and
+                    // overwrite the optimistic entry, making it flicker/disappear.
+                    // Now we do a single mutate that both inserts AND triggers a
+                    // background revalidation that will reconcile once KV replicates.
+                    const cid = res.data?.contractId;
+                    if (cid) {
+                        await mutate(
+                            K.proposals,
+                            (current: unknown) => {
+                                const list = (current ?? []) as Array<{ contractId: string; payload: Record<string, unknown> }>;
+                                if (list.some((p) => p.contractId === cid)) return list;
+                                return [{ contractId: cid, payload: { ...input } }, ...list];
+                            },
+                            { revalidate: true },
+                        );
+                    }
                     return res;
                 },
                 [K.proposals, K.commitments],
@@ -171,7 +179,7 @@ export function useVaultMutations() {
                     await mutate(K.proposals, (current: unknown) => {
                         const list = (current ?? []) as Array<{ contractId: string }>;
                         return list.filter((p) => p.contractId !== contractId);
-                    }, { revalidate: false });
+                    }, { revalidate: true });
                     return res;
                 },
                 [K.proposals, K.commitments],
@@ -189,7 +197,7 @@ export function useVaultMutations() {
                     await mutate(K.proposals, (current: unknown) => {
                         const list = (current ?? []) as Array<{ contractId: string }>;
                         return list.filter((p) => p.contractId !== contractId);
-                    }, { revalidate: false });
+                    }, { revalidate: true });
                     return res;
                 },
                 [K.proposals],
@@ -208,7 +216,7 @@ export function useVaultMutations() {
                     await mutate(K.commitments, (current: unknown) => {
                         const list = (current ?? []) as Array<{ contractId: string }>;
                         return list.filter((c) => c.contractId !== contractId);
-                    }, { revalidate: false });
+                    }, { revalidate: true });
                     return res;
                 },
                 [K.commitments, K.receipts, K.balance],
@@ -227,7 +235,7 @@ export function useVaultMutations() {
                     await mutate(K.commitments, (current: unknown) => {
                         const list = (current ?? []) as Array<{ contractId: string }>;
                         return list.filter((c) => c.contractId !== contractId);
-                    }, { revalidate: false });
+                    }, { revalidate: true });
                     return res;
                 },
                 [K.commitments, K.disputes, K.disclosures],
@@ -236,20 +244,17 @@ export function useVaultMutations() {
     );
 
     const resolveDispute = useCallback(
-        (contractId: string, ruling: string, allocationContractId?: string) =>
+        (contractId: string, ruling: string) =>
             wrap(
                 contractId,
                 'Resolving dispute',
                 async () => {
-                    const res = await vaultApi.post(`/commitments/${contractId}/resolve`, {
-                        ruling,
-                        allocationContractId: allocationContractId?.trim() || undefined,
-                    });
+                    const res = await vaultApi.post(`/commitments/${contractId}/resolve`, { ruling });
                     // Optimistic: the dispute leaves the open list.
                     await mutate(K.disputes, (current: unknown) => {
                         const list = (current ?? []) as Array<{ contractId: string; payload: { commitmentRef?: string } }>;
                         return list.filter((d) => d.payload?.commitmentRef !== contractId);
-                    }, { revalidate: false });
+                    }, { revalidate: true });
                     return res;
                 },
                 [K.commitments, K.disputes, K.disclosures, K.receipts, K.balance],
@@ -258,16 +263,16 @@ export function useVaultMutations() {
     );
 
     const refundCommitment = useCallback(
-        (contractId: string, input: RefundInput) =>
+        (contractId: string) =>
             wrap(
                 contractId,
                 'Refunding commitment',
                 async () => {
-                    const res = await vaultApi.post(`/commitments/${contractId}/refund`, input);
+                    const res = await vaultApi.post(`/commitments/${contractId}/refund`);
                     await mutate(K.commitments, (current: unknown) => {
                         const list = (current ?? []) as Array<{ contractId: string }>;
                         return list.filter((c) => c.contractId !== contractId);
-                    }, { revalidate: false });
+                    }, { revalidate: true });
                     return res;
                 },
                 [K.commitments, K.receipts, K.balance],

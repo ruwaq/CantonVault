@@ -26,7 +26,7 @@ import {
     useParties,
     type PartyDescriptor,
 } from '../hooks/useVaultData';
-import { useVaultMutations, type CreateProposalInput, type FulfillInput, type RefundInput } from '../hooks/useVaultMutations';
+import { useVaultMutations, type CreateProposalInput, type FulfillInput } from '../hooks/useVaultMutations';
 import type {
     Commitment,
     DisclosedRecord,
@@ -37,7 +37,7 @@ import type {
 } from '../types';
 
 // Re-export so existing imports from '../stores/vaultStore' keep working.
-export type { PartyDescriptor, CreateProposalInput, FulfillInput, RefundInput };
+export type { PartyDescriptor, CreateProposalInput, FulfillInput };
 
 interface VaultState {
     proposals: VaultContract<Proposal>[];
@@ -60,8 +60,8 @@ interface VaultContextType extends VaultState {
     rejectProposal: (contractId: string) => Promise<unknown>;
     fulfillCommitment: (contractId: string, input: FulfillInput) => Promise<unknown>;
     raiseDispute: (contractId: string, reason: string) => Promise<unknown>;
-    resolveDispute: (contractId: string, ruling: string, allocationContractId?: string) => Promise<unknown>;
-    refundCommitment: (contractId: string, input: RefundInput) => Promise<unknown>;
+    resolveDispute: (contractId: string, ruling: string) => Promise<unknown>;
+    refundCommitment: (contractId: string) => Promise<unknown>;
     seedDemoData: () => Promise<unknown>;
 }
 

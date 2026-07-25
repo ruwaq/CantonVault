@@ -1,7 +1,7 @@
 // Copyright (c) 2026, Digital Asset (Switzerland) GmbH and/or its affiliates. All rights reserved.
 // SPDX-License-Identifier: 0BSD
 
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react'
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
 
 /**
  * On-ledger metadata surfaced in a success toast, so the jury can immediately
@@ -37,6 +37,17 @@ export const ToastProvider = ({ children }: ToastProviderProps) => {
     const [show, setShow] = useState(false)
     const [proof, setProof] = useState<LedgerProof | null>(null)
     const timeoutIdRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    // (audit Fase 3, L-4): clear any pending auto-dismiss timer when the provider
+    // unmounts, so we never call setState on an unmounted component.
+    useEffect(() => {
+        return () => {
+            if (timeoutIdRef.current !== null) {
+                clearTimeout(timeoutIdRef.current)
+                timeoutIdRef.current = null
+            }
+        }
+    }, [])
 
     const hideError = useCallback(() => {
         setMessage('')

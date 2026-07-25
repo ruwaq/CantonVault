@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 
 type ModalProps = {
@@ -30,9 +30,6 @@ const FOCUSABLE = [
     '[tabindex]:not([tabindex="-1"])',
 ].join(', ');
 
-/** Unique id for the modal title so aria-labelledby can reference it. */
-let modalTitleIdCounter = 0;
-
 export default function Modal({
     show,
     title,
@@ -53,7 +50,9 @@ export default function Modal({
 }: ModalProps) {
     const modalRef = useRef<HTMLDivElement>(null);
     const previousFocusRef = useRef<HTMLElement | null>(null);
-    const titleIdRef = useRef(`cv-modal-title-${++modalTitleIdCounter}`);
+    // useId is stable, SSR-safe, and StrictMode-safe (audit Fase 3, M-1).
+    // Replaces the module-global counter that mutated state during render.
+    const titleId = `cv-modal-title${useId().replace(/:/g, '')}`;
 
     /** Return the first and last focusable elements inside the modal. */
     const getFocusableEdges = useCallback((): [HTMLElement, HTMLElement] | [null, null] => {
@@ -138,13 +137,13 @@ export default function Modal({
                 className={modalClasses}
                 role="dialog"
                 aria-modal="true"
-                aria-labelledby={titleIdRef.current}
+                aria-labelledby={titleId}
                 style={{ zIndex: zIndexBase + 5 }}
             >
                 <div className={dialogClasses} onClick={(e) => e.stopPropagation()}>
                     <div className={['modal-content', contentClassName].filter(Boolean).join(' ')}>
                         <div className="modal-header">
-                            <h5 className="modal-title" id={titleIdRef.current}>{title}</h5>
+                            <h5 className="modal-title" id={titleId}>{title}</h5>
                             <button type="button" className="btn-close" aria-label="Close" onClick={onClose} />
                         </div>
                         <div className="modal-body">{children}</div>

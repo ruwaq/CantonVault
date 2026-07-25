@@ -11,31 +11,30 @@ interface FulfillModalProps {
     show: boolean;
     commitment: Commitment | null;
     onClose: () => void;
-    onConfirm: (note: string, allocationContractId: string) => void;
+    onConfirm: (note: string) => void;
 }
 
 /**
- * Modal to fulfill a commitment with real Canton Coin settlement.
+ * Modal to fulfill a commitment. The demo exercises Fulfill on the SYMBOLIC
+ * settlement branch (see SECURITY.md Fase 3): real Canton Coin settlement is
+ * not exercisable against the shared DevNet sandbox because the m2m operator is
+ * not the DSO. The receipt therefore records settlementExecuted=false. The
+ * allocation contract id field has been removed — it was always ignored by the
+ * backend and forced the user to enter a fake value.
  */
 export function FulfillModal({ show, commitment, onClose, onConfirm }: FulfillModalProps) {
     const [note, setNote] = useState('Delivery confirmed');
-    const [allocationContractId, setAllocationContractId] = useState('');
 
     useEffect(() => {
         if (show) {
             setNote('Delivery confirmed');
-            setAllocationContractId('');
         }
     }, [show]);
 
     if (!commitment) return null;
 
     const handleConfirm = () => {
-        const allocationCid = allocationContractId.trim();
-        if (!allocationCid) {
-            return;
-        }
-        onConfirm(note.trim() || 'Delivery confirmed', allocationCid);
+        onConfirm(note.trim() || 'Delivery confirmed');
     };
 
     return (
@@ -46,7 +45,6 @@ export function FulfillModal({ show, commitment, onClose, onConfirm }: FulfillMo
             onConfirm={handleConfirm}
             confirmButtonLabel={copy.fulfill}
             confirmButtonClassName="btn-primary"
-            confirmButtonDisabled={!allocationContractId.trim()}
             size="lg"
         >
             <div className="mb-3">
@@ -60,7 +58,8 @@ export function FulfillModal({ show, commitment, onClose, onConfirm }: FulfillMo
 
             <div className="mb-3">
                 <div className="alert alert-info small mb-0">
-                    The payer is the <strong>accepter</strong>; the receiver is the <strong>proposer</strong>. Canton Coin moves atomically when you confirm.
+                    The payer is the <strong>accepter</strong>; the receiver is the <strong>proposer</strong>.
+                    Fulfill confirms delivery and archives the commitment, producing an immutable Settlement Receipt.
                 </div>
             </div>
 
@@ -75,20 +74,6 @@ export function FulfillModal({ show, commitment, onClose, onConfirm }: FulfillMo
                     Free-text proof of delivery (e.g. "Shipment confirmed", "Services rendered"). Stored permanently on the Settlement Receipt.
                 </div>
             </div>
-
-            <div className="mb-3">
-                <label className="form-label small">Funds approved to send</label>
-                <input
-                    className="form-control form-control-sm"
-                    style={{ fontSize: '0.75rem' }}
-                    placeholder="#0:1 (the Canton Coin allocation approved by the accepter)"
-                    value={allocationContractId}
-                    onChange={(e) => setAllocationContractId(e.target.value)}
-                />
-                <div className="form-text small text-on-glass">
-                    The on-ledger Canton Coin allocation that authorizes the transfer. Leave a value like <code>#0:1</code> if unsure.
-                </div>
-            </div>
         </Modal>
     );
 }
@@ -97,51 +82,34 @@ interface RefundModalProps {
     show: boolean;
     commitment: Commitment | null;
     onClose: () => void;
-    onConfirm: (allocationContractId: string) => void;
+    onConfirm: () => void;
 }
 
+/**
+ * Modal to refund (close out) an unfulfilled commitment after its deadline.
+ *
+ * (audit Fase 3, C-4): Refund is a pure archival close-out — it does NOT move
+ * Canton Coin. AcceptProposal does not escrow funds, and the only forward CC
+ * movement (Fulfill) only runs when the accepter confirms delivery; if we are
+ * here, Fulfill never ran, so there is nothing to reverse. The previous modal
+ * asked for a "reverse allocation" the contract no longer accepts (and never
+ * should have, since it would have drained the proposer).
+ */
 export function RefundModal({ show, commitment, onClose, onConfirm }: RefundModalProps) {
-    const [allocationContractId, setAllocationContractId] = useState('');
-
-    useEffect(() => {
-        if (show) {
-            setAllocationContractId('');
-        }
-    }, [show]);
-
     if (!commitment) return null;
-
-    const handleConfirm = () => {
-        const allocationCid = allocationContractId.trim();
-        if (!allocationCid) {
-            return;
-        }
-        onConfirm(allocationCid);
-    };
 
     return (
         <Modal
             show={show}
             title={<>Refund commitment &middot; {commitment.description}</>}
             onClose={onClose}
-            onConfirm={handleConfirm}
+            onConfirm={onConfirm}
             confirmButtonLabel="Refund"
             confirmButtonClassName="btn-outline-secondary"
-            confirmButtonDisabled={!allocationContractId.trim()}
         >
-            <div className="alert alert-warning small">
-                Refund in production also requires a real reverse allocation. The refund moves Canton Coin from proposer back to accepter.
-            </div>
-            <label className="form-label small">Reverse allocation contract id</label>
-            <input
-                className="form-control form-control-sm"
-                style={{ fontSize: '0.75rem' }}
-                placeholder="#0:2 (reverse allocation proposer -> accepter)"
-                value={allocationContractId}
-                onChange={(e) => setAllocationContractId(e.target.value)}
-            />
-            <div className="form-text small text-on-glass mt-1">
-                The on-ledger reverse allocation authorizing Canton Coin to flow back. Only works <strong>after the deadline has expired</strong> — the Daml contract enforces this. Leave <code>#0:2</code> if unsure.
+            <div className="alert alert-warning small mb-0">
+                Refund closes out this unfulfilled commitment and archives it on-ledger, producing a Settlement Receipt.
+                It is only possible <strong>after the deadline has expired</strong> (the Daml contract enforces this).
             </div>
         </Modal>
     );
@@ -201,29 +169,30 @@ interface ResolveModalProps {
     show: boolean;
     contractId: string | null;
     onClose: () => void;
-    onConfirm: (ruling: 'proposer' | 'accepter', allocationContractId?: string) => void;
+    onConfirm: (ruling: 'proposer' | 'accepter') => void;
 }
 
-/** Modal for the third party to resolve an open dispute. */
+/**
+ * Modal for the third party to resolve an open dispute.
+ *
+ * (audit Fase 3): the demo exercises ResolveDispute on the symbolic branch, so
+ * no Canton Coin moves — the ruling produces a terminal SettlementReceipt plus
+ * DisclosedRecords for BOTH parties (so each has on-ledger evidence of the
+ * outcome). The previous "allocation contract id" field has been removed.
+ */
 export function ResolveModal({ show, contractId, onClose, onConfirm }: ResolveModalProps) {
     const [ruling, setRuling] = useState<'proposer' | 'accepter'>('proposer');
-    const [allocationContractId, setAllocationContractId] = useState('');
 
     useEffect(() => {
         if (show) {
             setRuling('proposer');
-            setAllocationContractId('');
         }
     }, [show]);
 
     if (!contractId) return null;
 
     const handleConfirm = () => {
-        const allocationCid = allocationContractId.trim();
-        if (ruling === 'proposer' && !allocationCid) {
-            return;
-        }
-        onConfirm(ruling, allocationCid || undefined);
+        onConfirm(ruling);
     };
 
     return (
@@ -234,10 +203,9 @@ export function ResolveModal({ show, contractId, onClose, onConfirm }: ResolveMo
             onConfirm={handleConfirm}
             confirmButtonLabel="Resolve dispute"
             confirmButtonClassName="btn-primary"
-            confirmButtonDisabled={ruling === 'proposer' && !allocationContractId.trim()}
         >
             <p className="small text-on-glass">
-                As the third party, issue a binding ruling. The resolution now creates a terminal settlement receipt, and proposer wins require a real allocation.
+                As the third party, issue a binding ruling. The resolution archives the DisputeCase and creates a terminal Settlement Receipt plus a selective-disclosure proof visible to both parties.
             </p>
             <div className="form-check mb-2">
                 <input
@@ -248,10 +216,10 @@ export function ResolveModal({ show, contractId, onClose, onConfirm }: ResolveMo
                     onChange={() => setRuling('proposer')}
                 />
                 <label className="form-check-label small" htmlFor="resolve-proposer">
-                    Rule for proposer and execute settlement
+                    Rule for the proposer (supplier)
                 </label>
                 <div className="form-text small text-on-glass mt-0 mb-1">
-                    Canton Coin flows to the proposer (the original supplier). Requires an allocation to authorize the transfer.
+                    The supplier's claim is upheld.
                 </div>
             </div>
             <div className="form-check mb-3">
@@ -263,27 +231,12 @@ export function ResolveModal({ show, contractId, onClose, onConfirm }: ResolveMo
                     onChange={() => setRuling('accepter')}
                 />
                 <label className="form-check-label small" htmlFor="resolve-accepter">
-                    Rule for accepter without payout
+                    Rule for the accepter (financier)
                 </label>
                 <div className="form-text small text-on-glass mt-0">
-                    No Canton Coin moves. The accepter keeps their funds — use when the claim is unfounded.
+                    The financier's position is upheld — use when the claim is unfounded.
                 </div>
             </div>
-            {ruling === 'proposer' ? (
-                <>
-                    <label className="form-label small">Allocation contract id</label>
-                    <input
-                        className="form-control form-control-sm"
-                        style={{ fontSize: '0.75rem' }}
-                        placeholder="#0:3 (allocation accepter -> proposer)"
-                        value={allocationContractId}
-                        onChange={(e) => setAllocationContractId(e.target.value)}
-                    />
-                    <div className="form-text small text-on-glass mt-1">
-                        The on-ledger allocation authorizing the payout to the proposer. Leave <code>#0:3</code> if unsure.
-                    </div>
-                </>
-            ) : null}
         </Modal>
     );
 }

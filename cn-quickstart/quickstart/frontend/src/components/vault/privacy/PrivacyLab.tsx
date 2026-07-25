@@ -31,9 +31,10 @@ const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitme
   const sample = commitments[viewIndex] ?? commitments[0];
 
   // Determine the current privacy stage for the exposure bar.
-  // Uses primitive values in the dependency array so that SWR cache
-  // updates (which produce new object references) don't trigger
-  // unnecessary recomputation — only actual data changes matter.
+  // (audit Fase 3, M-2): receipts and disclosures MUST be in the dep array —
+  // the previous eslint-disable silenced a real stale-state bug where the bar
+  // kept showing "Active" after a dispute/receipt arrived via SWR. The .some()
+  // scans are cheap over these small lists, so there is no perf concern.
   const sampleCid = sample?.contractId ?? null;
   const sampleAmount = sample?.payload.amount;
   const sampleProposer = sample?.payload.proposer;
@@ -51,8 +52,7 @@ const PrivacyLab: React.FC<PrivacyLabProps> = ({ receipts, disclosures, commitme
     );
     if (hasDisclosure) return 2; // Disputed
     return 1; // Active
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sampleCid, sampleAmount, sampleProposer]);
+  }, [sampleCid, sampleAmount, sampleProposer, receipts, disclosures]);
 
   return (
     <div>

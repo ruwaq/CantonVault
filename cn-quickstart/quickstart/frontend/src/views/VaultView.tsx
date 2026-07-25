@@ -218,20 +218,20 @@ const VaultView: React.FC = () => {
                 show={fulfillTarget !== null}
                 commitment={fulfillTarget?.payload ?? null}
                 onClose={() => setFulfillTarget(null)}
-                onConfirm={async (note, allocationContractId) => {
+                onConfirm={async (note) => {
                     const target = fulfillTarget;
                     setFulfillTarget(null);
-                    if (target) await vault.fulfillCommitment(target.contractId, { fulfillmentNote: note, allocationContractId });
+                    if (target) await vault.fulfillCommitment(target.contractId, { fulfillmentNote: note });
                 }}
             />
             <RefundModal
                 show={refundTarget !== null}
                 commitment={refundTarget?.payload ?? null}
                 onClose={() => setRefundTarget(null)}
-                onConfirm={async (allocationContractId) => {
+                onConfirm={async () => {
                     const target = refundTarget;
                     setRefundTarget(null);
-                    if (target) await vault.refundCommitment(target.contractId, { allocationContractId });
+                    if (target) await vault.refundCommitment(target.contractId);
                 }}
             />
             <DisputeModal
@@ -248,10 +248,10 @@ const VaultView: React.FC = () => {
                 show={resolveTarget !== null}
                 contractId={resolveTarget}
                 onClose={() => setResolveTarget(null)}
-                onConfirm={async (ruling, allocationContractId) => {
+                onConfirm={async (ruling) => {
                     const target = resolveTarget;
                     setResolveTarget(null);
-                    if (target) await vault.resolveDispute(target, ruling, allocationContractId);
+                    if (target) await vault.resolveDispute(target, ruling);
                 }}
             />
         </div>
