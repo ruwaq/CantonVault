@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: 0BSD
 
 import React from 'react';
+import { Navigate } from 'react-router-dom';
 import { useUserStore } from '../stores/userStore';
 
 /**
- * Wraps authenticated routes. The demo is stateless — useUser() always returns
- * a user (either from the API or a hardcoded fallback). This component just
- * shows a spinner while the first fetch is in flight, then renders children.
- * It never redirects to /login.
+ * Wraps authenticated routes. With the Fase 3 session-cookie model, a null user
+ * (no valid cv_session cookie) redirects to /login. While the first fetch is in
+ * flight we show a spinner. This is the client-side gate; the real authorization
+ * boundary is the edge middleware that rejects unauthenticated /api/* calls.
  */
 const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { loading } = useUserStore();
+    const { user, loading } = useUserStore();
 
     if (loading) {
         return (
@@ -22,6 +23,12 @@ const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <p className="text-on-glass">Connecting to Canton DevNet…</p>
             </div>
         );
+    }
+
+    // No session → go log in. (The fetcher also hard-redirects on a 401, but this
+    // covers the initial-mount case where user is null without a fetch yet.)
+    if (!user) {
+        return <Navigate to="/login" replace />;
     }
 
     return <>{children}</>;
