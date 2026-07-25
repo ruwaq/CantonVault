@@ -23,6 +23,16 @@ updates:
       - "dependencies"
       - "frontend"
 
+  # CLI (npm) — audit Fase 3, M-3: previously uncovered, so no CVE alerts.
+  - package-ecosystem: "npm"
+    directory: "/cli"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "cli"
+
   # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"

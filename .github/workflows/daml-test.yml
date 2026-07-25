@@ -10,7 +10,6 @@ on:
 permissions:
   contents: read
   actions: read
-  checks: write
   pull-requests: read
 
 jobs:
@@ -41,7 +40,22 @@ jobs:
 
       - name: Install Daml SDK 3.4.11
         run: |
-          curl -sSL https://get.daml.com/ | sh -s 3.4.11
+          # (audit Fase 3, M-1): previously `curl | sh` with no verification — a
+          # compromise of get.daml.com would run arbitrary code in CI. We now
+          # download over HTTPS with retries, fail closed on any non-2xx, and
+          # inspect the installer before execution. A pinned SHA-256 of the
+          # installer itself is not stable across Daml releases, so we rely on
+          # TLS + exit-code checking here; a production setup would pin a hash.
+          set -euo pipefail
+          installer="$(mktemp)"
+          curl --fail --location --retry 3 --retry-connrefused \
+               --proto '=https' --tlsv1.2 \
+               -o "$installer" https://get.daml.com/
+          # Sanity check: the installer is a shell script, not HTML/binary.
+          head -c 200 "$installer" | head -1 | grep -q '^#!' || {
+            echo "Downloaded installer does not look like a shell script"; exit 1
+          }
+          sh "$installer" 3.4.11
           echo "$HOME/.daml/bin" >> $GITHUB_PATH
 
       - name: Build Daml contracts (licensing)
