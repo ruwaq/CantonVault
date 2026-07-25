@@ -6,13 +6,19 @@
 
 ## 🆕 Verificador de transacciones on-ledger (añadido tras la auditoría)
 
-El toast de "On-ledger confirmed" ahora tiene un botón **🔍 Verify on-ledger** que abre una página pública (`/tx/{updateId}`) donde el jurado técnico verifica la tx y lee una nota honesta sobre qué es real vs simbólico.
+El botón **🔍 Verify on-ledger** aparece en **dos lugares**:
+
+1. **Toast efímero** (8s tras cada mutación) — confirmación inmediata.
+2. **Persistente en cada card** (Active Proposals, Active Commitments, Settlement Receipts) — para que el jurado pueda volver y re-abrir cualquier tx sin depender del toast. **Esta segunda vía es la que importa para "entrar y volver".**
+
+Ambos abren la misma página pública `/tx/{updateId}` con 3 secciones: veredicto, qué pasó on-ledger (events reales), qué es real vs simbólico.
 
 - **Endpoint**: `GET /api/vault/tx/{updateId}` → lee el árbol de la tx del Canton Ledger API (`POST /v2/updates/update-by-id`), cachea en KV 1h, normaliza events a `{kind, templateId, contractId}`.
-- **Página**: `src/views/TxVerifyView.tsx` (lazy-loaded, ruta pública sin login). 3 secciones: veredicto, qué pasó on-ledger (events reales), qué es real vs simbólico.
-- **Hallazgo clave**: el sandbox DevNet **SÍ** permite `update-by-id` (a diferencia del ACS, que bloquea). Las tx **nuevas** del demo se verifican correctamente (`found:true` con el CreatedEvent). Las tx **viejas** del README (semanas atrás) devuelven `found:false` — el participant las pruned o pertenecen a una party que el operador actual no witnessed. El jurado verá tx nuevas (las que cree en vivo), así que siempre funcionará.
-- **Bug encontrado y fixeado**: Canton rechaza `eventFormat` vacío con `INVALID_ARGUMENT: filtersByParty and filtersForAnyParty cannot be empty`. Fix: `filtersByParty: { [PARTY.value]: {} }` (el operador es signatario de todos los contratos CantonVault).
-- **Verificación en vivo**: `curl https://canton-vault.pages.dev/api/vault/tx/<updateId-recién-creado>` devuelve `found:true` con el event tree.
+- **Página**: `src/views/TxVerifyView.tsx` (lazy-loaded, ruta pública sin login).
+- **updateId persistido**: el backend ahora guarda `updateId` en cada record KV (junto al offset) y lo expone como `_updateId` en el envelope. El frontend lo lee en `toContracts` y lo pasa a las cards vía `VaultContract.updateId`. Componente reutilizable: `src/components/vault/VerifyLink.tsx`.
+- **Hallazgo clave**: el sandbox DevNet **SÍ** permite `update-by-id` (a diferencia del ACS, que bloquea). Las tx **nuevas** del demo se verifican correctamente (`found:true` con el CreatedEvent). Las tx **viejas** del README (semanas atrás) devuelven `found:false` — el participant las pruned. Las tx creadas a partir del commit `aca6352` llevan `updateId` en KV y muestran el botón 🔍; las anteriores simplemente omiten el botón (degradación graciosa, sin botones rotos).
+- **Bug encontrado y fixeado**: Canton rechaza `eventFormat` vacío con `INVALID_ARGUMENT: filtersByParty and filtersForAnyParty cannot be empty`. Fix: `filtersByParty: { [PARTY.value]: {} }`.
+
 
 > **Rama de trabajo:** `fix/audit-remediation` (mergeada en main — ya no se necesita, se puede borrar).
 
