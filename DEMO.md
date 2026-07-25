@@ -48,10 +48,10 @@ The UI has three steps: **Create → Act → Verify**.
    - The proposal is consumed (Daml archival) and becomes a live commitment.
 3. Switch to **Step 2 · Act** (click the stepper at the top).
 4. Your commitment appears under **Active Commitments** with three actions: **Confirm delivery**, **Report a problem**, **Cancel and refund**.
-5. Click **Confirm delivery** → fill the modal → confirm.
+5. Click **Confirm delivery** → enter a fulfillment note → confirm.
    - The commitment is archived (Daml consuming choice — prevents double-fulfill).
-   - Canton Coin is settled atomically (accepter → proposer).
-   - A `SettlementReceipt` is created as immutable evidence.
+   - A `SettlementReceipt` is created on-ledger as immutable evidence.
+   - **Settlement model:** the demo runs Fulfill on the **symbolic** branch, so the receipt records `settlementExecuted = false`. Real Canton Coin DvP (accepter → proposer) is implemented at the contract level and proven by [`TestRealSettlement.daml`](./cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestRealSettlement.daml), but is not exercisable against the shared DevNet sandbox because the m2m operator is not the network's DSO. See README → "Settlement model — read me" and SECURITY.md Fase 3.
 
 ### Step 3 · Verify — the Privacy Lab (~30s)
 
@@ -122,7 +122,7 @@ The `ledgerOffset` increments with every transaction network-wide. Your proposal
 | Feature | CantonVault | Generic blockchain app |
 |---|---|---|
 | **Privacy** | Sub-transaction privacy: arbitrator's node physically has zero data until dispute | Data encrypted but stored on all nodes |
-| **Settlement** | Atomic DvP via Splice Amulet token standard (real Canton Coin) | Manual or external settlement |
+| **Settlement** | DvP via Splice Amulet token standard (contract-level, unit-tested); demo runs symbolic settlement | Manual or external settlement |
 | **Selective disclosure** | On-demand field-level revelation (amount + description only) | All-or-nothing access control |
 | **Double-spend prevention** | Daml consuming choices (archival is the state machine) | Application-level flags |
 | **Audit trail** | Immutable `SettlementReceipt` + `DisclosedRecord` on-ledger | Off-chain logs |
