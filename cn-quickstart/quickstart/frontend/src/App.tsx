@@ -11,6 +11,10 @@ import ToastNotification from './components/ToastNotification';
 import RequireAuth from './components/RequireAuth';
 import VaultView from './views/VaultView';
 
+// Public tx verifier page — lazy-loaded so it doesn't bloat the main bundle.
+// Linked from the on-ledger confirmation toast; judges click to verify a tx.
+const TxVerifyView = React.lazy(() => import('./views/TxVerifyView'));
+
 /**
  * App shell. SWR owns data fetching/caching globally (no per-store Providers
  * needed), so the only remaining Provider is ToastProvider for notifications.
@@ -26,6 +30,12 @@ const App: React.FC = () => {
                     {/* Full-screen public pages — no app chrome */}
                     <Route path="/" element={<Navigate to="/vault" replace />} />
                     <Route path="/login" element={<LoginView />} />
+                    {/* Public tx verifier — accessible without login (hashes are not secret) */}
+                    <Route path="/tx/:updateId" element={
+                        <React.Suspense fallback={<div className="text-center mt-5 text-on-glass">Loading…</div>}>
+                            <TxVerifyView />
+                        </React.Suspense>
+                    } />
                     {/* Authenticated app — with header nav */}
                     <Route path="/*" element={
                         <RequireAuth>
