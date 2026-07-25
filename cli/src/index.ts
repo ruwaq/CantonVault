@@ -24,7 +24,7 @@ import { CantonVaultClient } from './devnet-client.js';
 import {
   CANTONVAULT_PACKAGE,
   CANTONVAULT_VERSION,
-  DEVNET_CONFIG,
+  loadConfig,
   type Workflow,
 } from './types.js';
 
@@ -44,7 +44,8 @@ program
   .command('status')
   .description('Check DevNet connectivity and show ledger state')
   .action(async () => {
-    const client = new CantonVaultClient(DEVNET_CONFIG);
+    const config = loadConfig();
+    const client = new CantonVaultClient(config);
     try {
       const [version, offset] = await Promise.all([
         client.version(),
@@ -54,7 +55,7 @@ program
       console.log(`  Participant version: Canton ${version}`);
       console.log(`  Ledger end offset:   ${offset}`);
       console.log(`  Acting as party:     ${client.actingParty.slice(0, 40)}...`);
-      console.log(`  Ledger API:          ${DEVNET_CONFIG.ledgerApi}`);
+      console.log(`  Ledger API:          ${config.ledgerApi}`);
     } catch (err) {
       console.error('❌ Failed to connect to DevNet:', (err as Error).message);
       process.exit(1);
@@ -68,7 +69,7 @@ program
   .description('Upload the CantonVault DAR to the DevNet')
   .option('-d, --dar <path>', 'Path to the .dar file', defaultDarPath())
   .action(async (opts) => {
-    const client = new CantonVaultClient(DEVNET_CONFIG);
+    const client = new CantonVaultClient(loadConfig());
     try {
       const darBytes = readFileSync(opts.dar);
       console.log(`Uploading ${CANTONVAULT_PACKAGE} v${CANTONVAULT_VERSION} (${darBytes.length} bytes)...`);
@@ -93,7 +94,7 @@ program
   .command('packages')
   .description('List all vetted packages on the participant')
   .action(async () => {
-    const client = new CantonVaultClient(DEVNET_CONFIG);
+    const client = new CantonVaultClient(loadConfig());
     try {
       const packages = await client.listPackages();
       console.log(`Vetted packages on DevNet: ${packages.length}\n`);
@@ -119,19 +120,20 @@ program
   .option('-w, --workflow <type>', 'Workflow scenario', 'supply-chain-finance')
   .option('--deadline <iso>', 'Deadline ISO timestamp', '2026-12-31T23:59:59Z')
   .action(async (opts) => {
-    const client = new CantonVaultClient(DEVNET_CONFIG);
+    const config = loadConfig();
+    const client = new CantonVaultClient(config);
     try {
       console.log(`Creating CommitmentProposal: ${opts.amount} ${opts.currency}...`);
       const result = await client.proposeProposal({
-        proposer: DEVNET_CONFIG.party,
-        accepter: DEVNET_CONFIG.party,
-        thirdParty: DEVNET_CONFIG.party,
+        proposer: config.party,
+        accepter: config.party,
+        thirdParty: config.party,
         amount: opts.amount,
         currency: opts.currency,
         description: opts.description,
         workflow: opts.workflow as Workflow,
         deadline: opts.deadline,
-        instrumentAdmin: DEVNET_CONFIG.party,
+        instrumentAdmin: config.party,
         realSettlementRequired: false,
       });
       console.log('\n✅ CommitmentProposal created on Canton DevNet\n');
@@ -173,7 +175,7 @@ program
   .requiredOption('-n, --note <text>', 'Fulfillment note')
   .option('--alloc <id>', 'Allocation contract ID (for real CC settlement)')
   .action(async (contractId: string, opts: { note: string; alloc?: string }) => {
-    const client = new CantonVaultClient(DEVNET_CONFIG);
+    const client = new CantonVaultClient(loadConfig());
     try {
       console.log(`Fulfilling commitment ${contractId}...`);
       const result = await client.fulfillCommitment(contractId, opts.note, opts.alloc);
@@ -193,7 +195,7 @@ program
   .description('Raise a dispute (triggers selective disclosure to third party)')
   .requiredOption('-r, --reason <text>', 'Dispute reason')
   .action(async (contractId: string, opts: { reason: string }) => {
-    const client = new CantonVaultClient(DEVNET_CONFIG);
+    const client = new CantonVaultClient(loadConfig());
     try {
       console.log(`Raising dispute on ${contractId}...`);
       const result = await client.raiseDispute(contractId, opts.reason);
@@ -213,7 +215,7 @@ program
   .description('Refund a commitment (reverse CC transfer)')
   .requiredOption('--alloc <id>', 'Reverse allocation contract ID')
   .action(async (contractId: string, opts: { alloc: string }) => {
-    const client = new CantonVaultClient(DEVNET_CONFIG);
+    const client = new CantonVaultClient(loadConfig());
     try {
       console.log(`Refunding commitment ${contractId}...`);
       const result = await client.refundCommitment(contractId, opts.alloc);
@@ -248,7 +250,7 @@ async function runExercise(
   contractId: string,
   fn: (c: CantonVaultClient) => Promise<{ updateId: string; completionOffset: number }>,
 ): Promise<void> {
-  const client = new CantonVaultClient(DEVNET_CONFIG);
+  const client = new CantonVaultClient(loadConfig());
   try {
     console.log(`${label} contract ${contractId}...`);
     const result = await fn(client);

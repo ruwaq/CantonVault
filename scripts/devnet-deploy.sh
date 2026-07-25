@@ -11,6 +11,8 @@
 # Prerequisites:
 #   - DAR compiled: daml/licensing/.daml/dist/cantonvault-contracts-0.1.0.dar
 #   - curl, python3
+#   - CLIENT_SECRET environment variable set to the rotated DevNet m2m secret.
+#     (audit Fase 3, C-1: the hardcoded secret was removed and rotated.)
 #
 # Evidence of successful deployment (run 2026-07-13):
 #   - Package uploaded: cantonvault-contracts v0.1.0
@@ -20,10 +22,12 @@
 
 set -euo pipefail
 
-LEDGER_API="https://ledger-api.validator.devnet.sandbox.fivenorth.io"
-AUTH_URL="https://auth.sandbox.fivenorth.io/application/o/token/"
-CLIENT_ID="validator-devnet-m2m"
-CLIENT_SECRET="r69FQmevLRwEgMB8NnKaSDHPewTOSx7Yy5jucsqAlmsAaJc3DlggedCz4tyyonl4W2WoOVzkUIjy8dHTlc16AOJQzx02QzJylAUG56oLTCoVCJUUK40vRv9CqQEY3fjn"
+# FAIL-CLOSED: CLIENT_SECRET must come from the environment. No hardcoded fallback.
+: "${CLIENT_SECRET:?CLIENT_SECRET environment variable is required (audit Fase 3 C-1). Get it from auth.sandbox.fivenorth.io.}"
+
+LEDGER_API="${LEDGER_API:-https://ledger-api.validator.devnet.sandbox.fivenorth.io}"
+AUTH_URL="${AUTH_URL:-https://auth.sandbox.fivenorth.io/application/o/token/}"
+CLIENT_ID="${CLIENT_ID:-validator-devnet-m2m}"
 DAR_PATH="${DAR_PATH:-$(cd "$(dirname "$0")/.." && pwd)/cn-quickstart/quickstart/daml/licensing/.daml/dist/cantonvault-contracts-0.1.0.dar}"
 
 echo "=== CantonVault DevNet Deployment ==="

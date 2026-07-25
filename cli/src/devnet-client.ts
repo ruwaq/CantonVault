@@ -155,7 +155,7 @@ export class CantonVaultClient {
     return {
       commands: {
         applicationId: 'AppId',
-        commandId: `cv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        commandId: `cv-${crypto.randomUUID()}`,
         actAs: [this.party],
         readAs: [this.party],
         commands,

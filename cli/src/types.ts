@@ -56,13 +56,47 @@ export interface LedgerConfig {
   synchronizerId: string;
 }
 
-/** Default DevNet configuration (hackathon shared validator). */
+/**
+ * Resolve the ledger configuration from environment variables.
+ *
+ * SECURITY (audit Fase 3, C-1): CLIENT_SECRET and PARTY are REQUIRED. They are
+ * no longer hardcoded — the previously committed credential has been rotated.
+ * Set them in the environment before running the CLI:
+ *
+ *   export CLIENT_SECRET='<rotated secret from auth.sandbox.fivenorth.io>'
+ *   export PARTY='cancore::1220...'          # optional override
+ *
+ * The non-secret DevNet endpoints remain as defaults for convenience.
+ */
+export function loadConfig(): LedgerConfig {
+  const clientSecret = process.env.CLIENT_SECRET;
+  if (!clientSecret) {
+    throw new Error(
+      'CLIENT_SECRET environment variable is required (audit Fase 3 C-1). ' +
+        'The hardcoded credential was rotated. Get a new one from auth.sandbox.fivenorth.io.',
+    );
+  }
+  return {
+    ledgerApi: process.env.LEDGER_API || 'https://ledger-api.validator.devnet.sandbox.fivenorth.io',
+    authUrl: process.env.AUTH_URL || 'https://auth.sandbox.fivenorth.io/application/o/token/',
+    clientId: process.env.CLIENT_ID || 'validator-devnet-m2m',
+    clientSecret,
+    party: process.env.PARTY || 'cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8',
+    synchronizerId:
+      process.env.SYNCHRONIZER_ID ||
+      'wallet::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8',
+  };
+}
+
+/**
+ * @deprecated Use loadConfig(). Kept only for backward-compat imports; throws at
+ * runtime if referenced because it carries no credential.
+ */
 export const DEVNET_CONFIG: LedgerConfig = {
   ledgerApi: 'https://ledger-api.validator.devnet.sandbox.fivenorth.io',
   authUrl: 'https://auth.sandbox.fivenorth.io/application/o/token/',
   clientId: 'validator-devnet-m2m',
-  clientSecret:
-    'r69FQmevLRwEgMB8NnKaSDHPewTOSx7Yy5jucsqAlmsAaJc3DlggedCz4tyyonl4W2WoOVzkUIjy8dHTlc16AOJQzx02QzJylAUG56oLTCoVCJUUK40vRv9CqQEY3fjn',
+  clientSecret: '',
   party: 'cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8',
   synchronizerId: 'wallet::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8',
 };

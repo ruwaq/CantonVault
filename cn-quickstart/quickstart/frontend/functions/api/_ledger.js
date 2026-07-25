@@ -8,16 +8,18 @@
 // be overridden by the first configure() call.
 
 // ── Lazy config (set by the first handler that calls configure()) ────────────
-// SECURITY: these defaults are the DevNet shared validator values for the demo.
-// In production, override via Cloudflare Pages env bindings (dashboard or wrangler.toml).
-// CLIENT_SECRET is the only sensitive value — rotate it and set via env binding.
+// SECURITY (audit Fase 3, C-1): NO secrets are hardcoded. The CLIENT_SECRET must
+// be provided via the Cloudflare Pages env binding `CLIENT_SECRET`. If it is
+// missing, configure() throws — the service fails closed rather than falling
+// back to a leaked credential. The non-secret DevNet endpoints below are only
+// convenience defaults for local development; they are overridable by bindings.
 let _ledgerApi = 'https://ledger-api.validator.devnet.sandbox.fivenorth.io';
 let _validatorApi = 'https://api.validator.devnet.sandbox.fivenorth.io';
 let _authUrl = 'https://auth.sandbox.fivenorth.io/application/o/token/';
 let _clientId = 'validator-devnet-m2m';
-let _clientSecret = 'r69FQmevLRwEgMB8NnKaSDHPewTOSx7Yy5jucsqAlmsAaJc3DlggedCz4tyyonl4W2WoOVzkUIjy8dHTlc16AOJQzx02QzJylAUG56oLTCoVCJUUK40vRv9CqQEY3fjn';
-let _party = 'cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
-let _mediatorParty = 'Observer::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
+let _clientSecret = '';        // REQUIRED via env binding; empty by default → configure() throws
+let _party = '';               // REQUIRED via env binding; empty by default → configure() throws
+let _mediatorParty = '';       // REQUIRED via env binding; empty by default → configure() throws
 let _synchronizerId = 'wallet::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8';
 let _pkg = 'cantonvault-contracts';
 let _configured = false;
@@ -25,8 +27,10 @@ let _configured = false;
 /**
  * Initialize the ledger client from Cloudflare Pages bindings.
  * Call once at the top of every handler: configure(context.env).
- * Falls back to DevNet defaults when env vars are not set (demo mode).
- * In production, set CLIENT_SECRET via env binding to override the default.
+ *
+ * FAIL-CLOSED: CLIENT_SECRET, PARTY, and MEDIATOR_PARTY are required. If any is
+ * missing the function throws synchronously — do not silently fall back to a
+ * hardcoded value. Set them via `wrangler pages secret put` or the dashboard.
  */
 export function configure(env) {
   if (_configured) return;
@@ -39,6 +43,12 @@ export function configure(env) {
   _mediatorParty = env.MEDIATOR_PARTY || _mediatorParty;
   _synchronizerId = env.SYNCHRONIZER_ID || _synchronizerId;
   _pkg = env.PKG || _pkg;
+  if (!_clientSecret) {
+    throw new Error('CLIENT_SECRET env binding is required (audit Fase 3 C-1). Set it via `wrangler pages secret put CLIENT_SECRET`.');
+  }
+  if (!_party || !_mediatorParty) {
+    throw new Error('PARTY and MEDIATOR_PARTY env bindings are required (audit Fase 3).');
+  }
   _configured = true;
 }
 
@@ -54,28 +64,41 @@ const SYNCHRONIZER_ID = { get value() { return _synchronizerId; } };
 const PKG = _pkg;
 
 let tokenCache = null;
+let tokenFetchInFlight = null; // dedupes concurrent refreshes (audit Fase 3 H-2)
 
 export async function getToken() {
   const now = Date.now();
-  if (tokenCache && now < tokenCache.expiresAt - 5 * 60 * 1000) {
+  if (tokenCache && Number.isFinite(tokenCache.expiresAt) && now < tokenCache.expiresAt - 5 * 60 * 1000) {
     return tokenCache.token;
   }
-  const body = new URLSearchParams({
-    grant_type: 'client_credentials',
-    client_id: CLIENT_ID.value,
-    client_secret: CLIENT_SECRET.value,
-    audience: CLIENT_ID.value,
-    scope: 'daml_ledger_api',
-  });
-  const res = await fetch(AUTH_URL.value, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  });
-  if (!res.ok) throw new Error(`Auth failed: ${res.status}`);
-  const data = await res.json();
-  tokenCache = { token: data.access_token, expiresAt: now + data.expires_in * 1000 };
-  return data.access_token;
+  // If another invocation is already fetching, await it instead of issuing a parallel request.
+  if (tokenFetchInFlight) return tokenFetchInFlight;
+  tokenFetchInFlight = (async () => {
+    const body = new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: CLIENT_ID.value,
+      client_secret: CLIENT_SECRET.value,
+      audience: CLIENT_ID.value,
+      scope: 'daml_ledger_api',
+    });
+    const res = await fetch(AUTH_URL.value, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+    if (!res.ok) throw new Error(`Auth failed: ${res.status}`);
+    const data = await res.json();
+    // Guard against IdPs that omit expires_in: default to a conservative 5min TTL.
+    const expiresInSec = Number(data.expires_in);
+    const ttlMs = Number.isFinite(expiresInSec) && expiresInSec > 0 ? expiresInSec * 1000 : 5 * 60 * 1000;
+    tokenCache = { token: data.access_token, expiresAt: Date.now() + ttlMs };
+    return data.access_token;
+  })();
+  try {
+    return await tokenFetchInFlight;
+  } finally {
+    tokenFetchInFlight = null;
+  }
 }
 
 export async function ledgerGet(path) {
@@ -123,7 +146,7 @@ function buildCommandEnvelope(commands, extraActAs = []) {
   return {
     commands: {
       applicationId: 'AppId',
-      commandId: `cv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      commandId: `cv-${crypto.randomUUID()}`,
       actAs,
       readAs: actAs,
       commands,

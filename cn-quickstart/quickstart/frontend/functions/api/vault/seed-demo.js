@@ -235,19 +235,26 @@ export async function onRequestPost(context) {
   const { request, env } = context;
   configure(env);
 
-  // SECURITY (audit S-A1): require a shared secret to prevent unauthorized
-  // KV overwrites. The frontend sends this as a header; if unset, the endpoint
-  // is open (demo mode). In production, set SEED_SECRET via env binding.
+  // SECURITY (audit Fase 3, C-3): FAIL-CLOSED. SEED_SECRET must be set via env
+  // binding and presented as a Bearer token. Without it the endpoint refuses —
+  // an anonymous request can otherwise wipe the live KV index (which the read
+  // endpoints serve), destroying real receipts and disclosures.
   const seedSecret = env.SEED_SECRET;
-  if (seedSecret) {
-    const authHeader = request.headers.get('Authorization') || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-    if (token !== seedSecret) {
-      return new Response(JSON.stringify({ error: 'Unauthorized — provide valid Bearer token' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
+  if (!seedSecret) {
+    return new Response(
+      JSON.stringify({
+        error: 'seed-demo disabled — SEED_SECRET env binding not configured',
+      }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
+  const authHeader = request.headers.get('Authorization') || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (token !== seedSecret) {
+    return new Response(JSON.stringify({ error: 'Unauthorized — provide valid Bearer token' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   try {
