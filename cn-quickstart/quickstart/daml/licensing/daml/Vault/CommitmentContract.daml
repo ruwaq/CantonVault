@@ -14,9 +14,7 @@
 -- There is no mutable status field; consuming = terminal state on the Daml ledger.
 module Vault.CommitmentContract where
 
-import DA.Assert ((===))
 import DA.TextMap as TextMap
-import DA.Optional (fromSome)
 import DA.Time (addRelTime, seconds)
 
 import Licensing.Util as Util (require)
@@ -66,7 +64,11 @@ template CommitmentContract with
       controller accepter
       do
         now <- getTime
-        assertMsg "Cannot fulfill after deadline — use Refund instead" (now <= deadline)
+        -- Strictly before deadline (audit Fase 3, H-5): at now == deadline both
+        -- Fulfill and Refund used to be valid, racing the consuming choices. Now
+        -- Fulfill needs now < deadline and Refund needs now > deadline, so the
+        -- exact boundary instant is a safe no-op zone.
+        assertMsg "Cannot fulfill at or after deadline — use Refund instead" (now < deadline)
         -- SECURITY (audit H3): when real settlement is required, reject the
         -- symbolic (None) path. This is a contract-level guard independent of the
         -- backend's symbolicSettlementEnabled flag, so it holds even if the
@@ -151,38 +153,25 @@ template CommitmentContract with
     -- commitment. Creates a SettlementReceipt as immutable evidence.
     -- CONSUMING — archives the CommitmentContract, preventing double-refund.
     --
-    -- SECURITY (audit D-A1): when allocationCid is provided, executes a reverse
-    -- Canton Coin settlement (accepter → proposer) via the Splice Allocation
-    -- standard. This mirrors the Fulfill settlement path and is necessary for
-    -- real CC settlement scenarios. Without allocationCid, the refund is
-    -- symbolic (settlementExecuted = False) — valid only for tests/demo.
+    -- SECURITY (audit Fase 3, C-4): Refund is purely an archival close-out — it
+    -- performs NO Canton Coin transfer. AcceptProposal does not escrow funds and
+    -- Fulfill (the only forward CC movement) only happens when the accepter
+    -- confirms delivery; if we are here, Fulfill never ran, so there is nothing
+    -- to reverse. The previous code had a 'Some allocationCid' branch that moved
+    -- CC sender=proposer → receiver=accepter, which DRAINED the proposer instead
+    -- of refunding them. That branch had no test coverage and was dead code;
+    -- removing it eliminates the footgun. settlementExecuted is always False here.
     choice Refund : ContractId SettlementReceipt
       with
-        actor         : Party
-        allocationCid : Optional (ContractId Allocation, ExtraArgs)
+        actor : Party
       controller actor
       do
         require "Actor must be proposer or accepter" (actor `elem` signatory this)
         now <- getTime
-        assertMsg "Cannot refund before deadline exceeded" (now >= deadline)
-        -- SECURITY: when real settlement is required, reject symbolic refund
-        assertMsg "Real settlement required — provide an allocationCid for reverse CC refund"
-          (not realSettlementRequired || case allocationCid of Some _ -> True; None -> False)
-
-        case allocationCid of
-          Some (allocCid, eArgs) -> do
-            alloc <- fetch @Allocation allocCid
-            let allocLeg = (view @Allocation alloc).allocation.transferLeg
-                allocLegId = (view @Allocation alloc).allocation.transferLegId
-            -- Reverse of Fulfill: sender = proposer (returning funds), receiver = accepter
-            assertMsg "Allocation sender must be proposer (reverse refund)" (allocLeg.sender == proposer)
-            assertMsg "Allocation receiver must be accepter (reverse refund)" (allocLeg.receiver == accepter)
-            assertMsg "Allocation amount must match commitment" (allocLeg.amount == amount)
-            assertMsg "Allocation instrument admin must match" (allocLeg.instrumentId.admin == instrumentAdmin)
-            assertMsg "Allocation instrument id must match currency" (allocLeg.instrumentId.id == currency)
-            _ <- exercise allocCid (Allocation_ExecuteTransfer eArgs)
-            return ()
-          None -> return ()
+        -- Strictly after deadline (audit Fase 3, H-5): Fulfill now requires
+        -- now < deadline, so this must be now > deadline to leave the boundary
+        -- instant (now == deadline) as a safe no-op zone.
+        assertMsg "Cannot refund before deadline exceeded" (now > deadline)
 
         create SettlementReceipt with
           proposer = proposer
@@ -191,7 +180,7 @@ template CommitmentContract with
           currency = currency
           timestamp = now
           outcome = "refunded"
-          settlementExecuted = case allocationCid of Some _ -> True; None -> False
+          settlementExecuted = False
           note = Some ("refunded via CantonVault: " <> workflow)
 
     -- | AllocationRequest interface implementation enables Canton Coin settlement
@@ -235,7 +224,12 @@ template CommitmentContract with
               meta
 
       allocationRequest_RejectImpl _ AllocationRequest_Reject{..} = do
-        require "Only proposer can reject" (actor == proposer)
+        -- The transfer leg sender is the accepter (they must allocate CC to pay
+        -- the proposer). Per the Splice AllocationRequest spec, the SENDER may
+        -- reject an allocation request they cannot settle. The previous check
+        -- (actor == proposer) inverted this and blocked the accepter from
+        -- aborting a commitment they could not fund. (audit Fase 3, H-3)
+        require "Only accepter (transfer-leg sender) can reject" (actor == accepter)
         pure ChoiceExecutionMetadata with meta = emptyMetadata
 
       -- Withdraw authorization is enforced by the Splice AllocationRequest
@@ -278,10 +272,22 @@ template DisputeCase with
               ,("amountRevealed", show amountRevealed)
               ,("descriptionRevealed", descriptionRevealed)
               ]
+        -- Create a DisclosedRecord for BOTH the winner and the loser (audit Fase
+        -- 3, H-13). Both are stakeholders of the dispute; the loser previously
+        -- received no on-ledger evidence that the third party ruled, so they
+        -- could not audit the resolution. DisclosedRecord supports a single
+        -- observer, so we emit two records (one per party).
         _ <- create DisclosedRecord with
                sourceCid = show commitmentRef
                discloser = thirdParty
-               observer = if ruling == "proposer" then proposer else accepter
+               observer = proposer
+               revealedFields = resolvedFields
+               revealedAt = now
+               reason = "dispute-resolved: " <> reason
+        _ <- create DisclosedRecord with
+               sourceCid = show commitmentRef
+               discloser = thirdParty
+               observer = accepter
                revealedFields = resolvedFields
                revealedAt = now
                reason = "dispute-resolved: " <> reason

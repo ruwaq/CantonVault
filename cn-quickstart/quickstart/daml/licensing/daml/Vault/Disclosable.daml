@@ -21,4 +21,4 @@ template DisclosedRecord with
   where
     signatory discloser
     observer  observer
-    ensure discloser /= observer
+    ensure discloser /= observer && not (TextMap.null revealedFields)
