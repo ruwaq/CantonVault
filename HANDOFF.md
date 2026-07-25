@@ -1,8 +1,19 @@
 # HANDOFF — CantonVault (2026-07-25)
 
-> **Estado:** Auditaría Fase 3 + remediación **deployada y verificada en vivo**. Demo listo para la finale del hackathon (28 jul).
+> **Estado:** Auditoría Fase 3 + remediación + **verificador de tx on-ledger** todo deployado y verificado en vivo. Demo listo para la finale del hackathon (28 jul).
 > **Live demo:** https://canton-vault.pages.dev
-> **Repo:** https://github.com/ruwaq/CantonVault (rama `main`, commit `53b06d2`)
+> **Repo:** https://github.com/ruwaq/CantonVault (rama `main`, HEAD `c6f0b70`)
+
+## 🆕 Verificador de transacciones on-ledger (añadido tras la auditoría)
+
+El toast de "On-ledger confirmed" ahora tiene un botón **🔍 Verify on-ledger** que abre una página pública (`/tx/{updateId}`) donde el jurado técnico verifica la tx y lee una nota honesta sobre qué es real vs simbólico.
+
+- **Endpoint**: `GET /api/vault/tx/{updateId}` → lee el árbol de la tx del Canton Ledger API (`POST /v2/updates/update-by-id`), cachea en KV 1h, normaliza events a `{kind, templateId, contractId}`.
+- **Página**: `src/views/TxVerifyView.tsx` (lazy-loaded, ruta pública sin login). 3 secciones: veredicto, qué pasó on-ledger (events reales), qué es real vs simbólico.
+- **Hallazgo clave**: el sandbox DevNet **SÍ** permite `update-by-id` (a diferencia del ACS, que bloquea). Las tx **nuevas** del demo se verifican correctamente (`found:true` con el CreatedEvent). Las tx **viejas** del README (semanas atrás) devuelven `found:false` — el participant las pruned o pertenecen a una party que el operador actual no witnessed. El jurado verá tx nuevas (las que cree en vivo), así que siempre funcionará.
+- **Bug encontrado y fixeado**: Canton rechaza `eventFormat` vacío con `INVALID_ARGUMENT: filtersByParty and filtersForAnyParty cannot be empty`. Fix: `filtersByParty: { [PARTY.value]: {} }` (el operador es signatario de todos los contratos CantonVault).
+- **Verificación en vivo**: `curl https://canton-vault.pages.dev/api/vault/tx/<updateId-recién-creado>` devuelve `found:true` con el event tree.
+
 > **Rama de trabajo:** `fix/audit-remediation` (mergeada en main — ya no se necesita, se puede borrar).
 
 ---
