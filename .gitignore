@@ -171,3 +171,17 @@ scratch/
 .claude/
 .zcode/
 .wrangler/
+
+# === Markdown informativo / interno — solo local ===
+# En GitHub únicamente publica el README.md raíz. El resto de docs .md
+# (guías de demo, auditorías, handoffs, checklists, readmes de paquete,
+# versión antigua del README) se mantienen como referencia local y no se
+# versionan. Los README de subdirectorios (cli/, frontend/) se explican
+# in-situ desde el README raíz para no duplicar fuentes.
+/DEMO.md
+/HANDOFF.md
+/SECURITY.md
+/SUBMISSION_CHECKLIST.md
+/CANTONVAULT_README.md
+/cli/README.md
+/cn-quickstart/quickstart/frontend/README.md

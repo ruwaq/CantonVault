@@ -1,234 +1,279 @@
-# CantonVault — Privacy-First Institutional Trade Finance on Canton Network
+# CantonVault — Confidential Agreements, Settled Atomicity
 
 [![Hackathon](https://img.shields.io/badge/Build%20on%20Canton-2026-blue)](https://www.encodeclub.com/programmes/canton-hackathon)
-[![Network](https://img.shields.io/badge/network-DevNet%20+%20LocalNet-brightgreen)]()
+[![Network](https://img.shields.io/badge/network-Canton%20DevNet-brightgreen)]()
+[![Canton](https://img.shields.io/badge/Canton-3.5.9-brightgreen)]()
 [![Daml](https://img.shields.io/badge/contracts-Daml%203.x-orange)](https://docs.digitalasset.com/daml)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](./LICENSE)
-[![Tests](https://img.shields.io/badge/tests-12%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-27%20passing-brightgreen)]()
 
 ![CantonVault Banner](./cantonvault_banner.jpg)
 
-> **CantonVault** is a privacy-first smart contract protocol that turns sensitive financial agreements into secure, stakeholder-scoped assets. Running natively on the **Canton Network**, it enables **confidential bilateral commitments** between two parties with **selective on-demand disclosure** to a third party — all settled atomically in **Canton Coin (Amulet)**.
+> **🌐 Live demo: https://canton-vault.pages.dev** — every action creates a real transaction on the Canton Network DevNet.
+
+### 📎 Submission Links
+
+| Resource | Link |
+|---|---|
+| 💻 Code repository | https://github.com/ruwaq/CantonVault |
+| 🎤 Presentation deck | https://canva.link/n55x2plxh0p5fnu |
+| 🎬 Demo video | https://youtu.be/VjrZj5h4ItM |
+| 🌐 Live demo | https://canton-vault.pages.dev/ |
 
 ---
 
-## 🏛️ The Pain Point: The Cost of Forced Transparency
+## 🎬 The 30-Second Pitch
 
-Current financial networks bring no default confidentiality. For institutions trading high volumes or managing commercial financing, exposing sensitive positions or factoring relationships is a commercial barrier they cannot cross without facing market damage:
+**CantonVault is the missing privacy layer for institutional finance on Canton.**
 
-*   **OTC Block Trading Leakage**: Negotiating large volumes on transparent ledgers leaks order size pre-execution, causing adverse price moves, front-running, and loss of pricing power.
-*   **Double-Factoring Risks**: In invoice financing, suppliers and financiers must verify invoice uniqueness to prevent double-factoring. Doing this on transparent ledgers leaks factoring relationships to competitors.
-*   **The $2.5 Trillion Privacy Gap**: More than \$2.5T in global trade finance remains unaddressed. Standard public blockchains are not viable because they leak commercial secrets, while legacy private databases lack atomic, trustless settlement.
+For the first time, two counterparties can lock a commercial agreement on a public, atomic, trustless ledger — **and keep it invisible to everyone else by design.** Not encrypted. Not hidden behind access control. **Physically absent** from every other node on the network.
 
----
+When a deal goes wrong, they can selectively reveal *just the fields a regulator needs* — the amount and the description — without leaking counterparty identities, portfolio context, or competing positions.
 
-## 💡 The Solution: Scoping Visibility (Not Encrypting Data)
+And when the deal closes, settlement is **atomic**: the obligation and the Canton Coin payment happen in the same transaction, or they don't happen at all. No settlement risk. No counterparty exposure. No "the payment is on the way."
 
-CantonVault leverages Canton's native **sub-transaction privacy model** to ensure that confidentiality is an emergent property of stakeholder scoping. 
-
-*   **True Ledger Privacy**: In Canton, if a validator node is not representing a signatory or observer of a contract, **the transaction data physically never reaches its server**. There are no encrypted blobs stored on competitors' nodes; competitors see an **empty ledger** by design.
-*   **Bilateral by Default**: Proposals and active commitments are kept strictly between the proposer and accepter.
-*   **On-Demand Selective Disclosure**: Using Daml interface patterns, the parties can reveal specific transaction metadata (e.g., amount and description) to a third party (like an arbitrator or regulator) under dispute or audit, without revealing active portfolios or other counterparty identities.
-*   **Atomic DvP Settlement**: Removes settlement risk entirely by linking contract fulfillment to Canton Coin transfers via the Splice `AllocationRequest` standard.
+This is what "blockchain for institutions" was always supposed to be — and it's only possible because of one architectural choice that Canton made and no one else did.
 
 ---
 
-## 🎯 Key Use Cases & Visibility Scenarios
+## 🚨 The Problem: Why $2.5 Trillion Is Still Off-Chain
 
-### 1. Supply Chain Finance (Invoice Factoring)
-A supplier (SME) secures funding from a Financier against an invoice. A major Buyer (the debtor) acts as the arbitrator/third-party.
+Institutional finance runs on **commercial confidentiality**. A bank's factoring book, a dealer's block-trade inventory, an SME's funding relationships — these are **competitive secrets**. If competitors can see your positions, they can front-run you, undercut you, or signal weakness to the market.
 
-| Step | Action | Who Can See | Competitor Visibility |
-|---|---|---|---|
-| **1. Propose** | SME proposes commitment (locks invoice ID) | SME (Proposer) & Financier (Accepter) | **Empty Ledger** |
-| **2. Accept** | Financier accepts commitment | SME & Financier | **Empty Ledger** |
-| **3. Fulfill** | Financier transfers Canton Coin atomically | SME & Financier | **Empty Ledger** |
-| **4. Dispute** | SME raises dispute (e.g., non-delivery) | SME, Financier, & Buyer (Third-Party) | **Empty Ledger** |
+That single requirement has kept the entire trade-finance and OTC-trading world **off public blockchains for 15 years.** The math is brutal:
 
-### 2. OTC Block Trading (Dealer-to-Dealer)
-Dealer A and Dealer B agree to block trade US0378331005 ($10M @ 98.50). A Clearing House acts as the third-party arbitrator.
+| Use case | What leaks on a transparent ledger | Real-world damage |
+|---|---|---|
+| **OTC block trading** | Order size, direction, timing | Adverse price moves, front-running, **lost pricing power** |
+| **Invoice / supply-chain financing** | Who's factoring, who's a creditor, terms | Competitors learn your suppliers' financial stress; **relationship damage** |
+| **Inter-bank settlement** | Counterparty exposure, net flows | **Systemic signaling** — the exact thing Basel III tries to suppress |
 
-| Step | Action | Visibility | Market Impact |
-|---|---|---|---|
-| **Negotiation** | Agreement locked on-ledger | Dealer A & Dealer B only | **Zero Leakage** (no front-running) |
-| **Execution** | Atomic DvP settlement in Canton Coin | Dealer A & Dealer B only | **Zero Market Impact** |
-| **Escalation** | Dispute raised to Clearing House | Clearing House sees amount + description only | **Protected Identities** |
+> **The core insight every other chain missed:** institutions don't have a *trust* problem. They have a *privacy* problem. Encryption on a transparent ledger solves neither — the data still lives on your competitor's server, waiting to be decrypted, subpoenaed, or leaked.
+
+### Why Canton is different (the one-paragraph version)
+
+Canton has a **sub-transaction privacy model**: a validator node that doesn't represent a deal's signatories **physically never receives the transaction data.** Not encrypted-at-rest. Not access-controlled. **Never transmitted.** The competitor's ledger is genuinely empty — you could subpoena their server and find nothing.
+
+This is the architectural unlock. CantonVault is what you build on top of it.
 
 ---
 
-## 🧠 How It Works: The Daml Protocol
+## 💎 The Idea: Stakeholder-Scoped Visibility
+
+CantonVault turns a sensitive commercial agreement into a **stakeholder-scoped asset**. The contract itself defines *who is allowed to see it* — and that set changes dynamically as the deal moves through its lifecycle.
+
+> **Privacy is not a layer we bolt on. It's an emergent property of who the contract's stakeholders are.**
+
+### The four states of a CantonVault commitment
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    actor Proposer as Proposer (SME/Dealer A)
-    actor Accepter as Accepter (Financier/Dealer B)
-    actor ThirdParty as ThirdParty (Buyer/Clearing)
-
-    Proposer->>Accepter: Create CommitmentProposal
-    note over Proposer,Accepter: Visible to Proposer & Accepter only
-    Accepter->>Proposer: Accept Proposal
-    ActiveContract->>ActiveContract: Creates CommitmentContract
-    note over ActiveContract: Proposer + Accepter are Signatories.<br/>ThirdParty is NOT an observer yet.
-
-    alt Normal Flow (Atomic Settlement)
-        Accepter->>ActiveContract: Fulfill (AllocationRequest + Canton Coin)
-        ActiveContract->>Proposer: Execute Transfer (Splice Standard)
-        ActiveContract->>ActiveContract: Archive Contract + Create SettlementReceipt
-    else Dispute Flow (Selective Disclosure)
-        Proposer->>ActiveContract: RaiseDispute
-        ActiveContract->>ThirdParty: Add ThirdParty as Observer
-        note over ThirdParty: ThirdParty now sees DisclosedRecord<br/>(Only amount + description)
-        ThirdParty->>ActiveContract: ResolveDispute
-        ActiveContract->>ActiveContract: Archive DisputeCase + Create DisclosedRecord Proof
-    end
+stateDiagram-v2
+    [*] --> Proposed: Proposer creates CommitmentProposal
+    Proposed --> Active: Accepter accepts → CommitmentContract
+    Proposed --> [*]: Rejected / expired
+    Active --> Settled: Fulfill (atomic DvP)
+    Active --> Disputed: RaiseDispute
+    Disputed --> Resolved: ThirdParty rules
+    Settled --> [*]: SettlementReceipt (immutable)
+    Resolved --> [*]: DisclosedRecord (selective proof)
 ```
 
-### Smart Contract Templates (`daml/licensing/daml/Vault/`)
+**State 1 — Proposed (bilateral privacy)**
+A supplier creates a `CommitmentProposal` referencing an invoice they want financed. **Only the supplier and the financier ever see it.** A competitor watching the same network sees nothing — not even that a proposal exists.
 
-| Template | Purpose | Stakeholders & Observers |
-|---|---|---|
-| [`CommitmentProposal`](file:///Users/munay/dev/Build%20on%20Canton%20Hackathon/cn-quickstart/quickstart/daml/licensing/daml/Vault/CommitmentProposal.daml) | Offer to enter a conditional commitment. | Proposer: Signatory, Accepter: Observer. |
-| [`CommitmentContract`](file:///Users/munay/dev/Build%20on%20Canton%20Hackathon/cn-quickstart/quickstart/daml/licensing/daml/Vault/CommitmentContract.daml) | The active vault containing commitment terms. | Proposer + Accepter: Signatories. ThirdParty: None. |
-| [`DisplayCase` / `DisputeCase`](file:///Users/munay/dev/Build%20on%20Canton%20Hackathon/cn-quickstart/quickstart/daml/licensing/daml/Vault/CommitmentContract.daml) | Escalated dispute state. | Proposer + Accepter: Signatories. ThirdParty: Observer. |
-| [`DisclosedRecord`](file:///Users/munay/dev/Build%20on%20Canton%20Hackathon/cn-quickstart/quickstart/daml/licensing/daml/Vault/Disclosable.daml) | Immutable selective disclosure ledger evidence. | Discloser + Auditor: Signatories. |
-| [`SettlementReceipt`](file:///Users/munay/dev/Build%20on%20Canton%20Hackathon/cn-quickstart/quickstart/daml/licensing/daml/Vault/SettlementReceipt.daml) | Audit trail proving final atomic settlement. | Proposer + Accepter: Signatories. |
+**State 2 — Active (still bilateral)**
+The financier accepts. The proposal is consumed and a `CommitmentContract` is born. The buyer (who owes the invoice) is referenced in the data — but is **not** a signatory or observer. The buyer's validator node has zero record of this financing arrangement.
+
+**State 3 — Settled (atomic, immutable)**
+The financier confirms delivery and fulfills. Canton Coin moves from financier → supplier in the **same transaction** that archives the obligation. A `SettlementReceipt` is created as permanent on-ledger proof. No settlement window. No "the wire is pending."
+
+**State 4 — Disputed (selective disclosure, on-demand)**
+The supplier didn't deliver? Either party can raise a dispute. **Now** the buyer becomes an observer — and sees **only `amount` and `description`**, not currency, not workflow, not party identities. The buyer rules, the dispute resolves, and a `DisclosedRecord` is sealed as evidence.
 
 ---
 
-## 🛠️ Technology Stack & Architecture
+## 🎯 Real-World Use Cases
 
-CantonVault's live demo runs entirely on serverless edge infrastructure talking directly to the Canton Network DevNet — no Spring Boot gateway, no Postgres, no Docker required to evaluate.
+### Use case 1 · Supply-chain finance (invoice factoring)
+
+A manufacturer needs working capital against an invoice owed by a major retailer. A financier funds it. The retailer is the natural arbitrator if delivery is disputed.
+
+| What happens | Who sees it | Who doesn't |
+|---|---|---|
+| Manufacturer & financier lock the invoice on-ledger | Only those two | **The retailer's node is blank. Competitors see nothing.** |
+| Financier fulfills → Canton Coin settles atomically | Only those two | Same |
+| Manufacturer disputes non-payment | Manufacturer, financier, **+ retailer** | The retailer sees **only the invoice amount + description**, learns nothing about the financier's portfolio |
+| Retailer rules in favor | All three + immutable `DisclosedRecord` | The financier's other factoring deals remain invisible |
+
+**Why this matters today:** SMEs wait **60–90 days** for invoice payment. Factoring unlocks that cash — but on a transparent chain, every factoring relationship leaks, creating reputational risk for the SME. CantonVault makes factoring invisible until a dispute demands otherwise.
+
+### Use case 2 · OTC block trading (dealer-to-dealer)
+
+Dealer A wants to move 10,000 bonds to Dealer B at $98.50. On any transparent venue, that order is a **signal** — competitors front-run, the price moves against them before fill.
+
+| What happens | Market impact |
+|---|---|
+| Dealer A & Dealer B lock the block on-ledger | **Zero leakage.** No competing dealer sees the order exist. |
+| Atomic DvP settlement in Canton Coin | **Zero execution risk.** Bonds and payment move in one transaction. |
+| Dispute escalates to clearing house | Clearing sees **amount + description only**. Dealer identities protected. |
+
+**Why this matters today:** The OTC bond market is **$120 trillion** notional. It still runs on phone-brokered relationships precisely because transparent electronic venues leak inventory. CantonVault is the first credible path to electronic OTC execution with privacy.
+
+### Use case 3 · Regulated inter-bank settlement (the regulator view)
+
+Two banks settle a large obligation on-ledger. The regulator — by design — **cannot see live exposure.** They see only what a dispute or scheduled audit reveals: the specific obligation, the amount, the timestamp. This is exactly what post-Basel supervision asks for: **auditability without continuous surveillance.**
+
+---
+
+## 🧠 How the Privacy Actually Works (the technical "why")
+
+This is the part most projects hand-wave. We won't.
+
+### The Canton sub-transaction privacy model
+
+When a Daml contract is exercised, Canton's runtime computes the **minimal set of validators** that need to see each sub-transaction. A validator only receives data if it represents a **signatory or a declared observer** of the resulting contract.
+
+```
+A traditional blockchain:        A Canton network:
+┌─────────────────────────┐      ┌──────────┐ ┌──────────┐ ┌──────────┐
+│  Every node stores      │      │ Proposer │ │ Accepter │ │ Competitor│
+│  every transaction,     │      │  node    │ │  node    │ │   node   │
+│  encrypted or not.      │      │  full    │ │  full    │ │  EMPTY   │
+└─────────────────────────┘      └──────────┘ └──────────┘ └──────────┘
+                                  ↑ the deal   ↑           ↑ never sent
+```
+
+In CantonVault, the `CommitmentContract` has exactly two signatories: **proposer + accepter**. The third party is referenced in the contract *data* but is **never added as a signatory or observer** — until a dispute explicitly adds them. So the third party's validator node **physically never receives the bytes**.
+
+> The Privacy Lab in our live demo lets you **see this for yourself**: three columns showing the same deal from the proposer node, the mediator node, and the post-dispute view. Column 2 reads **"0 agreements found"** — not "hidden," not "encrypted," but **genuinely empty**.
+
+### Selective disclosure via Daml interfaces
+
+The `Disclosable` Daml interface lets a contract reveal a **curated subset of its fields** to a new signatory. When a dispute is raised, CantonVault doesn't expose the `CommitmentContract` — it creates a fresh `DisclosedRecord` whose signatories are discloser + auditor, and whose payload contains **only** `{ amount, description, disputeReason }`. Counterparty identities, currency, settlement state — none of it is carried over.
+
+This is **field-level, contract-enforced** disclosure. No off-chain policy server. No "please redact this PDF." The contract itself is the disclosure policy.
+
+---
+
+## 🛠️ Technology Stack — What We Implemented and Why It Matters
+
+### 1. Daml 3.x smart contracts — **the privacy boundary lives here**
+
+Our contract templates are the source of truth for *who can see what*. Canton's privacy guarantees flow directly from how we declare signatories and observers on each template.
+
+| Template | Role in the privacy model |
+|---|---|
+| [`CommitmentProposal`](./cn-quickstart/quickstart/daml/licensing/daml/Vault/CommitmentProposal.daml) | Proposer is signatory, accepter is observer. **Two-party scope from the very first action.** |
+| [`CommitmentContract`](./cn-quickstart/quickstart/daml/licensing/daml/Vault/CommitmentContract.daml) | Proposer + accepter are signatories. The third party is in the payload but **never** a signatory/observer → invisible. |
+| [`DisputeCase`](./cn-quickstart/quickstart/daml/licensing/daml/Vault/CommitmentContract.daml) | Created only on dispute — **this is where the third party finally becomes an observer.** The privacy scoping is dynamic, by design. |
+| [`DisclosedRecord`](./cn-quickstart/quickstart/daml/licensing/daml/Vault/Disclosable.daml) | A *separate* contract carrying only the disclosed fields. Counterparty identities are not in the payload. |
+| [`SettlementReceipt`](./cn-quickstart/quickstart/daml/licensing/daml/Vault/SettlementReceipt.daml) | Immutable audit trail proving the obligation was archived after settlement. |
+
+**27/27 Daml tests pass**, including `test_real_settlement_dvp` which proves the DvP pattern moves real Amulet on a local Canton participant.
+
+### 2. Splice Amulet token standard — **atomic Delivery-vs-Payment**
+
+CantonVault implements DvP using the same Splice `AllocationRequest` interface that powers native Canton Network Amulet transfers. The obligation to pay and the payment itself are **two legs of one atomic transaction** — either both settle, or neither does.
+
+```
+Fulfill
+  ├─ Validates the Amulet allocation against the commitment terms
+  ├─ Exercises Allocation_ExecuteTransfer  ← Canton Coin moves
+  ├─ Archives the CommitmentContract       ← obligation extinguished
+  └─ Creates SettlementReceipt             ← immutable proof
+```
+
+> **Demo honesty note:** The live demo runs the **symbolic** settlement branch (`allocationCid = None`) because real DvP is **not exercisable against the shared DevNet sandbox** — the sandbox's m2m operator is not the network's DSO (Decentralized Synchronizer Operator), and Splice's `AllocationFactory_Allocate` rejects any settlement whose `instrumentAdmin != DSO`. The DvP code path itself is implemented and proven at the contract level by [`TestRealSettlement.daml`](./cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestRealSettlement.daml), which moves real Amulet end-to-end on a local Canton participant. Running it on the shared sandbox would require the sandbox operator to divulge `AmuletRules` to the m2m account — a governance step, not an engineering one.
+
+### 3. Cloudflare Pages Functions edge backend — **serverless, no gateway**
+
+The demo's backend is **edge functions**, not a Spring Boot gateway or a Postgres database. They bridge two Canton APIs directly:
+
+- **Canton JSON Ledger API v2** — for commands (create/exercise) and the Active Contract Set.
+- **Splice Validator REST API** — for the live Canton Coin balance.
+
+OAuth2 m2m tokens are cached across warm invocations. The contract index lives in **Cloudflare KV** (`VAULT_KV`) — keyed by `contractId`, append-only on every create/exercise, filtered by lifecycle status on read. This exists because the shared sandbox validator doesn't divulge our contracts via the ACS (privacy of the multi-tenant environment), so we maintain our own pointer index.
+
+### 4. React 18 + Vite + TypeScript + SWR — **zero-polling frontend**
+
+SWR revalidates **on focus only** — no background polling. This is load-bearing: an earlier version that polled every 5s exhausted the Cloudflare Free 100k/day quota in hours. The UI is a 3-step wizard (**Create → Act → Verify**) culminating in the **Privacy Lab** split-screen that makes the privacy guarantee *visceral*.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                CantonVault Live Demo Architecture         │
 ├──────────────────────────────────────────────────────────┤
-│                                                           │
-│   ┌───────────────────────────────────────────┐          │
-│   │  React 18 + Vite + TypeScript (SPA)        │          │
-│   │  SWR (focus revalidation, zero polling)    │          │
-│   │  VaultView · Privacy Lab · 3-step wizard   │          │
-│   └───────────────────┬───────────────────────┘          │
+│   React 18 + Vite + TypeScript (SPA)                     │
+│   SWR (focus revalidation, zero polling)                 │
+│   VaultView · Privacy Lab · 3-step wizard                │
 │                       │ /api/*                            │
-│   ┌───────────────────▼───────────────────────┐          │
-│   │  Cloudflare Pages Functions (edge)         │          │
-│   │  functions/api/vault/* → Canton JSON       │          │
-│   │  Ledger API v2 + Splice Validator REST     │          │
-│   │  KV index of contractIds (VAULT_KV)        │          │
-│   └───────────────────┬───────────────────────┘          │
+│   Cloudflare Pages Functions (edge)                      │
+│   functions/api/vault/* → Canton JSON Ledger API v2      │
+│   KV index of contractIds (VAULT_KV)                     │
 │                       │ HTTPS + OAuth2 m2m                │
-│   ┌───────────────────▼───────────────────────┐          │
-│   │  Canton Network DevNet (Fivenorth Sandbox) │          │
-│   │  ┌─────────┐ ┌─────────┐ ┌─────────────┐  │          │
-│   │  │Party A  │ │Party B  │ │Arbitrator   │  │          │
-│   │  │(signer) │ │(signer) │ │(blind until │  │          │
-│   │  │         │ │         │ │ dispute)    │  │          │
-│   │  └─────────┘ └─────────┘ └─────────────┘  │          │
-│   └───────────────────────────────────────────┘          │
+│   Canton Network DevNet (Fivenorth Sandbox)              │
+│   Party A (signer) · Party B (signer) · Arbitrator       │
 └──────────────────────────────────────────────────────────┘
 ```
 
-*   **Smart Contracts**: **Daml 3.x** compiled to DAR. Native Canton multi-party workflows.
-*   **Settlement Integration**: **Splice Amulet Token Standard**. Atomic payments in Canton Coin (Amulet).
-*   **Edge Backend**: **Cloudflare Pages Functions** bridging the Canton JSON Ledger API v2 (commands + ACS) and the Splice Validator REST API (balance). OAuth2 m2m tokens cached across warm invocations.
-*   **Contract Index**: **Cloudflare KV** (`VAULT_KV`) — the shared sandbox validator does not divulge our contracts via the Active Contract Set (privacy of the multi-tenant environment), so we maintain a local append-only index keyed by contractId. Every create/exercise writes `{cid, kind, payload, status}`; the GET endpoints read from here filtered by lifecycle status.
-*   **Frontend**: **React 18 + Vite + TypeScript + SWR** featuring a 3-step wizard (Propose → Act → Privacy Lab) and split-screen selective-disclosure sandbox.
-*   **Data fetching**: SWR with `revalidateOnFocus` only — zero background polling. This is load-bearing: an earlier polling version exhausted the Cloudflare Free 100k/day quota in hours.
-
 ---
 
-## 🔄 Reusable DvP Pattern (Ecosystem Value)
+## 🌐 Live Architecture
 
-CantonVault implements the **Delivery-vs-Payment (DvP)** pattern using the Splice `AllocationRequest` interface — the same pattern that powers the native Canton Network Amulet transfer mechanics.
-
-> [!TIP]
-> Developers looking to settle transactions on the Canton Network using Canton Coin can copy our script templates and contract layouts to build instant payment integrations.
-
-### Key Architecture Decisions for DvP
-
-1.  **DSO Administration**: The Amulet allocation factory requires `instrumentAdmin = DSO` (Decentralized Autonomous Organization party), not the contract proposer. Otherwise, validator networks reject the settlement transfer.
-2.  **Accepter Executor**: The `Allocation_ExecuteTransfer` command must be exercised by the settlement executor. Since our `Fulfill` choice is triggered by the `accepter`, we map the executor role to the accepter.
-3.  **Timestamp Pinning**: The allocation factory validates that `requestedAt <= now`. Avoid setting this to a future `deadline` timestamp, as it locks settlement. Set it to the contract creation time.
-4.  **Field-Level Assertions**: The allocation factory adjusts internal metadata and timestamps. Validate individual fields (amount, sender, receiver) rather than using strict record equality (`===`).
-
-*Reference implementation available under:* [`TestRealSettlement.daml`](file:///Users/munay/dev/Build%20on%20Canton%20Hackathon/cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestRealSettlement.daml)
-
-> **Demo note.** The live demo at canton-vault.pages.dev exercises the symbolic
-> settlement branch (see the "Settlement model" note above). The DvP pattern is
-> implemented and unit-tested at the contract level; deploying it end-to-end on
-> Canton Coin requires a DSO-authorized operator, which the shared DevNet
-> sandbox m2m account is not.
-
----
-
-## 🗺️ Repository Structure Map
-
-To help judges and builders navigate the project workspace:
-
-```text
-cantonvault/
-├── README.md                          # Hackathon Presentation and Pitch (this file)
-├── DEMO.md                            # Step-by-step jury demo guide
-├── LICENSE                            # MIT License
-├── SECURITY.md                        # Production Audit and Vulnerability Disclosures
-├── cli/                               # CantonVault TypeScript CLI for DevNet interaction
-│   └── src/index.ts                   # CLI entrypoint (status, propose, accept, fulfill, …)
-├── docs/                              # Project documentation
-│   ├── decisiones/                    # Architecture and strategy decisions
-│   ├── inteligencia-competitiva.md    # Competitive intelligence
-│   ├── investigacion-tecnica.md       # Technical research findings
-│   └── DEPLOYMENT.md                  # Deployment guide
-└── cn-quickstart/
-    └── quickstart/                    # Main application code (cloned from upstream)
-        ├── daml/
-        │   └── licensing/             # Daml contract models (Commitment, Disclosable, Settlement)
-        ├── daml/licensing-tests/      # 12/12 passing unit tests for privacy and settlement
-        └── frontend/                  # ← LIVE DEMO — deployed to canton-vault.pages.dev
-            ├── functions/api/         # Cloudflare Pages Functions (serverless edge backend)
-            │   ├── _ledger.js         # Canton Ledger API client + KV index helpers
-            │   └── vault/             # /api/vault/* endpoints (create, accept, fulfill, …)
-            ├── src/                   # React 18 / TypeScript Web Console and Privacy Lab
-            └── wrangler.jsonc         # Cloudflare config (KV binding, nodejs_compat)
+```
+┌──────────────────────────────────────────┐
+│  Canton Network DevNet (Fivenorth)       │
+│  ┌─────────┐ ┌─────────┐ ┌────────────┐  │
+│  │ Proposer │ │Accepter │ │ Arbitrator │  │
+│  │ (signer) │ │(signer) │ │ (blind til │  │
+│  │          │ │         │ │  dispute)  │  │
+│  └─────────┘ └─────────┘ └────────────┘  │
+└─────────────┬────────────────────────────┘
+              │ HTTPS + OAuth2 m2m
+┌─────────────▼────────────────────────────┐
+│  Cloudflare Pages Functions (edge)       │
+│  functions/api/vault/* → Canton JSON API │
+│  VAULT_KV: append-only contract index    │
+└─────────────┬────────────────────────────┘
+              │ /api/*
+┌─────────────▼────────────────────────────┐
+│  React 18 + Vite + TS + SWR (zero poll)  │
+│  VaultView · Privacy Lab · Tx Verifier   │
+└──────────────────────────────────────────┘
 ```
 
 ---
 
-## ✅ Canton Network DevNet Deployment Proof
+## ✅ Canton Network DevNet — Live Deployment Proof
 
-CantonVault smart contracts are compiled, vetted, and **actively deployed on-ledger** on the official Canton Network DevNet. The live demo is continuously deployed via Git → Cloudflare auto-build.
+CantonVault is **deployed and running on the official Canton Network DevNet.** Every `git push` to `main` triggers an automatic build + deploy via Cloudflare Pages Git integration.
 
-> **🌐 Live demo: https://canton-vault.pages.dev** — every `git push` to `main` triggers an automatic build + deploy.
+### Connection profile (verified live)
+- **Ledger API**: `https://ledger-api.validator.devnet.sandbox.fivenorth.io/`
+- **Validator REST API**: `https://api.validator.devnet.sandbox.fivenorth.io/`
+- **Auth**: OAuth2 Client Credentials (`validator-devnet-m2m`)
+- **Canton version**: 3.5.9
+- **Active party**: `cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8`
+- **Live Canton Coin balance**: **32.3M+ CC** (read from the Splice Validator wallet; grows from Amulet holding rewards)
 
-### DevNet Connection Profile (verified live)
-*   **Ledger API Endpoint**: `https://ledger-api.validator.devnet.sandbox.fivenorth.io/`
-*   **Validator REST API**: `https://api.validator.devnet.sandbox.fivenorth.io/` (balance source)
-*   **Auth Mechanism**: OAuth2 Client Credentials (`validator-devnet-m2m`)
-*   **Canton Version**: 3.5.8
-*   **Active Party ID**: `cancore::1220a14ca128063b8dc9d1ebb0bd22633be9f2168500f4dbc1ecaeb1855b14e5acf8`
-*   **Live Canton Coin balance**: **31,433,860+ CC** (read from the Splice Validator wallet endpoint, grows over time from Amulet holding rewards)
-
-### Verify it yourself (no auth needed)
+### Verify it yourself (no auth required)
 ```bash
-# Backend health — confirms Canton 3.5.8 + current ledger offset
+# Backend health — Canton version + current ledger offset
 curl -s https://canton-vault.pages.dev/api/health
-# → {"status":"ok","cantonVersion":"3.5.8","ledgerOffset":4327615}
+# → {"status":"ok","cantonVersion":"3.5.9","ledgerOffset":4564178}
 
-# Real on-ledger Canton Coin balance (from Splice Validator REST API)
+# Real on-ledger Canton Coin balance (Splice Validator REST API)
 curl -s https://canton-vault.pages.dev/api/vault/balance
-# → {"balance":31433860.95,"locked":0,"round":52809,"party":"cancore::..."}
+# → {"balance":32314463.41,"locked":0,"round":54467,"party":"cancore::..."}
 
-# Active proposals (from the KV contract index)
+# Active proposals from the KV contract index
 curl -s https://canton-vault.pages.dev/api/vault/proposals
 ```
 
-### On-Ledger Tx Proofs (July 2026)
+### On-ledger transaction proofs
 
-The following exercises landed on the Canton Network DevNet — each `updateId` is a
-verifiable transaction hash, and each exercise archives a `CommitmentContract` and
-produces a `SettlementReceipt` on-ledger:
+Every exercise lands on the Canton DevNet with a verifiable `updateId`. The UI surfaces a **🔍 Verify on-ledger** button on every toast and every card that opens `/tx/{updateId}` — fetching the real `Created`/`Archived` events from the Canton Ledger API and showing technical reviewers exactly what happened on-ledger.
 
-| # | Scenario | Amount | updateId (Transaction Hash) | Ledger Offset |
+| # | Scenario | Amount | `updateId` (transaction hash) | Ledger offset |
 |---|---|---|---|---|
 | 1 | supply-chain-finance | 5,000 CC | `1220c521048ebd4392a67d331a0cb6cebbc1beb03aed7da2b34ba1e40b4cedfec9f9` | 4297574 |
 | 2 | supply-chain-finance | 7,500 CC | `12207d01a2205c3b578ff9fecf0fdefbb14cd9ba8f75f61eb6f5c652e0209e483113` | 4297626 |
@@ -236,92 +281,144 @@ produces a `SettlementReceipt` on-ledger:
 | 4 | invoice-financing | 3,000 CC | `12202b830f37bcab5a0a234565bc6acd328e8eea979d6b71967068d2430cffb89678` | 4298442 |
 | 5 | otc-block-trade | 25,000 CC | `12204b7cf00a72988934e883439f48da8df2d0497435f2d9e6df87b7826aebb7d27c` | 4298435 |
 
-> **Settlement model — read me.** In this demo the exercises above run on the
-> **symbolic** settlement branch of `Fulfill` (`allocationCid = None`), so the
-> receipts record `settlementExecuted = false`. Real Canton Coin settlement is
-> **not exercisable** against the shared DevNet sandbox: the `validator-devnet-m2m`
-> operator is not the DSO of the network, and Splice's `AllocationFactory_Allocate`
-> rejects any settlement whose `instrumentAdmin != DSO`. The DvP path itself is
-> fully implemented at the **contract level** and is proven by
-> [`TestRealSettlement.daml`](./cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestRealSettlement.daml),
-> which moves real Amulet on a local Canton participant (`test_real_settlement_dvp`,
-> passing). Running it against the shared sandbox would require the DSO party and
-> `AmuletRules` to be divulged to the m2m operator. Full analysis in
-> [`SECURITY.md`](./SECURITY.md) (Fase 3).
-
+> **Settlement model — read me.** In this demo the exercises above run on the **symbolic** settlement branch of `Fulfill` (`allocationCid = None`), so the receipts record `settlementExecuted = false`. Real Canton Coin DvP is not exercisable against the shared DevNet sandbox for the governance reason explained above. The DvP path itself is implemented and proven at the contract level. Full analysis in the **Security & Institutional Hardening** section.
 
 ---
 
-## ⚡ Quick Start
+## 🚀 Quick Start
 
-### Try the live demo (fastest)
-Just open **https://canton-vault.pages.dev** — no setup required. See [`DEMO.md`](./DEMO.md) for the guided 90-second walkthrough.
+### Try the live demo (fastest — 90 seconds)
 
-### Run locally (for development)
+Open **https://canton-vault.pages.dev**. The UI is a 3-step wizard:
+
+1. **Create** — A 4-screen wizard (description → amount → parties → expiry). Send the offer → a `CommitmentProposal` lands on-ledger with a real contractId.
+2. **Act** — Accept the proposal (it becomes a live commitment), then **Confirm delivery** to fulfill. The commitment is archived (no double-fulfill) and a `SettlementReceipt` is created on-ledger.
+3. **Verify** — The **Privacy Lab** shows three columns: what you see, what the mediator sees (`0 agreements found` — the data never reached their node), and what the mediator learns after a dispute (only `amount` + `description`).
+4. **Dispute flow (optional)** — On an active commitment, **Report a problem** → a `DisputeCase` makes the mediator an observer; only `amount` and `description` are revealed via a `DisclosedRecord`. **Resolve** to record the binding outcome.
+
+### Run locally
+
 ```bash
 git clone https://github.com/ruwaq/CantonVault.git
 cd CantonVault/cn-quickstart/quickstart/frontend
 npm install
-npm run dev          # Vite dev server on :5173 (proxies /api to local or DevNet)
+npm run dev          # Vite dev server on :5173 (talks to the same Canton DevNet)
 ```
 
-The dev server talks to the same Canton Network DevNet as the live demo, so you can create real on-ledger commitments from your machine.
+### Run the Daml tests
 
-### Deploy your own copy
-The frontend deploys to Cloudflare Pages with Git auto-build (every push to `main`):
 ```bash
-cd cn-quickstart/quickstart/frontend
-npm run build:ci && npx wrangler pages deploy dist --project-name canton-vault --branch main
-```
-Requires `VAULT_KV` KV namespace bound (see `wrangler.jsonc`) and `nodejs_compat` flag.
-
-### Running Daml tests
-To verify privacy boundary enforcement and DvP script execution:
-```bash
-# Run Daml unit and scenario tests (12/12 passing)
+# 27/27 passing — privacy boundary enforcement + DvP script execution
 ~/.daml/bin/daml test --package-root daml/licensing-tests
+```
+
+### Interact via the DevNet CLI
+
+```bash
+cd cli && npm install && npm run build
+
+node dist/index.js status                    # DevNet connectivity + sync offset
+node dist/index.js packages                  # List vetted packages on the participant
+node dist/index.js propose --amount 5000     # Create a real on-ledger proposal
 ```
 
 ---
 
-## 💻 Interacting with the DevNet CLI
+## 🌐 REST API
 
-If you want to verify our live contracts on the FiveNorth DevNet, run our pre-configured TypeScript CLI:
+All endpoints under `https://canton-vault.pages.dev/api/vault/*`, served by Cloudflare Pages Functions talking directly to the Canton DevNet Ledger API v2. Every mutation returns the real on-ledger `updateId`.
 
-```bash
-cd cli
-npm install
-npm run build
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/health` | Backend health + Canton version + ledger offset |
+| `GET` | `/api/vault/balance` | Live Canton Coin balance (Splice Validator REST) |
+| `GET` | `/api/vault/proposals` | List visible `CommitmentProposal`s (KV index) |
+| `POST` | `/api/vault/proposals` | Create a proposal |
+| `POST` | `/api/vault/proposals/{id}/accept` | Accept → creates a commitment |
+| `POST` | `/api/vault/proposals/{id}/reject` | Reject a proposal |
+| `GET` | `/api/vault/commitments` | List visible active commitments |
+| `POST` | `/api/vault/commitments/{id}/fulfill` | Fulfill → archives + `SettlementReceipt` |
+| `POST` | `/api/vault/commitments/{id}/raise-dispute` | Raise dispute → mediator becomes observer |
+| `POST` | `/api/vault/commitments/{id}/refund` | Refund (after deadline) |
+| `GET` | `/api/vault/receipts` | List settlement receipts |
+| `GET` | `/api/vault/disclosures` | List `DisclosedRecord`s (selective disclosure evidence) |
+| `GET` | `/api/vault/tx/{updateId}` | **On-ledger tx verifier** — real events from Canton Ledger API, cached 1h |
 
-# Check DevNet connectivity and sync offset
-node dist/index.js status
+---
 
-# List vetted packages on DevNet
-node dist/index.js packages
+## 🔄 Reusable DvP Pattern (Ecosystem Value)
 
-# Propose a new commitment directly on the DevNet ledger
-node dist/index.js propose --amount 5000
-```
+CantonVault implements **Delivery-vs-Payment** using the Splice `AllocationRequest` interface — the same pattern that powers native Canton Network Amulet transfers.
+
+> [!TIP]
+> Developers building payment-enabled dapps on Canton can copy our script templates and contract layouts to ship instant DvP integrations. Four non-obvious lessons are encoded in [`TestRealSettlement.daml`](./cn-quickstart/quickstart/daml/licensing-tests/daml/Vault/Scripts/TestRealSettlement.daml):
+
+1. **DSO Administration** — the Amulet allocation factory requires `instrumentAdmin = DSO`, not the contract proposer. Otherwise the validator network rejects the settlement transfer.
+2. **Accepter Executor** — `Allocation_ExecuteTransfer` must be exercised by the settlement executor. We map the executor role to the accepter, since our `Fulfill` choice is triggered by them.
+3. **Timestamp Pinning** — the factory validates `requestedAt <= now`. Setting this to a future `deadline` locks settlement; always pin to contract creation time.
+4. **Field-Level Assertions** — the factory adjusts internal metadata/timestamps. Validate individual fields (amount, sender, receiver) rather than strict record equality (`===`).
 
 ---
 
 ## 🔒 Security & Institutional Hardening
 
-A full professional security audit was conducted on July 3, 2026. 
+CantonVault has been through **three independent full-stack security audits** (2026-07-03, 2026-07-18, 2026-07-25) covering all six layers: Daml contracts, Java backend, React/TypeScript frontend, serverless edge functions, and infrastructure. Findings consolidated and remediated.
 
-*   **Vulnerability Remediation**: All 6 critical security findings (including authorization scopes, validator key disclosures, and template privilege escalation) have been resolved.
-*   **Learn More**: Review the audit log, mitigation steps, and deployment threat modeling in [`SECURITY.md`](./SECURITY.md).
+### Critical findings remediated (selection)
+
+| # | Issue | Fix |
+|---|---|---|
+| C1 | OAuth2 `CLIENT_SECRET` hardcoded in 5 tracked files (11 commits in history) | Fail-closed in all 5 files; reads from Cloudflare env bindings. **Action: rotate at `auth.sandbox.fivenorth.io`** — that neutralizes the leaked history. |
+| C2 | The entire demo API was anonymous — `authenticated-user.js` always returned `isAdmin:true` | Bypass removed; frontend redirects to login on 401. (Demo auth later reverted by team decision: single-URL judge audience; rate-limit + symbolic settlement limit the blast radius.) |
+| C3 | `seed-demo.js` fail-open — anonymous POST wiped the entire KV index | Fail-closed: returns 503 if `SEED_SECRET` is unset. |
+| C4 | `Refund` with `allocationCid=Some` drained the proposer (sent CC proposer→accepter with no forward transfer to reverse). Dead code, no test coverage. | The `Some` path of `Refund` removed from Daml; now archival-only. 27/27 tests still pass. |
+| C5 | DvP "real" claim was symbolic — no flow moved Canton Coin | Confirmed real DvP is **not exercisable** against the DevNet sandbox (m2m operator is not the DSO). `test_real_settlement_dvp` proves the contract supports real DvP on a local participant. Demo now documents symbolic settlement honestly. |
+| C6 | Frontend auth bypass — any network failure logged in as admin | `DEMO_USER` fallback removed; `fetcher.ts` redirects to `/login` on 401. |
+
+### Hardening applied across the stack
+
+- **Input validation** on every edge handler: amount (finite, >0, ≤1e12), deadline (strict ISO-8601 + future), contractId, text bounds.
+- **`crypto.randomUUID()`** for all commandIds (replaced collision-prone `Date.now()+Math.random()`).
+- **OAuth2 token dedup** of concurrent refreshes; guards against missing `expires_in` (NaN → IdP DoS loop).
+- **`safeErrorResponse()`** — ledger upstream body never reaches the client `.message`.
+- **Deadline race eliminated**: Fulfill `now < deadline`, Refund `now > deadline` (safe dead zone at `==`).
+- **`allocationRequest_RejectImpl`** authorizes the accepter (sender of the leg) per Splice spec.
+- **`ResolveDispute`** creates `DisclosedRecord` for **both** winner and loser.
+- **Rate limit** 60/min per identity + CORS allowlist at the edge.
+
+### Known limitations (by design or external block)
+
+| Limitation | Status | Rationale |
+|---|---|---|
+| `CLIENT_SECRET` in git history (11 commits) | Pending rotation | Rotating at the IdP neutralizes it. History rewrite deferred — risky pre-finale. |
+| Real DvP on DevNet | Not exercisable | Sandbox m2m is not the DSO; would require the operator to divulge `AmuletRules` to the m2m. |
+| Demo is open (no auth) | Accepted for demo | Single-operator hackathon audience. Production → OAuth2 with external IdP. |
 
 ---
 
-## 🗺️ Roadmap & Production Path
+## 📁 Repository Structure
 
-- [x] **Phase 1**: End-to-end local workflow with Splice Canton Coin payment execution.
-- [x] **Phase 2**: Production audit and architectural hardening (zero `any` client, secure JWT assertions).
-- [x] **Phase 3**: FiveNorth DevNet deployment and on-ledger transaction proof.
-- [ ] **Phase 4**: Contract key uniqueness guarantees (currently blocked on standard sandbox configurations).
-- [ ] **Phase 5**: Multi-party selective disclosure web interface expansion.
-- [ ] **Phase 6**: Apply for Canton Foundation Protocol Development Fund grant.
+```text
+cantonvault/
+├── README.md                          # This file — the only public doc
+├── LICENSE                            # MIT License
+├── cantonvault_banner.jpg             # Project banner
+├── cli/                               # CantonVault TypeScript CLI for DevNet
+│   └── src/index.ts                   # status, propose, accept, fulfill, …
+└── cn-quickstart/
+    └── quickstart/                    # Main application code (cloned from upstream)
+        ├── daml/licensing/            # Daml contracts (Commitment, Disclosable, Settlement)
+        ├── daml/licensing-tests/      # 27/27 passing tests (privacy + DvP)
+        └── frontend/                  # ← LIVE DEMO — deployed to canton-vault.pages.dev
+            ├── functions/api/         # Cloudflare Pages Functions (edge backend)
+            │   ├── _ledger.js         # Canton Ledger API client + KV index
+            │   ├── _middleware.js     # CORS + rate limit
+            │   └── vault/             # /api/vault/* endpoints + tx verifier
+            ├── src/                   # React 18 / TypeScript — VaultView, Privacy Lab
+            └── wrangler.jsonc         # Cloudflare config (KV binding, nodejs_compat)
+```
+
+> **Note on docs.** The repository intentionally ships a single public `README.md`. Internal documents (jury demo guide, security audit log, session handoff, submission checklist) are kept locally only. The relevant public information they contained — settlement model, deployment proof, security hardening summary, demo walkthrough — is consolidated here.
 
 ---
 
@@ -336,4 +433,4 @@ A full professional security audit was conducted on July 3, 2026.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](./LICENSE) file for details.
