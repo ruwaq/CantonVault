@@ -7,7 +7,7 @@
 [![Build on Canton](https://img.shields.io/badge/Build%20on%20Canton-2026-blue?style=flat-square)](https://www.encodeclub.com/programmes/canton-hackathon)
 [![Canton](https://img.shields.io/badge/Canton-3.5.9-brightgreen?style=flat-square)]()
 [![Daml](https://img.shields.io/badge/Daml-3.x-orange?style=flat-square)](https://docs.digitalasset.com/daml)
-[![Tests](https://img.shields.io/badge/tests-27%2F27%20passing-brightgreen?style=flat-square)]()
+[![Tests](https://img.shields.io/badge/tests-22%2F22%20passing-brightgreen?style=flat-square)]()
 [![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)](./LICENSE)
 
 [🌐 Live Demo](https://canton-vault.pages.dev) · [📺 Demo Video](https://youtu.be/VjrZj5h4ItM) · [🎤 Presentation](https://canva.link/n55x2plxh0p5fnu) · [💻 Repository](https://github.com/ruwaq/CantonVault)
@@ -34,7 +34,8 @@ The protocol is deployed and verifiable on the official **Canton Network DevNet*
 | **What it is** | A Daml smart-contract protocol + edge-served reference UI for privacy-preserving trade finance. |
 | **What problem it solves** | Lets institutions transact on a shared, atomic, trustless ledger **without leaking** positions, counterparties, or portfolio context to competitors. |
 | **Why Canton** | Canton's sub-transaction privacy model guarantees a validator that does not represent a deal's stakeholders **physically never receives the transaction data**. Not encrypted-at-rest. Not access-controlled. Never transmitted. |
-| **Status** | Live on DevNet · 27/27 Daml tests passing · 3 full-stack security audits completed. |
+| **Status** | Live on DevNet · 22/22 Daml tests passing · 3 full-stack security audits completed. |
+| **Submitted to** | **Build on Canton Hackathon — Track 1: Private DeFi & Capital Markets** (also fits Track 2: TradeFi, RWA & Tokenized Assets). |
 
 ---
 
@@ -215,7 +216,7 @@ flowchart TB
 <details>
 <summary><b>🧱 Smart contracts — Daml 3.x</b></summary>
 
-The privacy boundary lives here. Each template declares its signatories and observers; Canton's runtime enforces that no other validator receives the data. Five templates (`CommitmentProposal`, `CommitmentContract`, `DisputeCase`, `DisclosedRecord`, `SettlementReceipt`) compose into the full lifecycle. 27/27 Daml tests pass, including `test_real_settlement_dvp` which proves the DvP pattern moves real Amulet on a local Canton participant.
+The privacy boundary lives here. Each template declares its signatories and observers; Canton's runtime enforces that no other validator receives the data. Five templates (`CommitmentProposal`, `CommitmentContract`, `DisputeCase`, `DisclosedRecord`, `SettlementReceipt`) compose into the full lifecycle. 22/22 Daml tests pass, including `test_real_settlement_dvp` which proves the DvP pattern moves real Amulet on a local Canton participant.
 
 </details>
 
@@ -327,7 +328,7 @@ npm run dev          # Vite dev server on :5173 (talks to the same Canton DevNet
 ### Run the Daml tests
 
 ```bash
-# 27/27 passing — privacy boundary enforcement + DvP script execution
+# 22/22 passing — privacy boundary enforcement + DvP script execution
 ~/.daml/bin/daml test --package-root daml/licensing-tests
 ```
 
@@ -391,7 +392,7 @@ CantonVault has been through **three independent full-stack security audits** (2
 | C1 | OAuth2 `CLIENT_SECRET` hardcoded in 5 tracked files (11 commits in history) | Fail-closed in all 5 files; reads from Cloudflare env bindings. **Action: rotate at `auth.sandbox.fivenorth.io`** — that neutralizes the leaked history. |
 | C2 | The entire demo API was anonymous — `authenticated-user.js` always returned `isAdmin:true` | Bypass removed; frontend redirects to login on 401. (Demo auth later reverted by team decision: single-URL judge audience; rate-limit + symbolic settlement limit the blast radius.) |
 | C3 | `seed-demo.js` fail-open — anonymous POST wiped the entire KV index | Fail-closed: returns 503 if `SEED_SECRET` is unset. |
-| C4 | `Refund` with `allocationCid=Some` drained the proposer (sent CC proposer→accepter with no forward transfer to reverse). Dead code, no test coverage. | The `Some` path of `Refund` removed from Daml; now archival-only. 27/27 tests still pass. |
+| C4 | `Refund` with `allocationCid=Some` drained the proposer (sent CC proposer→accepter with no forward transfer to reverse). Dead code, no test coverage. | The `Some` path of `Refund` removed from Daml; now archival-only. 22/22 tests still pass. |
 | C5 | DvP "real" claim was symbolic — no flow moved Canton Coin | Confirmed real DvP is not exercisable against the DevNet sandbox. `test_real_settlement_dvp` proves the contract supports real DvP on a local participant. Demo now documents symbolic settlement honestly. |
 | C6 | Frontend auth bypass — any network failure logged in as admin | `DEMO_USER` fallback removed; `fetcher.ts` redirects to `/login` on 401. |
 
@@ -437,7 +438,7 @@ cantonvault/
 └── cn-quickstart/
     └── quickstart/                    # Main application code (cloned from upstream)
         ├── daml/licensing/            # Daml contracts (Commitment, Disclosable, Settlement)
-        ├── daml/licensing-tests/      # 27/27 passing tests (privacy + DvP)
+        ├── daml/licensing-tests/      # 22/22 passing tests (privacy + DvP)
         └── frontend/                  # ← LIVE DEMO — deployed to canton-vault.pages.dev
             ├── functions/api/         # Cloudflare Pages Functions (edge backend)
             │   ├── _ledger.js         # Canton Ledger API client + KV index
