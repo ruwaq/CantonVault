@@ -180,7 +180,11 @@ export function validateAmount(raw) {
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return { ok: false, error: 'Amount must be a positive finite number' };
   if (n > 1e12) return { ok: false, error: 'Amount unrealistically large' };
-  return { ok: true, value: n };
+  // Canton Daml `Decimal` fields MUST be sent as JSON strings, not numbers —
+  // otherwise large values get serialised in scientific notation (e.g. 1e7 →
+  // "1.0E7") and the ledger rejects them with INVALID_ARGUMENT "Could not read
+  // Numeric string". Return a plain decimal string with no exponent.
+  return { ok: true, value: n.toString() };
 }
 
 export function validateDeadline(raw) {

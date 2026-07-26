@@ -30,6 +30,7 @@ export const onRequest = async (context) => {
         payload: commitmentPayload,
         sourceCid: contractId,
         offset: result.completionOffset,
+        updateId: result.updateId,
       });
     }
 

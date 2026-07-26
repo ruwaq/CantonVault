@@ -1,5 +1,6 @@
 import {
   PARTY,
+  MEDIATOR_PARTY,
   PKG,
   configure,
   submitCreate,
@@ -55,17 +56,24 @@ export const onRequest = async (context) => {
       if (!currencyR.ok) return safeErrorResponse(400, currencyR.error);
 
       const payload = {
-        // Note: accepter/thirdParty are taken as-is here because the demo runs
-        // with the single m2m operator party; real multi-party would require
-        // validated distinct party ids. realSettlementRequired stays false
-        // because the sandbox m2m is NOT the DSO of the DevNet (see SECURITY.md
-        // Fase 3): AllocationFactory_Allocate rejects any settlement whose
-        // instrumentAdmin != DSO, so real Canton Coin settlement is not
-        // exercisable against the shared sandbox. The contract-level DvP path
-        // is proven by test_real_settlement_dvp (Daml.Script, local participant).
+        // Proposer and accepter are the same operator party (single m2m user
+        // holds both roles in this demo). The thirdParty (mediator) MUST be a
+        // DISTINCT party: the DisclosedRecord created by RaiseDispute has the
+        // Daml precondition `ensure discloser /= observer` (Disclosable.daml),
+        // and discloser=actor=PARTY while observer=thirdParty. If thirdParty
+        // equals PARTY the precondition fails with DAML_FAILURE → 502. Using
+        // MEDIATOR_PARTY (Observer:: prefix) keeps the operator authorized for
+        // both roles while satisfying the contract invariant, and is what the
+        // Privacy Lab visualizes (mediator has a separate view).
+        // realSettlementRequired stays false: the sandbox m2m is NOT the DSO of
+        // the DevNet (see SECURITY.md Fase 3): AllocationFactory_Allocate
+        // rejects any settlement whose instrumentAdmin != DSO, so real Canton
+        // Coin settlement is not exercisable against the shared sandbox. The
+        // contract-level DvP path is proven by test_real_settlement_dvp
+        // (Daml.Script, local participant).
         proposer: PARTY.value,
         accepter: PARTY.value,
-        thirdParty: PARTY.value,
+        thirdParty: MEDIATOR_PARTY.value,
         amount: amountR.value,
         currency: currencyR.value,
         description: descR.value,

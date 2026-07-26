@@ -1,4 +1,4 @@
-import { PARTY, submitExercise, kvGet, kvPut, kvUpdateStatus, configure, safeErrorResponse, validateContractId, validateText } from '../../../_ledger.js';
+import { PARTY, MEDIATOR_PARTY, submitExercise, kvGet, kvPut, kvUpdateStatus, configure, safeErrorResponse, validateContractId, validateText } from '../../../_ledger.js';
 
 // POST /api/vault/commitments/:id/raise-dispute
 // Exercises RaiseDispute on a CommitmentContract. Either signatory escalates
@@ -23,10 +23,17 @@ export const onRequest = async (context) => {
     // the one ResolveDispute targets. Pass the template filter so submitExercise
     // returns the right child, not the first CreatedEvent (which is the
     // DisclosedRecord — see the WRONGLY_TYPED_CONTRACT bug this fixed).
+    //
+    // AUTHORIZATION (bug fix): RaiseDispute creates a DisclosedRecord whose
+    // `observer = thirdParty` (= MEDIATOR_PARTY in this demo). Canton requires
+    // the divulged party to authorize the transaction (see Disclosable.daml:
+    // "divulging a contract to a party still needs that party's consent").
+    // Without MEDIATOR_PARTY in actAs the ledger rejects the command → 502.
+    // Same pattern as ResolveDispute in resolve.js.
     const result = await submitExercise(TEMPLATE, contractId, 'RaiseDispute', {
       reason,
       actor: PARTY.value,
-    }, 'DisputeCase');
+    }, 'DisputeCase', [MEDIATOR_PARTY.value]);
 
     // RaiseDispute creates a DisputeCase (its contractId is what ResolveDispute
     // must target). Index it with a sourceCid link back to the commitment so
